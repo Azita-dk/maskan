@@ -541,6 +541,16 @@
 </div>
 
 <script>
+// Where the data comes from. The build worker keeps the city files in KV
+// and serves them from here, so the page is always current without anything
+// being uploaded. Set to '' to read from a local data/ folder instead,
+// which is how it runs on your own machine.
+const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
+
+function dataUrl(path, bust) {
+  return `${DATA_BASE}/data/${path}?v=${bust}`;
+}
+
 const SOURCE_FA = {divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید'};
 
 // Divar rows store only a token; the other sources store a full url.
@@ -568,7 +578,7 @@ const cityCache = new Map();     // keep visited cities in memory
 
 // A visible stamp for the page itself. Checking whether a file actually
 // reached the browser has cost more time today than any real bug.
-const PAGE_VERSION = '01 Sep 07:27';
+const PAGE_VERSION = '01 Sep 14:40';
 function stampVersion(){
   const w = window.innerWidth;
   const mob = window.matchMedia('(max-width: 720px)').matches;
@@ -578,19 +588,21 @@ function stampVersion(){
 stampVersion();
 window.addEventListener('resize', stampVersion);
 
-fetch('data/stats.json?v=' + Date.now())
+fetch(dataUrl('stats.json', Date.now()))
   .then(r => r.json())
   .then(d => { DB = d; boot(); })
-  .catch(() => {
+  .catch((e) => {
     document.querySelector('.wrap').insertAdjacentHTML('afterbegin',
-      '<div class="banner">فایل داده پیدا نشد. مطمئن شوید پوشه data کنار صفحه قرار دارد.</div>');
+      '<div class="banner">دریافت داده‌ها ممکن نشد. اتصال اینترنت را بررسی ' +
+      'کنید و صفحه را دوباره باز کنید.</div>');
+    console.error('data load failed:', e);
   });
 
 async function loadCity(id){
   if (cityCache.has(id)) return cityCache.get(id);
   const note = document.getElementById('listNote');
   if (note) note.textContent = 'در حال بارگذاری…';
-  const r = await fetch(`data/${id}.json?v=${DB.generated}`);
+  const r = await fetch(dataUrl(`${id}.json`, DB.generated));
   if (!r.ok) throw new Error('city file missing: ' + id);
   const c = await r.json();
   cityCache.set(id, c);
