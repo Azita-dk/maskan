@@ -279,9 +279,9 @@
   .hrow.on .hnum,.hrow.on .hcount{color:#9FB4A9}
   .hnum{color:var(--muted);font-size:10px;text-align:center;flex:0 0 22px}
   .hname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-         flex:1 1 auto;min-width:0}
+         flex:0 1 155px;min-width:70px}
   .htrack{position:relative;height:13px;background:#EEF0F3;border-radius:2px;
-          overflow:hidden;min-width:40px}
+          overflow:hidden;flex:1 1 auto;min-width:60px}
   .hrow.on .htrack{background:#fff}
   .hfill{position:absolute;inset-block:0;right:0;border-radius:2px}
   .hval{text-align:left;font-weight:700;font-variant-numeric:tabular-nums;
@@ -291,8 +291,8 @@
          font-size:10px;color:var(--muted);background:#F0F2F5;
          border-bottom:1px solid var(--rule);position:sticky;top:0;z-index:2}
   .hhead span:nth-child(1){flex:0 0 22px}
-  .hhead span:nth-child(2){flex:1 1 auto;min-width:0}
-  .hhead span:nth-child(3){flex:1 1 40%}
+  .hhead span:nth-child(2){flex:0 1 155px;min-width:70px}
+  .hhead span:nth-child(3){flex:1 1 auto;min-width:60px}
   .hhead span:nth-child(4){flex:0 0 66px;text-align:left}
   .hhead span:nth-child(5){flex:0 0 40px;text-align:left}
   .hmore{padding:9px 10px;font-size:11px;color:var(--muted);text-align:center;
@@ -578,7 +578,7 @@ const cityCache = new Map();     // keep visited cities in memory
 
 // A visible stamp for the page itself. Checking whether a file actually
 // reached the browser has cost more time today than any real bug.
-const PAGE_VERSION = '01 Sep 14:40';
+const PAGE_VERSION = '01 Sep 20:14';
 function stampVersion(){
   const w = window.innerWidth;
   const mob = window.matchMedia('(max-width: 720px)').matches;
@@ -1206,11 +1206,43 @@ function esc(t){
     ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 }
 
-function faDate(iso){
-  const [y,m,d] = iso.split('-').map(Number);
-  return FA(d) + ' ' + ['ژانویه','فوریه','مارس','آوریل','مه','ژوئن','ژوئیه',
-    'اوت','سپتامبر','اکتبر','نوامبر','دسامبر'][m-1];
+// Gregorian to Jalali. Iranian readers do not think in Gregorian months,
+// and a housing site showing "۲۹ اوت" reads as a translation of someone
+// else's calendar.
+function toJalali(gy, gm, gd) {
+  const g_d_m = [0,31,59,90,120,151,181,212,243,273,304,334];
+  let jy = gy <= 1600 ? 0 : 979;
+  gy -= gy <= 1600 ? 621 : 1600;
+  const gy2 = gm > 2 ? gy + 1 : gy;
+  let days = 365 * gy + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100)
+           + Math.floor((gy2 + 399) / 400) - 80 + gd + g_d_m[gm - 1];
+  jy += 33 * Math.floor(days / 12053);
+  days %= 12053;
+  jy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) { jy += Math.floor((days - 1) / 365); days = (days - 1) % 365; }
+  const jm = days < 186 ? 1 + Math.floor(days / 31)
+                        : 7 + Math.floor((days - 186) / 30);
+  const jd = 1 + (days < 186 ? days % 31 : (days - 186) % 30);
+  return [jy, jm, jd];
 }
+
+const J_MONTHS = ["فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور",
+                  "مهر","آبان","آذر","دی","بهمن","اسفند"];
+
+function faDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const [jy, jm, jd] = toJalali(y, m, d);
+  const year = String(jy).replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[+d]);
+  return `${FA(jd)} ${J_MONTHS[jm - 1]} ${year}`;
+}
+
+function faShortDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const [, jm, jd] = toJalali(y, m, d);
+  return `${FA(jd)} ${J_MONTHS[jm - 1]}`;
+}
+
 
 // colour a pin by where its price sits in the current range
 function priceColour(v, lo, hi){
@@ -1352,11 +1384,7 @@ function setDelta(id, v){
   el.style.color = v >= 0 ? 'var(--alert)' : 'var(--blue)';
 }
 
-function faShortDate(iso){
-  const [, m, d] = iso.split('-').map(Number);
-  return FA(d) + ' ' + ['ژانویه','فوریه','مارس','آوریل','مه','ژوئن','ژوئیه',
-    'اوت','سپتامبر','اکتبر','نوامبر','دسامبر'][m-1].slice(0, 3);
-}
+
 
 function buildSeries(city){
   // Our own measurements only. The published national statistics were too
@@ -1366,17 +1394,40 @@ function buildSeries(city){
     ? ((city.hood_hist || {})[selectedHood] || [])
     : (city.ours || []);
 
-  const pts = hist.filter(p => p.d).map(p => ({
+  const raw = hist.filter(p => p.d).map(p => ({
     t: Date.parse(p.d) / 864e5 - dayZero,
-    label: faShortDate(p.d), v: p.v, n: p.n }));
+    day: p.d, label: faShortDate(p.d), v: p.v, n: p.n }));
 
-  if (!pts.length) {
+  if (!raw.length) {
     const row = (city.rows || []).find(r => r.hood === selectedHood);
     const v = selectedHood ? (row && row.median) : (city.our_year || {}).v;
-    if (v) pts.push({ t: Date.now() / 864e5 - dayZero,
-                      label: DB.month_labels[DB.month_labels.length-1], v });
+    if (v) return [{ t: Date.now() / 864e5 - dayZero,
+                     label: DB.month_labels[DB.month_labels.length-1], v }];
+    return [];
   }
-  return pts.sort((x, y) => x.t - y.t);
+
+  raw.sort((a, b) => a.t - b.t);
+  return smooth(raw);
+}
+
+// A 7-day rolling median.
+//
+// The daily figure moves because different listings are on the market each
+// day, not because sellers changed their prices. In a city like ملارد, with
+// a few hundred listings, that sampling noise swamps any real movement.
+// Boligsiden smooths over three months for the same reason.
+//
+// Both series are kept: the smoothed one is what the line shows, the raw one
+// appears in the tooltip, so nothing is hidden.
+const SMOOTH_DAYS = 7;
+
+function smooth(points) {
+  return points.map((p, i) => {
+    const window = points.filter(
+      (q) => q.t <= p.t && q.t > p.t - SMOOTH_DAYS);
+    return { ...p, v: round1(median(window.map((q) => q.v))),
+             rawV: p.v, days: window.length };
+  });
 }
 
 const PERIOD_DAYS = {all: 1e5, '1y': 365, '3m': 90, '1m': 30, '7d': 7};
@@ -1409,7 +1460,8 @@ function drawYearly(city){
   const change = (pts.length > 1 && first.v) ? (last.v / first.v - 1) * 100 : null;
 
   document.getElementById('yearNote').textContent =
-    'میانه قیمت آگهی‌ها، میلیون تومان بر متر مربع — اندازه‌گیری روزانه';
+    'میانه قیمت آگهی‌ها، میلیون تومان بر متر مربع — میانگین متحرک ۷ روزه، ' +
+    'تا نوسان روزبه‌روزِ ناشی از تغییر آگهی‌ها با تغییر واقعی قیمت اشتباه نشود';
   document.getElementById('rangeInfo').innerHTML = (change === null)
     ? `<b>${last.label}</b> — تاریخچه از همین‌جا شروع می‌شود`
     : `از <b>${first.label}</b> تا <b>${last.label}</b> &nbsp;` +
@@ -1436,8 +1488,15 @@ function drawYearly(city){
       interaction:{mode:'index', intersect:false},
       plugins:{ legend:{display:false},
         tooltip:{rtl:true, bodyFont:{family:'Samim'}, titleFont:{family:'Samim'},
-          callbacks:{label:c => FA1(c.parsed.y) + ' میلیون تومان' +
-            (pts[c.dataIndex].n ? ` — ${FA(pts[c.dataIndex].n)} آگهی` : '')}}},
+          callbacks:{label:c => {
+            const p = pts[c.dataIndex];
+            const lines = [`میانگین ۷ روزه: ${FA1(c.parsed.y)} میلیون تومان`];
+            if (p.rawV != null && p.rawV !== c.parsed.y) {
+              lines.push(`همان روز: ${FA1(p.rawV)}`);
+            }
+            if (p.n) lines.push(`${FA(p.n)} آگهی`);
+            return lines;
+          }}}},
       scales:{ x:{grid:{display:false}, ticks:{font:{family:'Samim',size:10},
                  color:CSSVAR('--muted'), maxTicksLimit:9}},
                y:{position:'right', grid:{color:CSSVAR('--rule')},
