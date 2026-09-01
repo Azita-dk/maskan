@@ -448,12 +448,15 @@
   <div class="kpis">
     <div class="kpi"><div class="k">میانه هر متر مربع</div>
       <div class="v" id="kMedian">—</div><div class="u">میلیون تومان</div></div>
-    <div class="kpi"><div class="k">تغییر ماهانه</div>
-      <div class="v" id="kMom">—</div><div class="u">نسبت به ماه قبل</div></div>
+    <div class="kpi"><div class="k" id="kMomLabel">تغییر ماهانه</div>
+      <div class="v" id="kMom">—</div>
+      <div class="u" id="kMomSub">نسبت به ماه قبل</div></div>
     <div class="kpi"><div class="k">تغییر سالانه</div>
-      <div class="v" id="kYoy">—</div><div class="u">نسبت به سال قبل</div></div>
-    <div class="kpi"><div class="k">آگهی در این ماه</div>
-      <div class="v" id="kN">—</div><div class="u">پس از حذف تکراری‌ها</div></div>
+      <div class="v" id="kYoy">—</div>
+      <div class="u" id="kYoySub">نسبت به سال قبل</div></div>
+    <div class="kpi"><div class="k">تعداد آگهی</div>
+      <div class="v" id="kN">—</div>
+      <div class="u">در این انتخاب، پس از حذف تکراری‌ها</div></div>
   </div>
 
 
@@ -578,7 +581,7 @@ const cityCache = new Map();     // keep visited cities in memory
 
 // A visible stamp for the page itself. Checking whether a file actually
 // reached the browser has cost more time today than any real bug.
-const PAGE_VERSION = '01 Sep 20:14';
+const PAGE_VERSION = '01 Sep 20:31';
 function stampVersion(){
   const w = window.innerWidth;
   const mob = window.matchMedia('(max-width: 720px)').matches;
@@ -1017,11 +1020,64 @@ function ageOk(l, age){
 
 function round1(v){ return Math.round(v * 10) / 10; }
 
-// month-on-month change comes from the recorded history, not from filters
+/**
+ * Change over a real period, not over a number of rows.
+ *
+ * The previous version compared the last snapshot with the one before it and
+ * called that "monthly", and looked back thirty entries and called that
+ * "yearly". With daily snapshots those are a day and a month. The labels
+ * were describing periods the numbers did not cover.
+ *
+ * Now each figure looks for a snapshot near the actual date, and shows a
+ * dash when the history does not reach back that far.
+ */
+function changeOver(series, days, toleranceDays) {
+  if (!series || series.length < 2) return null;
+  const last = series[series.length - 1];
+  if (!last.d || !last.v) return null;
+
+  const target = Date.parse(last.d) - days * 864e5;
+  let best = null, bestGap = Infinity;
+  for (const p of series) {
+    if (!p.d || !p.v) continue;
+    const gap = Math.abs(Date.parse(p.d) - target);
+    if (gap < bestGap) { bestGap = gap; best = p; }
+  }
+  if (!best || bestGap > toleranceDays * 864e5) return null;
+  if (best === last || !best.v) return null;
+  return (last.v / best.v - 1) * 100;
+}
+
 function setDeltaFromHistory(city){
-  const h = (city.ours || []).map(p => p.v);
-  setDelta('kMom', h.length > 1 ? (h[h.length-1] / h[h.length-2] - 1) * 100 : null);
-  setDelta('kYoy', h.length > 30 ? (h[h.length-1] / h[h.length-31] - 1) * 100 : null);
+  const series = selectedHood
+    ? ((city.hood_hist || {})[selectedHood] || [])
+    : (city.ours || []);
+
+  // a month, give or take five days; a year, give or take a month
+  const mom = changeOver(series, 30, 5);
+  const yoy = changeOver(series, 365, 30);
+
+  setDelta('kMom', mom);
+  setDelta('kYoy', yoy);
+
+  // Until a month of history exists, show the longest period that does —
+  // a seven-day change is worth reading, and an em dash is not.
+  const momLabel = document.getElementById('kMomLabel');
+  if (mom === null) {
+    const wk = changeOver(series, 7, 2);
+    if (wk !== null) {
+      setDelta('kMom', wk);
+      momLabel.textContent = 'تغییر ۷ روزه';
+      document.getElementById('kMomSub').textContent = 'نسبت به هفته قبل';
+      return;
+    }
+    momLabel.textContent = 'تغییر ماهانه';
+    document.getElementById('kMomSub').textContent =
+      series.length > 1 ? 'هنوز یک ماه داده ثبت نشده' : 'نسبت به ماه قبل';
+  } else {
+    momLabel.textContent = 'تغییر ماهانه';
+    document.getElementById('kMomSub').textContent = 'نسبت به ماه قبل';
+  }
 }
 
 function drawDist(items, cityName){
@@ -1432,6 +1488,14 @@ function smooth(points) {
 
 const PERIOD_DAYS = {all: 1e5, '1y': 365, '3m': 90, '1m': 30, '7d': 7};
 
+function axisRange(values) {
+  const lo = Math.min(...values), hi = Math.max(...values);
+  const mid = (lo + hi) / 2;
+  const span = Math.max(hi - lo, mid * 0.1);      // at least ±5% of the value
+  const pad = span * 0.25;
+  return { min: Math.max(0, mid - span / 2 - pad), max: mid + span / 2 + pad };
+}
+
 function drawYearly(city){
   const panel = document.getElementById('yearPanel');
   const all = buildSeries(city);
@@ -1471,6 +1535,11 @@ function drawYearly(city){
     'بر پایه آگهی‌های گردآوری‌شده از دیوار، شیپور و کیلید. این قیمت درخواستی ' +
     'فروشنده است، نه قیمت معامله‌شده.';
 
+  // Chart.js scales the axis to the data, so a change of half a percent
+  // fills the whole height and reads as a crash or a spike. Give the axis a
+  // floor of ten percent of the value, so small movements look small.
+  const yBounds = axisRange(pts.map(p => p.v));
+
   const ctx = document.getElementById('yearly');
   yearChart && yearChart.destroy();
   const g = ctx.getContext('2d').createLinearGradient(0, 0, 0, 300);
@@ -1500,6 +1569,7 @@ function drawYearly(city){
       scales:{ x:{grid:{display:false}, ticks:{font:{family:'Samim',size:10},
                  color:CSSVAR('--muted'), maxTicksLimit:9}},
                y:{position:'right', grid:{color:CSSVAR('--rule')},
+                  min: yBounds.min, max: yBounds.max,
                   ticks:{font:{family:'Samim',size:10}, color:CSSVAR('--muted'),
                          callback:v=>FA(v)}}}}
   });
