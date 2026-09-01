@@ -175,10 +175,12 @@
     .statrow .v{font-size:13px}
 
     /* neighbourhood rows: drop the rank, keep name, bar, price, count */
-    /* three visible cells: name, price, count — so three columns */
-    .hrow,.hhead{grid-template-columns:1fr 64px 42px;gap:10px;padding:10px}
+    /* hide the rank and the bar; flex closes the gaps by itself */
+    .hrow,.hhead{gap:10px;padding:11px 10px;font-size:13px}
     .hrow .htrack,.hhead span:nth-child(3){display:none}
-    .hnum,.hhead span:first-child{display:none}
+    .hnum,.hhead span:nth-child(1){display:none}
+    .hval,.hhead span:nth-child(4){flex:0 0 72px;font-size:13px}
+    .hcount,.hhead span:nth-child(5){flex:0 0 44px}
     .hoodscroll{max-height:56vh}
 
     /* the listings table becomes a stack of cards */
@@ -268,28 +270,31 @@
 
   /* A ranked list rather than a bar chart: 335 canvas bars is 7,000px tall
      and slow to draw, while a row is 28px and renders instantly. */
-  .hrow{display:grid;
-        grid-template-columns:22px minmax(74px,116px) 1fr 66px 40px;
-        align-items:center;gap:10px;padding:5px 10px;cursor:pointer;
-        border-bottom:1px solid #EEF0F3;font-size:12px;line-height:1.4;
-        white-space:nowrap}
+  .hrow{display:flex;align-items:center;gap:10px;padding:6px 10px;
+        cursor:pointer;border-bottom:1px solid #EEF0F3;font-size:12px;
+        line-height:1.4;white-space:nowrap}
   .hrow:last-child{border-bottom:0}
   .hrow:hover{background:#F0F2F5}
   .hrow.on{background:var(--green-pale);color:var(--ink);box-shadow:inset 3px 0 0 var(--green)}
   .hrow.on .hnum,.hrow.on .hcount{color:#9FB4A9}
-  .hnum{color:var(--muted);font-size:10px;text-align:center}
-  .hname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hnum{color:var(--muted);font-size:10px;text-align:center;flex:0 0 22px}
+  .hname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+         flex:1 1 auto;min-width:0}
   .htrack{position:relative;height:13px;background:#EEF0F3;border-radius:2px;
           overflow:hidden;min-width:40px}
   .hrow.on .htrack{background:#fff}
   .hfill{position:absolute;inset-block:0;right:0;border-radius:2px}
-  .hval{text-align:left;font-weight:700;font-variant-numeric:tabular-nums}
-  .hcount{color:var(--muted);font-size:10px;text-align:left}
-  .hhead{display:grid;grid-template-columns:22px minmax(74px,116px) 1fr 66px 40px;
-         gap:10px;padding:6px 10px;font-size:10px;color:var(--muted);
-         background:#F0F2F5;border-bottom:1px solid var(--rule);
-         position:sticky;top:0;z-index:2}
-  .hhead span:nth-child(4),.hhead span:nth-child(5){text-align:left}
+  .hval{text-align:left;font-weight:700;font-variant-numeric:tabular-nums;
+        flex:0 0 66px}
+  .hcount{color:var(--muted);font-size:10px;text-align:left;flex:0 0 40px}
+  .hhead{display:flex;align-items:center;gap:10px;padding:7px 10px;
+         font-size:10px;color:var(--muted);background:#F0F2F5;
+         border-bottom:1px solid var(--rule);position:sticky;top:0;z-index:2}
+  .hhead span:nth-child(1){flex:0 0 22px}
+  .hhead span:nth-child(2){flex:1 1 auto;min-width:0}
+  .hhead span:nth-child(3){flex:1 1 40%}
+  .hhead span:nth-child(4){flex:0 0 66px;text-align:left}
+  .hhead span:nth-child(5){flex:0 0 40px;text-align:left}
   .hmore{padding:9px 10px;font-size:11px;color:var(--muted);text-align:center;
          cursor:pointer;background:#F0F2F5}
   .hmore:hover{color:var(--ink)}
@@ -563,8 +568,15 @@ const cityCache = new Map();     // keep visited cities in memory
 
 // A visible stamp for the page itself. Checking whether a file actually
 // reached the browser has cost more time today than any real bug.
-const PAGE_VERSION = '31 Aug 19:35';
-document.getElementById('ver').textContent = 'نسخه صفحه: ' + PAGE_VERSION;
+const PAGE_VERSION = '01 Sep 07:27';
+function stampVersion(){
+  const w = window.innerWidth;
+  const mob = window.matchMedia('(max-width: 720px)').matches;
+  document.getElementById('ver').textContent =
+    `نسخه ${PAGE_VERSION} · عرض ${w}px · ${mob ? 'چیدمان موبایل' : 'چیدمان دسکتاپ'}`;
+}
+stampVersion();
+window.addEventListener('resize', stampVersion);
 
 fetch('data/stats.json?v=' + Date.now())
   .then(r => r.json())
