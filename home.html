@@ -1,0 +1,1020 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>قیمت خانه در ایران — آمار قیمت مسکن</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{
+  --green:#0E9F6E; --green-d:#046C4E; --green-pale:#E7F6F0;
+  --ink:#0F2A22; --slate:#5F7A72; --paper:#F6FAF8; --card:#FFFFFF;
+  --line:#E2EDE8; --rise:#0E9F6E; --fall:#DC2626;
+  --shadow:0 1px 2px rgba(15,42,34,.05), 0 8px 24px rgba(15,42,34,.07);
+  /* the hero keeps the mockup's cool sky; green is for the data below it */
+  --sky-1:#1B2A5E; --sky-2:#2E4C93; --sky-3:#4A7FC1;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme=light]){
+    --ink:#E6F0EC; --slate:#93AAA3; --paper:#0C1714; --card:#132320;
+    --line:#22403A; --green-pale:#153029;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme=dark]{
+  --ink:#E6F0EC; --slate:#93AAA3; --paper:#0C1714; --card:#132320;
+  --line:#22403A; --green-pale:#153029;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font-family:Vazirmatn,system-ui,sans-serif;font-size:15px;line-height:1.7;
+  -webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font:inherit;font-family:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+
+/* ---------- nav ---------- */
+.nav{background:var(--card);border-bottom:1px solid var(--line);
+  position:sticky;top:0;z-index:600}
+.nav .wrap{display:flex;align-items:center;gap:24px;height:66px}
+.brand{display:flex;align-items:center;gap:10px;margin-inline-end:auto}
+.brand .mark{width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(140deg,var(--green),var(--green-d));
+  display:grid;place-items:center;color:#fff;font-weight:800;font-size:17px}
+.brand b{font-size:18px;font-weight:800;display:block;line-height:1.2}
+.brand span{font-size:11px;color:var(--slate);display:block}
+.menu{display:flex;gap:22px;font-size:14px}
+.menu a{padding:22px 0;border-bottom:2px solid transparent;color:var(--slate)}
+.menu a.on{color:var(--green);border-bottom-color:var(--green);font-weight:700}
+.menu a:hover{color:var(--ink)}
+.iconbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);
+  background:var(--card);color:var(--slate);display:grid;place-items:center;font-size:16px}
+.iconbtn:hover{border-color:var(--green);color:var(--green)}
+.navtoggle{display:none}
+
+/* ---------- hero ---------- */
+.hero{position:relative;overflow:hidden;
+  background:var(--sky-1);
+  color:#fff;padding:78px 0 0}
+.hero h1,.hero p.sub{text-shadow:0 2px 18px rgba(8,14,32,.55)}
+.hero .wrap{position:relative;z-index:2;text-align:center}
+.hero h1{font-size:38px;font-weight:800;margin:0 0 12px;line-height:1.35;
+  letter-spacing:-.4px}
+.hero p.sub{font-size:16px;margin:0 auto 30px;max-width:60ch;opacity:.9}
+.scene{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+.hero::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(180deg,rgba(12,20,45,.58) 0%,rgba(12,20,45,.30) 44%,
+                             rgba(12,20,45,.52) 100%)}
+
+.search{position:relative;max-width:640px;margin:0 auto}
+.search input{width:100%;height:60px;border-radius:14px;border:0;
+  padding:0 22px 0 56px;font:inherit;font-size:16px;color:var(--ink);
+  background:#fff;box-shadow:0 10px 34px rgba(20,18,50,.28)}
+.search .go{position:absolute;inset-inline-start:10px;top:10px;width:40px;height:40px;
+  border-radius:10px;border:0;background:var(--green-pale);color:var(--green);
+  display:grid;place-items:center}
+.sugg{position:absolute;top:68px;inset-inline:0;background:var(--card);
+  border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
+  overflow:hidden;text-align:start;max-height:340px;overflow-y:auto;z-index:40}
+.sugg .row{display:flex;justify-content:space-between;gap:12px;
+  padding:11px 16px;cursor:pointer;font-size:14px;color:var(--ink)}
+.sugg .row:hover,.sugg .row.on{background:var(--green-pale)}
+.sugg .row .meta{color:var(--slate);font-size:12.5px}
+.sugg .head{padding:8px 16px;font-size:12px;color:var(--slate);
+  background:var(--paper);border-block:1px solid var(--line)}
+
+.popular{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
+  margin:22px 0 0;padding-bottom:34px}
+.popular b{font-size:13.5px;opacity:.85;font-weight:400;align-self:center}
+.popular button{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.12);
+  color:#fff;border-radius:99px;padding:6px 15px;font-size:13.5px}
+.popular button:hover{background:#fff;color:var(--green);border-color:#fff}
+
+.strip{position:relative;z-index:3;background:var(--card);border-radius:16px;
+  box-shadow:var(--shadow);display:grid;grid-template-columns:repeat(4,1fr);
+  margin:0 auto -44px;max-width:1040px}
+.strip div{display:flex;gap:13px;align-items:flex-start;padding:20px 22px}
+.strip div + div{border-inline-start:1px solid var(--line)}
+.strip .ic{width:42px;height:42px;border-radius:11px;background:var(--green-pale);
+  color:var(--green);display:grid;place-items:center;flex:0 0 auto}
+.strip b{display:block;font-size:14.5px;margin-bottom:2px}
+.strip span{font-size:12.5px;color:var(--slate);line-height:1.6;display:block}
+
+/* ---------- sections ---------- */
+section{padding:66px 0 0}
+.shead{display:flex;align-items:baseline;justify-content:space-between;
+  gap:16px;margin-bottom:20px}
+.shead h2{font-size:23px;font-weight:800;margin:0}
+.shead a{font-size:13.5px;color:var(--green);font-weight:700}
+
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.citycard{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:18px;box-shadow:var(--shadow);text-align:start;display:block;width:100%}
+.citycard:hover{border-color:var(--green)}
+.citycard .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.lm{width:56px;height:54px;flex:0 0 auto;opacity:.92}
+.citycard h3{margin:0;font-size:16px;font-weight:800}
+.citycard .big{font-size:31px;font-weight:800;line-height:1.25;
+  font-variant-numeric:tabular-nums;margin-top:6px}
+.citycard .unit{font-size:12.5px;color:var(--slate)}
+.citycard .foot{display:flex;justify-content:space-between;gap:10px;
+  margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+.citycard .foot .k{font-size:12px;color:var(--slate);display:block}
+.citycard .foot .v{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}
+.up{color:var(--rise)} .down{color:var(--fall)}
+
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow);overflow:hidden}
+.panel > header{display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:16px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.panel h3{margin:0;font-size:16px;font-weight:800}
+.tabs{display:flex;gap:6px}
+.tabs button{border:1px solid var(--line);background:transparent;color:var(--slate);
+  border-radius:8px;padding:5px 12px;font-size:12.5px}
+.tabs button.on{background:var(--green);border-color:var(--green);color:#fff;font-weight:700}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:start;font-weight:700;color:var(--slate);font-size:12px;
+  padding:10px 14px;border-bottom:1px solid var(--line)}
+td{padding:11px 14px;border-bottom:1px solid var(--line);
+  font-variant-numeric:tabular-nums}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--green-pale)}
+tbody tr:last-child td{border-bottom:0}
+.rank{color:var(--slate);width:26px}
+.panel .more{display:block;text-align:center;padding:13px;font-size:13.5px;
+  color:var(--green);font-weight:700;border-top:1px solid var(--line);width:100%;
+  background:transparent;border-inline:0;border-bottom:0}
+.panel .more:hover{background:var(--green-pale)}
+
+/* ---------- valuation ---------- */
+.value{background:linear-gradient(155deg,var(--green) 0%,var(--green-d) 100%);
+  color:#fff;border-radius:14px;padding:22px}
+.value h3{margin:0 0 4px;font-size:19px;font-weight:800}
+.value p{margin:0 0 18px;font-size:13.5px;opacity:.85}
+.vgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.vfield{background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.2);
+  border-radius:11px;padding:9px 13px}
+.vfield label{display:block;font-size:11.5px;opacity:.8;margin-bottom:2px}
+.vfield select,.vfield input{width:100%;background:transparent;border:0;
+  color:#fff;font:inherit;font-size:15px;font-weight:700;padding:0}
+.vfield select option{color:var(--ink);background:#fff}
+.vfield input::placeholder{color:rgba(255,255,255,.55);font-weight:400}
+.vchecks{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.vcheck{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.13);
+  border:1px solid rgba(255,255,255,.2);border-radius:11px;padding:9px 12px;
+  font-size:13px;color:#fff;justify-content:center}
+.vcheck.on{background:#fff;color:var(--green);font-weight:700;border-color:#fff}
+.vgo{width:100%;margin-top:14px;height:46px;border:0;border-radius:11px;
+  background:#fff;color:var(--green);font-weight:800;font-size:15px}
+.vgo:hover{background:var(--green-pale)}
+.vout{margin-top:14px;background:rgba(255,255,255,.13);
+  border:1px solid rgba(255,255,255,.2);border-radius:11px;padding:14px}
+.vout .num{font-size:25px;font-weight:800;font-variant-numeric:tabular-nums}
+.vout .note{font-size:12.5px;opacity:.85;margin-top:4px}
+
+/* ---------- chart & map ---------- */
+.chartbox{padding:16px 18px}
+.chart{height:280px;position:relative}
+.callout{position:absolute;inset-inline-start:14px;top:16px;background:var(--green-pale);
+  border:1px solid var(--green);border-radius:11px;padding:9px 13px;pointer-events:none}
+.callout .n{font-size:19px;font-weight:800;color:var(--green-d);
+  font-variant-numeric:tabular-nums;line-height:1.3}
+.callout .d{font-size:11.5px;color:var(--slate)}
+#map{height:330px;width:100%}
+.legend{display:flex;align-items:center;gap:10px;padding:12px 18px;
+  font-size:12px;color:var(--slate);border-top:1px solid var(--line)}
+.legend .bar{flex:1;height:8px;border-radius:99px;
+  background:linear-gradient(to left,#16A34A,#FACC15,#F97316,#DC2626)}
+
+/* ---------- trust ---------- */
+.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
+  padding:66px 0 70px}
+.trust div{background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:20px;box-shadow:var(--shadow)}
+.trust .ic{width:42px;height:42px;border-radius:11px;background:var(--green-pale);
+  color:var(--green);display:grid;place-items:center;margin-bottom:12px}
+.trust b{display:block;font-size:15px;margin-bottom:4px}
+.trust span{font-size:12.5px;color:var(--slate);line-height:1.7}
+
+footer{border-top:1px solid var(--line);background:var(--card);
+  padding:22px 0;font-size:12.5px;color:var(--slate)}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+.muted{color:var(--slate)}
+.hide{display:none!important}
+.loading{padding:40px;text-align:center;color:var(--slate);font-size:14px}
+
+@media (max-width:900px){
+  .grid4{grid-template-columns:repeat(2,1fr)}
+  .two{grid-template-columns:1fr}
+  .strip{grid-template-columns:repeat(2,1fr)}
+  .strip div:nth-child(3){border-inline-start:0}
+  .strip div:nth-child(n+3){border-top:1px solid var(--line)}
+  .trust{grid-template-columns:repeat(2,1fr)}
+  .menu{display:none}
+  .navtoggle{display:grid}
+}
+@media (max-width:560px){
+  .hero h1{font-size:27px}
+  .hero{padding-top:44px}
+  .grid4{grid-template-columns:1fr}
+  .strip{grid-template-columns:1fr}
+  .strip div + div{border-inline-start:0;border-top:1px solid var(--line)}
+  .trust{grid-template-columns:1fr}
+  .vgrid{grid-template-columns:1fr}
+  .search input{height:54px;font-size:15px}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top">
+      <span class="mark">⌂</span>
+      <span><b>آمار قیمت مسکن</b><span>داده و تحلیل بازار مسکن ایران</span></span>
+    </a>
+    <div class="menu">
+      <a class="on" href="#top">خانه</a>
+      <a href="#areas">محله‌ها</a>
+      <a href="#cities">شهرها</a>
+      <a href="#valuation">قیمت خانه من</a>
+      <a href="#method">روش کار</a>
+    </div>
+    <button class="iconbtn" id="theme" title="روشن / تیره" aria-label="روشن یا تیره">◐</button>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <svg class="scene" viewBox="0 0 1200 460" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"  stop-color="#16224F"/>
+        <stop offset="42%" stop-color="#2C4A8C"/>
+        <stop offset="72%" stop-color="#4E7FB8"/>
+        <stop offset="100%" stop-color="#8FA9C6"/>
+      </linearGradient>
+      <radialGradient id="glow" cx="72%" cy="76%" r="46%">
+        <stop offset="0%"  stop-color="#FFD9A0" stop-opacity=".55"/>
+        <stop offset="55%" stop-color="#F0A868" stop-opacity=".16"/>
+        <stop offset="100%" stop-color="#F0A868" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="ridgeFar" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#5D7BA8"/><stop offset="100%" stop-color="#3E5786"/>
+      </linearGradient>
+      <linearGradient id="ridgeMid" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#3B5480"/><stop offset="100%" stop-color="#27395C"/>
+      </linearGradient>
+      <linearGradient id="ridgeNear" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#22345A"/><stop offset="100%" stop-color="#16233F"/>
+      </linearGradient>
+    </defs>
+
+    <rect width="1200" height="460" fill="url(#sky)"/>
+    <rect width="1200" height="460" fill="url(#glow)"/>
+
+    <g opacity=".55" fill="#fff">
+      <circle cx="120" cy="52" r="1.4"/><circle cx="300" cy="34" r="1"/>
+      <circle cx="470" cy="70" r="1.2"/><circle cx="640" cy="40" r="1"/>
+      <circle cx="820" cy="62" r="1.3"/><circle cx="980" cy="30" r="1"/>
+      <circle cx="1090" cy="66" r="1.2"/><circle cx="210" cy="96" r="1"/>
+    </g>
+
+    <path fill="url(#ridgeFar)" d="M0 268l128-74 74 44 96-62 88 56 104-72 92 60 120-78 96 64 108-54 94 52 100-40v264H0z"/>
+    <path fill="#DCE6F2" opacity=".85" d="M128 194l40 24-22 6-18-8-16 10-18-10zM416 162l38 24-20 6-18-8-16 10-18-10zM704 138l40 26-22 6-18-8-16 10-18-10zM908 156l38 24-20 6-18-8-16 10-18-10z"/>
+    <path fill="url(#ridgeMid)" d="M0 322l150-58 92 40 116-52 96 44 128-58 104 48 132-54 98 44 130-40 154 46v170H0z"/>
+    <path fill="url(#ridgeNear)" d="M0 366l180-40 120 30 140-34 128 32 152-38 124 34 160-30 196 38v104H0z"/>
+
+    <g fill="#101B33" opacity=".92">
+      <rect x="60" y="392" width="34" height="68"/><rect x="104" y="376" width="26" height="84"/>
+      <rect x="140" y="404" width="40" height="56"/><rect x="196" y="384" width="30" height="76"/>
+      <rect x="238" y="410" width="46" height="50"/><rect x="296" y="370" width="28" height="90"/>
+      <rect x="334" y="398" width="38" height="62"/><rect x="386" y="414" width="44" height="46"/>
+      <rect x="444" y="380" width="26" height="80"/><rect x="482" y="402" width="40" height="58"/>
+      <rect x="536" y="416" width="52" height="44"/><rect x="600" y="388" width="30" height="72"/>
+      <rect x="642" y="406" width="42" height="54"/><rect x="698" y="374" width="26" height="86"/>
+      <rect x="736" y="400" width="38" height="60"/><rect x="788" y="418" width="48" height="42"/>
+      <rect x="848" y="392" width="30" height="68"/><rect x="890" y="408" width="40" height="52"/>
+      <rect x="978" y="386" width="28" height="74"/><rect x="1018" y="404" width="44" height="56"/>
+      <rect x="1074" y="394" width="32" height="66"/><rect x="1118" y="412" width="46" height="48"/>
+    </g>
+    <g fill="#0C1526">
+      <path d="M944 460V300l4-8h4l4 8v160z"/>
+      <path d="M934 296h40l-6 22h-28z"/>
+      <ellipse cx="954" cy="288" rx="26" ry="13"/>
+      <path d="M948 246h12l-2 30h-8z"/>
+      <path d="M950 214h8l-1 34h-6z"/>
+    </g>
+    <g fill="#FFE3B0" opacity=".75">
+      <rect x="110" y="386" width="4" height="5"/><rect x="118" y="396" width="4" height="5"/>
+      <rect x="302" y="380" width="4" height="5"/><rect x="310" y="394" width="4" height="5"/>
+      <rect x="450" y="390" width="4" height="5"/><rect x="704" y="384" width="4" height="5"/>
+      <rect x="712" y="398" width="4" height="5"/><rect x="984" y="396" width="4" height="5"/>
+      <rect x="946" y="330" width="5" height="6"/><rect x="956" y="348" width="5" height="6"/>
+    </g>
+  </svg>
+  <div class="wrap">
+    <h1>قیمت خانه در ایران چقدر است؟</h1>
+    <p class="sub">قیمت مسکن در شهرها و محله‌های ایران را ببینید، روند بازار را دنبال کنید و ارزش خانه خود را تخمین بزنید.</p>
+
+    <div class="search">
+      <input id="q" type="search" autocomplete="off" placeholder="جست‌وجوی شهر، محله یا منطقه…">
+      <button class="go" id="qgo" aria-label="جست‌وجو">⌕</button>
+      <div class="sugg hide" id="sugg"></div>
+    </div>
+
+    <div class="popular" id="popular"><b>محبوب‌ترین جست‌وجوها:</b></div>
+
+    <div class="strip">
+      <div><span class="ic">↗</span><span><b>روندهای بازار</b>
+        <span>بررسی تغییرات قیمت در ماه‌ها و بازه‌های مختلف</span></span></div>
+      <div><span class="ic">⌂</span><span><b>ارزش‌گذاری خانه</b>
+        <span>تخمین ارزش ملک شما بر اساس آگهی‌های مشابه</span></span></div>
+      <div><span class="ic">◔</span><span><b>تحلیل محله‌ها</b>
+        <span>مقایسه محله‌ها و یافتن گران‌ترین و ارزان‌ترین‌ها</span></span></div>
+      <div><span class="ic">▤</span><span><b>داده‌های به‌روز</b>
+        <span id="lastUpdate">در حال بارگذاری…</span></span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+<section id="cities">
+  <div class="wrap">
+    <div class="shead"><h2>نمای کلی بازار مسکن</h2>
+      <a href="#areas" id="allCities">مشاهده همه شهرها →</a></div>
+    <div class="grid4" id="cityCards"><div class="loading">در حال بارگذاری…</div></div>
+  </div>
+</section>
+
+<section id="areas">
+  <div class="wrap">
+    <div class="two">
+      <div class="panel">
+        <header>
+          <h3 id="areaTitle">محله‌های تهران</h3>
+          <div class="tabs" id="areaTabs">
+            <button data-sort="price" class="on">بیشترین قیمت</button>
+            <button data-sort="count">تعداد آگهی</button>
+          </div>
+        </header>
+        <table>
+          <thead><tr><th class="rank"></th><th>محله</th><th>قیمت هر متر مربع</th>
+            <th>تغییر سالانه</th><th>تعداد آگهی</th></tr></thead>
+          <tbody id="areaBody"><tr><td colspan="5" class="loading">در حال بارگذاری…</td></tr></tbody>
+        </table>
+        <button class="more" id="areaMore">مشاهده همه محله‌ها →</button>
+      </div>
+
+      <div class="value" id="valuation">
+        <h3>قیمت خانه من چقدر است؟</h3>
+        <p>اطلاعات ملک خود را وارد کنید تا ارزش تقریبی آن را از روی آگهی‌های مشابه حساب کنیم.</p>
+        <div class="vgrid">
+          <div class="vfield"><label for="vCity">شهر</label>
+            <select id="vCity"></select></div>
+          <div class="vfield"><label for="vHood">محله</label>
+            <select id="vHood"></select></div>
+          <div class="vfield"><label for="vArea">متراژ (متر)</label>
+            <input id="vArea" type="number" inputmode="numeric" placeholder="۱۲۰"></div>
+          <div class="vfield"><label for="vRooms">تعداد اتاق</label>
+            <select id="vRooms">
+              <option value="">مهم نیست</option><option>1</option><option>2</option>
+              <option>3</option><option>4</option></select></div>
+          <div class="vfield"><label for="vAge">سن بنا (سال)</label>
+            <input id="vAge" type="number" inputmode="numeric" placeholder="۸"></div>
+          <div class="vfield"><label for="vFloor">طبقه</label>
+            <input id="vFloor" type="number" inputmode="numeric" placeholder="۵"></div>
+        </div>
+        <div class="vchecks">
+          <button class="vcheck" data-f="پارکینگ">پارکینگ</button>
+          <button class="vcheck" data-f="آسانسور">آسانسور</button>
+          <button class="vcheck" data-f="انباری">انباری</button>
+        </div>
+        <button class="vgo" id="vGo">محاسبه ارزش ملک →</button>
+        <div class="vout hide" id="vOut"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="two">
+      <div class="panel">
+        <header>
+          <h3 id="trendTitle">روند قیمت مسکن در تهران</h3>
+          <div class="tabs" id="trendTabs"></div>
+        </header>
+        <div class="chartbox"><div class="chart">
+          <canvas id="trend"></canvas>
+          <div class="callout hide" id="callout"></div>
+        </div></div>
+        <p class="muted" id="trendNote" style="padding:0 18px 14px;font-size:12.5px;margin:0"></p>
+        <button class="more" id="trendMore">مشاهده جزئیات و تحلیل کامل →</button>
+      </div>
+
+      <div class="panel">
+        <header><h3 id="mapTitle">نقشه قیمت مسکن در تهران</h3></header>
+        <div id="map"></div>
+        <div class="legend"><span>کمترین قیمت</span><span class="bar"></span><span>بیشترین قیمت</span></div>
+        <button class="more" id="mapMore">مشاهده نقشه کامل →</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="method">
+  <div class="wrap">
+    <div class="trust">
+      <div><div class="ic">🔒</div><b>حریم خصوصی</b>
+        <span>هیچ اطلاعاتی از بازدیدکنندگان این سایت جمع‌آوری یا منتشر نمی‌شود.</span></div>
+      <div><div class="ic">↻</div><b>به‌روزرسانی منظم</b>
+        <span>آگهی‌های تازه هر چند دقیقه جمع‌آوری و آمار هر شبانه‌روز بازسازی می‌شود.</span></div>
+      <div><div class="ic">▤</div><b>داده‌های واقعی</b>
+        <span>تحلیل هزاران آگهی واقعی از دیوار، شیپور و کیلید در سراسر کشور.</span></div>
+      <div><div class="ic">◈</div><b>شفاف و قابل بررسی</b>
+        <span>این ارقام قیمت درخواستی فروشنده است، نه قیمت معامله‌شده. روش محاسبه باز است.</span></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>ارقام از آگهی‌های عمومی سایت‌های ملکی گردآوری و پس از حذف آگهی‌های تکراری و پرت محاسبه می‌شود.</span>
+    <span id="ver"></span>
+  </div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
+const PAGE_VERSION = '2026-09-03 06:30';
+const DETAIL_PAGE = 'index.html';
+
+const FA  = n => Number(n).toLocaleString('fa-IR').replace(/,/g,'\u066C');
+const FA1 = n => Number(n).toLocaleString('fa-IR',
+  {minimumFractionDigits:1, maximumFractionDigits:1}).replace(/,/g,'\u066C');
+const esc = t => String(t ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let DB = null, CITY = null, trendChart = null, map = null, layer = null;
+let areaSort = 'price', trendPeriod = 'all', vFeatures = new Set(), suggIndex = -1;
+
+/* ---------------------------------------------------------------- helpers */
+const median = a => {
+  if (!a.length) return 0;
+  const s = [...a].sort((x, y) => x - y), m = s.length >> 1;
+  return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2;
+};
+
+// green → amber → red, the scale the map legend promises
+function heat(v, lo, hi){
+  if (!isFinite(v) || hi <= lo) return '#F59E0B';
+  const stops = [[22,163,74],[250,204,21],[249,115,22],[220,38,38]];
+  const x = Math.max(0, Math.min(1, (v - lo) / (hi - lo))) * (stops.length - 1);
+  const i = Math.min(stops.length - 2, Math.floor(x)), f = x - i;
+  const c = k => Math.round(stops[i][k] + (stops[i+1][k] - stops[i][k]) * f);
+  return `rgb(${c(0)},${c(1)},${c(2)})`;
+}
+
+const J_MONTHS = ["فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور",
+                  "مهر","آبان","آذر","دی","بهمن","اسفند"];
+function toJalali(gy, gm, gd){
+  const g_d_m = [0,31,59,90,120,151,181,212,243,273,304,334];
+  let jy = gy <= 1600 ? 0 : 979;
+  gy -= gy <= 1600 ? 621 : 1600;
+  const gy2 = gm > 2 ? gy + 1 : gy;
+  let days = 365*gy + Math.floor((gy2+3)/4) - Math.floor((gy2+99)/100)
+           + Math.floor((gy2+399)/400) - 80 + gd + g_d_m[gm-1];
+  jy += 33 * Math.floor(days/12053); days %= 12053;
+  jy += 4 * Math.floor(days/1461); days %= 1461;
+  if (days > 365){ jy += Math.floor((days-1)/365); days = (days-1)%365; }
+  const jm = days < 186 ? 1 + Math.floor(days/31) : 7 + Math.floor((days-186)/30);
+  const jd = 1 + (days < 186 ? days%31 : (days-186)%30);
+  return [jy, jm, jd];
+}
+function faDate(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  const [jy,jm,jd] = toJalali(y,m,d);
+  return `${FA(jd)} ${J_MONTHS[jm-1]} ${FA(jy)}`;
+}
+function faMonth(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  const [jy,jm] = toJalali(y,m,d);
+  return `${J_MONTHS[jm-1]} ${FA(jy)}`;
+}
+
+/* ------------------------------------------------------------------ boot */
+async function boot(){
+  document.getElementById('ver').textContent =
+    `نسخه ${faDate(PAGE_VERSION.split(' ')[0])}`;
+  setupTheme();
+  setupSearch();
+  setupValuation();
+
+  try {
+    DB = await (await fetch(DATA_BASE + '/data/index.json')).json();
+  } catch (e) {
+    document.getElementById('cityCards').innerHTML =
+      '<div class="loading">داده‌ها بارگذاری نشد. صفحه را دوباره باز کنید.</div>';
+    return;
+  }
+
+  document.getElementById('lastUpdate').textContent =
+    DB.generated ? `آخرین به‌روزرسانی: ${faMonth(DB.generated.slice(0,10))}` : 'به‌روز';
+
+  drawPopular();
+  drawCityCards();
+  fillValuationCities();
+  await loadCity(DB.cities[0].id);
+}
+
+function setupTheme(){
+  const saved = (() => { try { return localStorage.getItem('mk_theme'); } catch(e){ return null; } })();
+  if (saved) document.documentElement.dataset.theme = saved;
+  document.getElementById('theme').addEventListener('click', () => {
+    const now = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = now;
+    try { localStorage.setItem('mk_theme', now); } catch(e){}
+    if (CITY) { drawTrend(); drawMap(); }
+  });
+}
+
+/* --------------------------------------------------------- city overview */
+
+/**
+ * A landmark per city, the way the mockup identifies them: Milad Tower for
+ * Tehran, the shrine dome for Mashhad, a mosque with minarets for Isfahan,
+ * the Hafez pavilion for Shiraz. A city with no drawing gets a plain block
+ * of flats, which is what the site is about anyway.
+ */
+const LANDMARKS = {
+  'تهران': { c:'#F97316', svg:`
+    <path d="M31 58V26l2-5h2l2 5v32z"/>
+    <path d="M25 22h18l-3 10H28z"/>
+    <ellipse cx="34" cy="18" rx="12" ry="6"/>
+    <path d="M31 5h6l-1 12h-4z"/>
+    <rect x="14" y="42" width="9" height="16" rx="1"/>
+    <rect x="45" y="38" width="9" height="20" rx="1"/>` },
+  'مشهد': { c:'#10B981', svg:`
+    <path d="M34 6c6 8 10 13 10 19a10 10 0 0 1-20 0c0-6 4-11 10-19z"/>
+    <rect x="22" y="34" width="24" height="24" rx="2"/>
+    <rect x="12" y="28" width="7" height="30" rx="3"/>
+    <rect x="49" y="28" width="7" height="30" rx="3"/>
+    <circle cx="15.5" cy="25" r="3.5"/><circle cx="52.5" cy="25" r="3.5"/>
+    <rect x="30" y="44" width="8" height="14" rx="4"/>` },
+  'اصفهان': { c:'#3B82F6', svg:`
+    <path d="M34 8c8 9 12 15 12 21a12 12 0 0 1-24 0c0-6 4-12 12-21z"/>
+    <rect x="20" y="38" width="28" height="20" rx="2"/>
+    <rect x="10" y="24" width="6" height="34" rx="3"/>
+    <rect x="52" y="24" width="6" height="34" rx="3"/>
+    <circle cx="13" cy="21" r="3"/><circle cx="55" cy="21" r="3"/>
+    <path d="M28 58V48a6 6 0 0 1 12 0v10z"/>` },
+  'شیراز': { c:'#A855F7', svg:`
+    <path d="M34 8l22 12H12z"/>
+    <rect x="16" y="22" width="36" height="5" rx="1"/>
+    <rect x="19" y="29" width="6" height="24" rx="1"/>
+    <rect x="31" y="29" width="6" height="24" rx="1"/>
+    <rect x="43" y="29" width="6" height="24" rx="1"/>
+    <rect x="12" y="53" width="44" height="5" rx="1"/>` },
+  'کرج': { c:'#0EA5E9', svg:`
+    <rect x="12" y="26" width="18" height="32" rx="2"/>
+    <rect x="34" y="16" width="20" height="42" rx="2"/>
+    <rect x="17" y="32" width="3.5" height="4"/><rect x="24" y="32" width="3.5" height="4"/>
+    <rect x="17" y="42" width="3.5" height="4"/><rect x="24" y="42" width="3.5" height="4"/>
+    <rect x="39" y="24" width="3.5" height="4"/><rect x="46" y="24" width="3.5" height="4"/>
+    <rect x="39" y="34" width="3.5" height="4"/><rect x="46" y="34" width="3.5" height="4"/>
+    <rect x="39" y="44" width="3.5" height="4"/><rect x="46" y="44" width="3.5" height="4"/>` },
+  'تبریز': { c:'#14B8A6', svg:`
+    <path d="M34 10c7 8 11 14 11 20a11 11 0 0 1-22 0c0-6 4-12 11-20z"/>
+    <rect x="18" y="36" width="32" height="22" rx="2"/>
+    <rect x="24" y="44" width="8" height="14" rx="4"/>
+    <rect x="38" y="44" width="8" height="14" rx="4"/>` },
+};
+const HOUSE = { c:'#0E9F6E', svg:`
+    <path d="M34 10l24 18v30H10V28z"/>
+    <rect x="24" y="38" width="9" height="9" fill="#fff" opacity=".85"/>
+    <rect x="37" y="38" width="9" height="9" fill="#fff" opacity=".85"/>
+    <rect x="29" y="50" width="10" height="8" fill="#fff" opacity=".85"/>` };
+
+function landmark(name){
+  const L = LANDMARKS[name] || HOUSE;
+  return `<svg class="lm" viewBox="0 0 68 64" aria-hidden="true"
+            style="color:${L.c}"><g fill="currentColor">${L.svg}</g></svg>`;
+}
+
+function drawPopular(){
+  const box = document.getElementById('popular');
+  DB.cities.slice(0, 6).forEach(c => {
+    const b = document.createElement('button');
+    b.textContent = c.name;
+    b.addEventListener('click', () => loadCity(c.id));
+    box.appendChild(b);
+  });
+}
+
+function drawCityCards(){
+  const box = document.getElementById('cityCards');
+  box.innerHTML = '';
+  DB.cities.slice(0, 4).forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'citycard';
+    b.innerHTML = `
+      <div class="top">
+        <div><h3>${esc(c.name)}</h3>
+          <div class="big">${c.m2 ? FA1(c.m2) : '—'}</div>
+          <div class="unit">میلیون تومان · قیمت هر متر مربع</div></div>
+        ${landmark(c.name)}
+      </div>
+      <div class="foot">
+        <span><span class="k">تعداد آگهی</span>
+              <span class="v">${FA(c.n)}</span></span>
+        <span><span class="k">تغییر سالانه</span>
+              <span class="v muted" title="یک سال داده لازم است">—</span></span>
+      </div>`;
+    b.addEventListener('click', () => loadCity(c.id));
+    box.appendChild(b);
+  });
+}
+
+/* ----------------------------------------------------------- load a city */
+async function loadCity(id){
+  const card = DB.cities.find(c => c.id === id) || DB.cities[0];
+  try {
+    CITY = await (await fetch(`${DATA_BASE}/data/${id}.json`)).json();
+  } catch (e) { return; }
+  CITY.id = id;
+
+  document.getElementById('areaTitle').textContent = `محله‌های ${CITY.name}`;
+  document.getElementById('trendTitle').textContent = `روند قیمت مسکن در ${CITY.name}`;
+  document.getElementById('mapTitle').textContent = `نقشه قیمت مسکن در ${CITY.name}`;
+  document.getElementById('areaMore').textContent = `مشاهده همه محله‌های ${CITY.name} →`;
+
+  drawAreas();
+  drawTrendTabs();
+  drawTrend();
+  drawMap();
+  fillValuationHoods();
+}
+
+/**
+ * Year-on-year change per area.
+ *
+ * The mockup shows +32%, +28% and so on. Those need a reading from a year ago
+ * to compare against, and this site began recording days ago. The column is
+ * here because it belongs in the design and will fill itself in as history
+ * accrues; until then it says nothing rather than showing an invented number.
+ */
+function changeCell(hood){
+  const h = ((CITY.hood_hist || {})[hood]) || [];
+  if (h.length < 2)
+    return '<span class="muted" title="برای مقایسه، داده بیشتری لازم است">—</span>';
+  const first = h[0], last = h[h.length - 1];
+  if (!first.m2 || !last.m2) return '<span class="muted">—</span>';
+  const days = Math.round((new Date(last.day) - new Date(first.day)) / 864e5);
+  if (days < 25)
+    return '<span class="muted" title="هنوز یک ماه داده ثبت نشده">—</span>';
+  const pct = (last.m2 - first.m2) / first.m2 * 100;
+  return `<span class="${pct >= 0 ? 'up' : 'down'}" title="در ${FA(days)} روز گذشته">${
+    pct >= 0 ? '+' : '\u2212'}${FA1(Math.abs(pct))}\u066A</span>`;
+}
+
+function drawAreas(){
+  const rows = (CITY.rows || []).filter(r => r.m2 > 0 && r.n >= 20);
+  rows.sort((a, b) => areaSort === 'price' ? b.m2 - a.m2 : b.n - a.n);
+  const body = document.getElementById('areaBody');
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="5" class="loading">برای این شهر هنوز محله‌ای با آگهی کافی ثبت نشده است.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.slice(0, 5).map((r, i) => `
+    <tr data-hood="${esc(r.hood)}">
+      <td class="rank">${FA(i+1)}</td>
+      <td>${esc(r.hood)}</td>
+      <td>${FA1(r.m2)} میلیون تومان</td>
+      <td>${changeCell(r.hood)}</td>
+      <td>${FA(r.n)}</td>
+    </tr>`).join('');
+  body.querySelectorAll('tr[data-hood]').forEach(tr =>
+    tr.addEventListener('click', () => openDetail(CITY.id, tr.dataset.hood)));
+}
+
+document.getElementById('areaTabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  areaSort = b.dataset.sort;
+  document.querySelectorAll('#areaTabs button')
+    .forEach(x => x.classList.toggle('on', x === b));
+  drawAreas();
+});
+document.getElementById('areaMore')
+  .addEventListener('click', () => openDetail(CITY.id));
+document.getElementById('trendMore')
+  .addEventListener('click', () => openDetail(CITY.id));
+document.getElementById('mapMore')
+  .addEventListener('click', () => openDetail(CITY.id));
+
+function openDetail(cityId, hood){
+  const p = new URLSearchParams({ city: cityId });
+  if (hood) p.set('hood', hood);
+  location.href = `${DETAIL_PAGE}?${p}`;
+}
+
+/* ------------------------------------------------------------ the trend */
+/**
+ * Only offer ranges the data can actually fill.
+ *
+ * The mockup shows a five-year curve from 1400 to 1405. This site began
+ * recording in Shahrivar 1405, and asking prices for earlier years are not
+ * published anywhere that can be scraped. Drawing that curve would mean
+ * inventing prices, so the tabs are built from the history that exists and
+ * the note says how far back it goes.
+ */
+function historyDays(){
+  const h = CITY.ours || [];
+  if (h.length < 2) return 0;
+  const a = new Date(h[0].day), b = new Date(h[h.length-1].day);
+  return Math.round((b - a) / 864e5);
+}
+
+function drawTrendTabs(){
+  const span = historyDays();
+  const options = [['all','همه']];
+  if (span >= 7)   options.push(['7','۷ روز']);
+  if (span >= 30)  options.push(['30','۱ ماه']);
+  if (span >= 90)  options.push(['90','۳ ماه']);
+  if (span >= 365) options.push(['365','۱ سال']);
+  if (!options.some(o => o[0] === trendPeriod)) trendPeriod = 'all';
+  const box = document.getElementById('trendTabs');
+  box.innerHTML = options.reverse().map(([v, l]) =>
+    `<button data-p="${v}"${v === trendPeriod ? ' class="on"' : ''}>${l}</button>`).join('');
+  box.querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => {
+      trendPeriod = b.dataset.p;
+      box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+      drawTrend();
+    }));
+}
+
+function drawTrend(){
+  let hist = (CITY.ours || []).filter(r => r.m2 > 0);
+  if (trendPeriod !== 'all') {
+    const cut = new Date(Date.now() - (+trendPeriod) * 864e5)
+      .toISOString().slice(0, 10);
+    hist = hist.filter(r => r.day >= cut);
+  }
+  const note = document.getElementById('trendNote');
+  trendChart && trendChart.destroy();
+
+  if (hist.length < 2) {
+    document.getElementById('callout').classList.add('hide');
+    note.textContent = 'برای رسم نمودار هنوز روزهای کافی ثبت نشده است. ' +
+      'این سایت تازه شروع به ثبت تاریخچه کرده و هر شبانه‌روز یک نقطه اضافه می‌شود.';
+    return;
+  }
+
+  const span = historyDays();
+  note.textContent = `میانه قیمت آگهی‌ها، میلیون تومان بر متر مربع — ` +
+    `تاریخچه از ${faDate(hist[0].day)}، یعنی ${FA(span)} روز.` +
+    (span < 365 ? ' مقایسه چندساله وقتی در دسترس می‌شود که داده‌اش جمع شده باشد.' : '');
+
+  const ink = getComputedStyle(document.documentElement)
+    .getPropertyValue('--slate').trim();
+  const line = getComputedStyle(document.documentElement)
+    .getPropertyValue('--line').trim();
+
+  const vals = hist.map(r => r.m2);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = Math.max((hi - lo) * .25, hi * .05);
+
+  const latest = hist[hist.length - 1];
+  const callout = document.getElementById('callout');
+  callout.classList.remove('hide');
+  const pctAll = hist.length > 1 && hist[0].m2
+    ? (latest.m2 - hist[0].m2) / hist[0].m2 * 100 : null;
+  callout.innerHTML = `<div class="n">${FA1(latest.m2)} میلیون تومان</div>
+    <div class="d">${faMonth(latest.day)}${
+      pctAll === null ? '' :
+      ` · ${pctAll >= 0 ? '+' : '−'}${FA1(Math.abs(pctAll))}٪ در این بازه`}</div>`;
+
+  const ctx = document.getElementById('trend');
+  const grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 280);
+  grad.addColorStop(0, 'rgba(14,159,110,.28)');
+  grad.addColorStop(1, 'rgba(14,159,110,0)');
+
+  trendChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: hist.map(r => faDate(r.day)),
+      datasets: [{ data: vals, borderColor: '#0E9F6E', backgroundColor: grad,
+        borderWidth: 2.5, fill: true, tension: .3,
+        pointRadius: hist.length > 40 ? 0 : 3, pointBackgroundColor: '#fff',
+        pointBorderColor: '#0E9F6E', pointBorderWidth: 2 }] },
+    options: { maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { rtl: true, displayColors: false,
+          bodyFont: { family: 'Vazirmatn' }, titleFont: { family: 'Vazirmatn' },
+          callbacks: { label: c => FA1(c.parsed.y) + ' میلیون تومان' } } },
+      scales: {
+        x: { grid: { display: false },
+             ticks: { font: { family: 'Vazirmatn', size: 11 }, color: ink,
+                      maxTicksLimit: 7, maxRotation: 0 } },
+        y: { position: 'right', min: Math.max(0, lo - pad), max: hi + pad,
+             grid: { color: line },
+             ticks: { font: { family: 'Vazirmatn', size: 11 }, color: ink,
+                      callback: v => FA(Math.round(v)) } } } }
+  });
+}
+
+/* --------------------------------------------------------------- the map */
+function drawMap(){
+  const pts = (CITY.listings || []).filter(l => l.y && l.x && l.m > 0);
+  if (!map) {
+    map = L.map('map', { scrollWheelZoom: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
+    layer = L.layerGroup().addTo(map);
+  }
+  layer.clearLayers();
+
+  if (!pts.length) {
+    map.setView([32.4, 53.7], 5);
+    return;
+  }
+  const vals = pts.map(l => l.m).sort((a, b) => a - b);
+  const lo = vals[Math.floor(vals.length * .05)];
+  const hi = vals[Math.floor(vals.length * .95)];
+
+  pts.slice(0, 1500).forEach(l => {
+    L.circleMarker([l.y, l.x], {
+      radius: 6, weight: 1, color: '#fff', opacity: .9,
+      fillColor: heat(l.m, lo, hi), fillOpacity: .85
+    }).bindPopup(
+      `<b>${esc(l.h || '')}</b><br>${FA1(l.m)} میلیون تومان بر متر مربع` +
+      (l.a ? `<br>${FA(l.a)} متر` : '')).addTo(layer);
+  });
+  map.fitBounds(L.latLngBounds(pts.slice(0, 1500).map(l => [l.y, l.x])).pad(.08));
+}
+
+/* ------------------------------------------------------------ valuation */
+function fillValuationCities(){
+  const sel = document.getElementById('vCity');
+  sel.innerHTML = DB.cities.map(c =>
+    `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  sel.addEventListener('change', () => loadCity(sel.value));
+}
+
+function fillValuationHoods(){
+  document.getElementById('vCity').value = CITY.id;
+  const rows = (CITY.rows || []).filter(r => r.n >= 10)
+    .sort((a, b) => a.hood.localeCompare(b.hood, 'fa'));
+  document.getElementById('vHood').innerHTML =
+    '<option value="">کل شهر</option>' +
+    rows.map(r => `<option value="${esc(r.hood)}">${esc(r.hood)}</option>`).join('');
+}
+
+function setupValuation(){
+  document.querySelectorAll('.vcheck').forEach(b =>
+    b.addEventListener('click', () => {
+      const f = b.dataset.f;
+      vFeatures.has(f) ? vFeatures.delete(f) : vFeatures.add(f);
+      b.classList.toggle('on', vFeatures.has(f));
+    }));
+  document.getElementById('vGo').addEventListener('click', valuate);
+}
+
+/**
+ * Estimate from comparable listings, and say what the estimate is worth.
+ *
+ * This finds listings in the same area, within 25% of the given size, and
+ * takes the middle half of their price per square metre. It estimates what
+ * the property would be *asked* for, not what it would sell for — in Iran
+ * those differ, and the output says so rather than implying a precision the
+ * data cannot support.
+ */
+function valuate(){
+  const out = document.getElementById('vOut');
+  const area = +document.getElementById('vArea').value;
+  const hood = document.getElementById('vHood').value;
+  const rooms = document.getElementById('vRooms').value;
+  const age = document.getElementById('vAge').value;
+
+  out.classList.remove('hide');
+  if (!area || area < 15 || area > 2000) {
+    out.innerHTML = '<div class="note">متراژ ملک را وارد کنید تا محاسبه ممکن شود.</div>';
+    return;
+  }
+
+  let comps = (CITY.listings || []).filter(l =>
+    l.m > 0 && l.a > 0 &&
+    (!hood || l.h === hood) &&
+    l.a >= area * .75 && l.a <= area * 1.25);
+
+  if (rooms) comps = comps.filter(l => String(l.r) === rooms);
+  if (age !== '') {
+    const g = +age;
+    comps = comps.filter(l => l.g != null && Math.abs(l.g - g) <= 5);
+  }
+  if (vFeatures.size)
+    comps = comps.filter(l => [...vFeatures].every(f => (l.f || []).includes(f)));
+
+  // Loosen rather than refuse: a narrower filter that finds nothing is less
+  // use than a wider one that is honest about being wider.
+  let widened = '';
+  if (comps.length < 8) {
+    comps = (CITY.listings || []).filter(l =>
+      l.m > 0 && l.a > 0 && (!hood || l.h === hood) &&
+      l.a >= area * .6 && l.a <= area * 1.4);
+    widened = ' با بازه متراژ گسترده‌تر،';
+  }
+  if (comps.length < 5 && hood) {
+    comps = (CITY.listings || []).filter(l =>
+      l.m > 0 && l.a > 0 && l.a >= area * .6 && l.a <= area * 1.4);
+    widened = ' بر پایه کل شهر (آگهی مشابه در این محله کم بود)،';
+  }
+  if (comps.length < 5) {
+    out.innerHTML = '<div class="note">آگهی مشابه کافی برای تخمین پیدا نشد. ' +
+      'متراژ یا محله دیگری را امتحان کنید.</div>';
+    return;
+  }
+
+  const m2 = comps.map(l => l.m).sort((a, b) => a - b);
+  const q = p => m2[Math.max(0, Math.min(m2.length - 1, Math.floor(m2.length * p)))];
+  const mid = median(m2), loM2 = q(.25), hiM2 = q(.75);
+
+  const bn = v => (v * area) / 1000;      // million per m² × m² → milliard
+  out.innerHTML = `
+    <div class="note">ارزش تقریبی درخواستی</div>
+    <div class="num">${FA1(bn(loM2))} تا ${FA1(bn(hiM2))} میلیارد تومان</div>
+    <div class="note">میانه ${FA1(mid)} میلیون تومان بر متر مربع ·
+      بر پایه${widened} ${FA(comps.length)} آگهی مشابه</div>
+    <div class="note" style="margin-top:8px">این رقم تخمین قیمت
+      <b>درخواستی</b> است، نه قیمت معامله. قیمت نهایی معمولاً پایین‌تر بسته می‌شود.</div>`;
+}
+
+/* --------------------------------------------------------------- search */
+function setupSearch(){
+  const q = document.getElementById('q');
+  const box = document.getElementById('sugg');
+
+  const close = () => { box.classList.add('hide'); suggIndex = -1; };
+
+  q.addEventListener('input', () => {
+    const term = q.value.trim();
+    if (!term || !DB) return close();
+    const cities = DB.cities.filter(c => c.name.includes(term)).slice(0, 5);
+    const hoods = CITY ? (CITY.rows || [])
+      .filter(r => r.hood.includes(term) && r.n >= 10).slice(0, 6) : [];
+    if (!cities.length && !hoods.length) {
+      box.innerHTML = '<div class="head">چیزی پیدا نشد</div>';
+      box.classList.remove('hide');
+      return;
+    }
+    box.innerHTML =
+      (cities.length ? '<div class="head">شهرها</div>' + cities.map(c =>
+        `<div class="row" data-city="${c.id}"><span>${esc(c.name)}</span>
+         <span class="meta">${FA(c.n)} آگهی</span></div>`).join('') : '') +
+      (hoods.length ? `<div class="head">محله‌ها در ${esc(CITY.name)}</div>` +
+        hoods.map(h => `<div class="row" data-hood="${esc(h.hood)}">
+         <span>${esc(h.hood)}</span>
+         <span class="meta">${FA1(h.m2)} میلیون</span></div>`).join('') : '');
+    box.classList.remove('hide');
+    box.querySelectorAll('[data-city]').forEach(el =>
+      el.addEventListener('click', () => { loadCity(el.dataset.city); q.value=''; close(); }));
+    box.querySelectorAll('[data-hood]').forEach(el =>
+      el.addEventListener('click', () => openDetail(CITY.id, el.dataset.hood)));
+  });
+
+  q.addEventListener('keydown', e => {
+    const rows = [...box.querySelectorAll('.row')];
+    if (e.key === 'Escape') return close();
+    if (!rows.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      suggIndex = (suggIndex + (e.key === 'ArrowDown' ? 1 : -1) + rows.length) % rows.length;
+      rows.forEach((r, i) => r.classList.toggle('on', i === suggIndex));
+    } else if (e.key === 'Enter' && suggIndex >= 0) {
+      e.preventDefault(); rows[suggIndex].click();
+    }
+  });
+
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.search')) close();
+  });
+  document.getElementById('qgo').addEventListener('click', () => q.focus());
+}
+
+boot();
+</script>
+</body>
+</html>
