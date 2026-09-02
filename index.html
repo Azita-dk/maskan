@@ -131,7 +131,9 @@
   .panel .note{font-size:13px;color:var(--muted);margin-bottom:12px}
   .panel .warn{font-size:13px;color:var(--alert)}
   .chart{position:relative}
-  footer{font-size:13px;color:var(--muted);margin-top:20px;padding-top:14px;
+  footer{display:flex;justify-content:space-between;align-items:baseline;
+         gap:18px;flex-wrap:wrap;
+         font-size:13px;color:var(--muted);margin-top:20px;padding-top:14px;
           border-top:1px solid var(--rule)}
   .banner{background:#FDF6E6;border:1px solid #E0C48D;color:#6B5410;
           font-size:14px;padding:10px 14px;border-radius:2px;margin-bottom:14px}
@@ -141,6 +143,20 @@
      what the code did. !important is the right tool here: this class exists
      for exactly one purpose and must beat every layout rule in the file. */
   .hide{display:none !important}
+
+  .langbar{display:flex;gap:0;justify-content:flex-start;margin-bottom:10px}
+  .langbar button{font:inherit;font-family:inherit;font-size:13px;cursor:pointer;
+    background:var(--card);border:1px solid var(--rule);color:var(--muted);
+    padding:5px 14px}
+  .langbar button:first-child{border-radius:0 2px 2px 0}
+  .langbar button:last-child{border-radius:2px 0 0 2px;border-inline-start:0}
+  .langbar button.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+  html[lang=en]{direction:ltr}
+  html[lang=en] body{font-family:system-ui,'Segoe UI',sans-serif}
+  html[lang=en] .langbar{justify-content:flex-end}
+  html[lang=en] .langbar button:first-child{border-radius:2px 0 0 2px}
+  html[lang=en] .langbar button:last-child{border-radius:0 2px 2px 0;
+    border-inline-start:1px solid var(--rule)}
 
   /* ── phones ─────────────────────────────────────────────────────────
      Most visitors will arrive on a phone, where an eight-column table is
@@ -414,6 +430,8 @@
   .periods button.on{background:var(--green);color:#fff}
   .periods button:focus-visible,select:focus-visible,input:focus-visible,
   button:focus-visible{outline:2px solid var(--seal);outline-offset:1px}
+  #ver{font-variant-numeric:tabular-nums;white-space:nowrap;flex:0 0 auto;
+       opacity:.75}
   .rangeinfo{font-size:13px;color:var(--muted)}
   .rangeinfo b{color:var(--ink);font-size:14px}
   code{background:#EEF0F3;padding:1px 5px;border-radius:2px;font-size:13px;
@@ -424,6 +442,10 @@
 </head>
 <body>
 <div class="wrap">
+  <div class="langbar">
+    <button id="langFa" class="on" lang="fa" translate="no">فارسی</button>
+    <button id="langEn" lang="en">English</button>
+  </div>
 
   <div id="sampleBanner" class="banner hide">
     داده‌های نمایش‌داده‌شده نمونه است و هنوز از آگهی‌های واقعی ساخته نشده.
@@ -593,7 +615,8 @@
     <div class="tbl-wrap">
       <table>
         <thead><tr>
-          <th>عنوان</th><th>محله</th><th>متراژ</th><th>اتاق</th>
+          <th>عنوان <span style="font-weight:400">(◉ روی نقشه)</span></th>
+          <th>محله</th><th>متراژ</th><th>اتاق</th>
           <th>قیمت کل</th><th>هر متر</th><th>تاریخ</th><th>منبع</th>
         </tr></thead>
         <tbody id="listBody"></tbody>
@@ -631,10 +654,10 @@
   </section>
 
   <footer>
-    <span id="ver" style="float:left;font-variant-numeric:tabular-nums"></span>
-    ارقام از آگهی‌های عمومی سایت‌های ملکی گردآوری و پس از حذف آگهی‌های تکراری و
-    پرت محاسبه می‌شود. این قیمت درخواستی فروشنده است، نه قیمت معامله‌شده.
-    آمار رسمی از بانک مرکزی و مرکز آمار ایران گرفته می‌شود.
+    <span>ارقام از آگهی‌های عمومی سایت‌های ملکی گردآوری و پس از حذف آگهی‌های
+      تکراری و پرت محاسبه می‌شود. این قیمت درخواستی فروشنده است، نه قیمت
+      معامله‌شده.</span>
+    <span id="ver"></span>
   </footer>
 </div>
 
@@ -660,8 +683,175 @@ function sourceUrl(l){
 
 const CSSVAR = n => getComputedStyle(document.documentElement)
   .getPropertyValue(n).trim();
-const FA = n => Number(n).toLocaleString('fa-IR').replace(/,/g,'\u066C');
-const FA1 = n => Number(n).toLocaleString('fa-IR',{minimumFractionDigits:1,maximumFractionDigits:1}).replace(/,/g,'\u066C');
+const FA = n => LANG === 'en'
+  ? Number(n).toLocaleString('en-US')
+  : Number(n).toLocaleString('fa-IR').replace(/,/g,'\u066C');
+const FA1 = n => LANG === 'en'
+  ? Number(n).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})
+  : Number(n).toLocaleString('fa-IR',{minimumFractionDigits:1,maximumFractionDigits:1}).replace(/,/g,'\u066C');
+const EN = {
+ "آمار قیمت مسکن": "Iran Housing Prices",
+ "میانه قیمت درخواستی آگهی‌های فروش آپارتمان — به‌روزرسانی ماهانه": "Median asking price for apartment listings — updated daily",
+ "آخرین دوره": "Latest period",
+ "فیلترها": "Filters",
+ "داده‌های نمایش‌داده‌شده نمونه است و هنوز از آگهی‌های واقعی ساخته نشده.": "This is sample data, not yet built from real listings.",
+ "شهر": "City",
+ "حداقل متراژ": "Min. area",
+ "حداکثر متراژ": "Max. area",
+ "بدون حد": "No limit",
+ "اتاق خواب": "Bedrooms",
+ "سن بنا": "Building age",
+ "زمان آگهی": "Listed within",
+ "حداقل نمونه در محله": "Min. sample per area",
+ "همه": "All",
+ "نوساز": "New build",
+ "۵۰ متر": "50 m²",
+ "۷۰ متر": "70 m²",
+ "۹۰ متر": "90 m²",
+ "۱۲۰ متر": "120 m²",
+ "۱۵۰ متر": "150 m²",
+ "۱ خوابه": "1 bed",
+ "۲ خوابه": "2 beds",
+ "۳ خوابه": "3 beds",
+ "تا ۵ سال": "Up to 5 years",
+ "تا ۱۰ سال": "Up to 10 years",
+ "تا ۲۰ سال": "Up to 20 years",
+ "بالای ۲۰ سال": "Over 20 years",
+ "۷ روز اخیر": "Last 7 days",
+ "۳۰ روز اخیر": "Last 30 days",
+ "۳ ماه اخیر": "Last 3 months",
+ "۱۰ آگهی": "10 listings",
+ "۲۰ آگهی": "20 listings",
+ "۵۰ آگهی": "50 listings",
+ "محله انتخاب‌شده:": "Selected area:",
+ "نمایش کل شهر": "Show whole city",
+ "میانه هر متر مربع": "Median per m²",
+ "میلیون تومان": "million toman",
+ "تغییر ماهانه": "Monthly change",
+ "نسبت به ماه قبل": "vs. previous month",
+ "تغییر سالانه": "Annual change",
+ "نسبت به سال قبل": "vs. previous year",
+ "تعداد آگهی": "Listings",
+ "هنوز یک ماه داده ثبت نشده": "Less than a month of data",
+ "در این انتخاب، پس از حذف تکراری‌ها": "in this selection, duplicates removed",
+ "روند قیمت مسکن": "Price trend",
+ "محله‌ها": "Areas",
+ "توزیع قیمت": "Price distribution",
+ "قیمت بر پایه متراژ و سن بنا": "Price by size and building age",
+ "میانه هر متر مربع بر پایه متراژ": "Median per m² by floor area",
+ "میانه هر متر مربع بر پایه سن بنا": "Median per m² by building age",
+ "نقشه قیمت": "Price map",
+ "آگهی‌ها": "Listings",
+ "روش کار و منبع داده‌ها": "Method and data sources",
+ "۱ سال": "1 year",
+ "۳ ماه": "3 months",
+ "۱ ماه": "1 month",
+ "۷ روز": "7 days",
+ "گران به ارزان": "Dearest first",
+ "ارزان به گران": "Cheapest first",
+ "بیشترین آگهی": "Most listings",
+ "نمای کل شهر": "Whole city view",
+ "یک آگهی از روی نقشه انتخاب شده است": "One listing selected from the map",
+ "نمایش همه آگهی‌ها": "Show all listings",
+ "عنوان": "Title",
+ "(◉ روی نقشه)": "(◉ on map)",
+ "محله": "Area",
+ "متراژ": "Area m²",
+ "اتاق": "Beds",
+ "قیمت کل": "Total price",
+ "هر متر": "Per m²",
+ "تاریخ": "Date",
+ "منبع": "Source",
+ "اعتبار بالا": "High confidence",
+ "اعتبار متوسط": "Medium confidence",
+ "اعتبار کم": "Low confidence",
+ "بالا": "High",
+ "متوسط": "Medium",
+ "کم": "Low",
+ "این یعنی چه؟": "What does this mean?",
+ "دیوار": "Divar",
+ "شیپور": "Sheypoor",
+ "کیلید": "Kilid",
+ "ستون آخر تعداد آگهی‌هایی است که میانه از آن‌ها حساب شده. محله‌های بدون\n      نشان، بالای ۱۰۰ آگهی دارند و رقمشان پایدار است. نشان زرد یعنی اعتبار\n      متوسط و نشان قرمز یعنی اعتبار کم.": "The last column is how many listings the median was calculated from. Areas with no badge have over 100 listings and a stable figure. An amber badge means medium confidence, red means low.",
+ "ستون‌های کم‌رنگ کمتر از ۲۰ آگهی دارند. آپارتمان کوچک معمولاً گران‌تر از\n      بزرگ است در هر متر مربع، چون قیمت زمین بین متر کمتری پخش می‌شود.": "Faint bars have fewer than 20 listings. Small apartments usually cost more per square metre than large ones, because the land price is spread over fewer metres.",
+ "موقعیت آگهی‌ها را دیوار به‌صورت تقریبی منتشر می‌کند و ممکن است تا چند صد\n      متر با محل واقعی فاصله داشته باشد. رنگ نقطه‌ها بر پایه قیمت هر متر مربع است.": "Divar publishes listing positions approximately, so a pin may sit a few hundred metres from the real address. Dot colour follows the price per square metre.",
+ "قیمت مسکن تصمیم مالی بزرگی است — پس روش رسیدن به این ارقام باز است.": "Housing is a major financial decision, so the method behind these figures is open.",
+ "داده از کجا می‌آید": "Where the data comes from",
+ "این چه نوع قیمتی است": "What kind of price this is",
+ "روی داده چه کاری انجام می‌شود": "What is done to the data",
+ "چرا میانه و نه میانگین": "Why median, not mean",
+ "هر چند وقت به‌روز می‌شود": "How often it updates",
+ "تا کجا می‌شود به عدد اتکا کرد": "How far the numbers can be trusted",
+ "آگهی‌های عمومی فروش آپارتمان در دیوار، شیپور و کیلید. هیچ داده‌ای از کاربران این سایت گرفته یا منتشر نمی‌شود.": "Public apartment-for-sale listings on Divar, Sheypoor and Kilid. No data is collected from or published about this site's own visitors.",
+ "قیمت درخواستی فروشنده است، نه قیمت معامله‌شده. در ایران دفتر عمومی معاملات ثبت‌شده وجود ندارد. قیمت نهایی معمولاً پایین‌تر از رقم آگهی بسته می‌شود.": "These are sellers' asking prices, not agreed sale prices. Iran has no public register of recorded transactions. Final prices are usually settled below the advertised figure.",
+ "حذف آگهی‌های تکراری، حذف آگهی‌های پرت با روش انحراف مطلق از میانه، یکسان‌سازی املای نام محله‌ها، و کنار گذاشتن آگهی‌های اقساطی، پیش‌فروش، مشارکت، تجاری و اداری.": "Duplicate listings removed, outliers trimmed using median absolute deviation, area-name spellings unified, and instalment, off-plan, joint-venture, commercial and office listings excluded.",
+ "توزیع قیمت مسکن به‌شدت به راست کشیده است. یک ویلای گران میانگین یک محله را جابه‌جا می‌کند، ولی میانه را نه.": "Housing prices are heavily right-skewed. One expensive villa moves an area's mean; it does not move the median.",
+ "آگهی‌های تازه هر چند دقیقه جمع‌آوری و آمار هر شبانه‌روز بازسازی می‌شود. تاریخ آخرین به‌روزرسانی پایین همین صفحه است.": "New listings are collected every few minutes and the statistics are rebuilt daily. The last update date is at the foot of this page.",
+ "هر رقم نشان اعتبار دارد که بر پایه تعداد آگهی‌های پشت آن حساب می‌شود. تاریخچه این سایت از شهریور ۱۴۰۵ آغاز شده، بنابراین مقایسه‌های بلندمدت هنوز در دسترس نیست.": "Every figure carries a confidence badge based on how many listings sit behind it. This site's history begins in Shahrivar 1405, so long-term comparisons are not available yet.",
+ "ارقام از آگهی‌های عمومی سایت‌های ملکی گردآوری و پس از حذف آگهی‌های تکراری و پرت محاسبه می‌شود. این قیمت درخواستی فروشنده است، نه قیمت معامله‌شده.": "Figures are gathered from public property listings and calculated after removing duplicates and outliers. These are sellers' asking prices, not agreed sale prices."
+};
+const EN_N = Object.fromEntries(
+  Object.entries(EN).map(([k, v]) => [k.trim().replace(/\s+/g, ' '), v]));
+
+/**
+ * Translation by lookup, not by rewriting the page.
+ *
+ * Every Persian string stays in the markup as it is. On switching to English
+ * the page is walked and any leaf element whose text matches a dictionary
+ * entry is swapped; the original is kept on the node so switching back is
+ * exact. Anything not in the dictionary is simply left in Persian — a missing
+ * translation shows the original rather than an empty label, which matters
+ * because this dictionary will always be incomplete somewhere.
+ *
+ * City and neighbourhood names are data, not interface, and stay Persian in
+ * both languages. There is no English name for یوسف‌آباد.
+ */
+let LANG = 'fa';
+
+function t(fa){
+  if (LANG !== 'en') return fa;
+  return EN_N[String(fa).trim().replace(/\s+/g, ' ')] || fa;
+}
+
+function translateTree(root){
+  if (LANG === 'fa') {
+    root.querySelectorAll('[data-fa]').forEach(el => {
+      el.textContent = el.dataset.fa;
+      el.removeAttribute('data-fa');
+    });
+    return;
+  }
+  const key = txt => txt.trim().replace(/\s+/g, ' ');
+  const walk = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  const todo = [];
+  for (let el = walk.nextNode(); el; el = walk.nextNode()) {
+    if (el.children.length) continue;              // leaves only
+    const k = key(el.textContent);
+    if (!k || !EN_N[k]) continue;
+    todo.push([el, k]);
+  }
+  todo.forEach(([el, k]) => {
+    if (el.dataset.fa === undefined) el.dataset.fa = el.textContent;
+    el.textContent = EN_N[k];
+  });
+}
+
+function setLang(lang){
+  LANG = lang;
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'en' ? 'ltr' : 'rtl';
+  document.getElementById('langFa').classList.toggle('on', lang === 'fa');
+  document.getElementById('langEn').classList.toggle('on', lang === 'en');
+  try { localStorage.setItem('maskan_lang', lang); } catch (e) {}
+  const q = document.getElementById('q');
+  if (q) q.placeholder = lang === 'en'
+    ? 'Search a city, area, feature or listing…'
+    : 'جست‌وجوی شهر، محله، امکانات یا متن آگهی…';
+  if (DB) render(); else translateTree(document.body);
+  translateTree(document.body);
+  stampVersion();
+}
+
 let DB = null, trendChart = null;
 let map = null, markerLayer = null, selectedHood = null, yearChart = null;
 let sizeChart = null, ageChart = null, distChart = null, markerBy = new Map(), hoodMarkerBy = new Map(),
@@ -685,14 +875,19 @@ const cityCache = new Map();     // keep visited cities in memory
 
 // A visible stamp for the page itself. Checking whether a file actually
 // reached the browser has cost more time today than any real bug.
-const PAGE_VERSION = '03 Sep 00:40';
+const PAGE_VERSION = '2026-09-03 02:30';
+const FA_DIGITS = t => String(t).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
+
 function stampVersion(){
   const w = window.innerWidth;
   const mob = window.matchMedia('(max-width: 720px)').matches;
-  document.getElementById('ver').textContent =
-    `نسخه ${PAGE_VERSION} · عرض ${w}px · ${mob ? 'چیدمان موبایل' : 'چیدمان دسکتاپ'}`;
+  const el = document.getElementById('ver');
+  const [date, time] = PAGE_VERSION.split(' ');
+  el.textContent = LANG === 'en'
+    ? `version ${faDate(date)} · ${time}`
+    : `نسخه ${faDate(date)} · ${FA_DIGITS(time)}`;
+  el.title = `عرض ${w}px · ${mob ? 'چیدمان موبایل' : 'چیدمان دسکتاپ'}`;
 }
-stampVersion();
 window.addEventListener('resize', stampVersion);
 
 fetch(dataUrl('stats.json', Date.now()))
@@ -762,9 +957,18 @@ function boot(){
   window.matchMedia('(prefers-color-scheme: dark)')
     .addEventListener('change', () => render());
 
+  document.getElementById('langFa')
+    .addEventListener('click', () => setLang('fa'));
+  document.getElementById('langEn')
+    .addEventListener('click', () => setLang('en'));
+
   setupFilterToggle();
   setupSearch();
   switchCity();
+
+  let saved = null;
+  try { saved = localStorage.getItem('maskan_lang'); } catch (e) {}
+  if (saved === 'en') setLang('en');
 }
 
 async function switchCity(){
@@ -1155,6 +1359,9 @@ function render(){
   drawList(shownItems, days, solo);
   drawChips(all, minA, maxA, rooms, age, cutoff);
   drawBands();
+
+  // render() writes Persian into the page, so translate whatever it just wrote
+  if (LANG === 'en') translateTree(document.body);
 
   const n = activeFilterCount();
   document.getElementById('filterCount').textContent =
@@ -1555,13 +1762,20 @@ function drawList(items, days, solo){
   const mixText = Object.entries(mix).sort((a,b) => b[1]-a[1])
     .map(([k,n]) => `${SOURCE_FA[k] || k} ${FA(n)}`).join(' · ');
 
+  const pinned = items.filter(l => l.y).length;
+  const pinNote = (!solo && pinned && pinned < items.length)
+    ? `  |  نشان ◉ سبز یعنی آگهی روی نقشه هم هست (${FA(pinned)} از ${
+        FA(items.length)}) — بقیه هنوز مختصات ندارند`
+    : '';
+
   note.textContent = solo
     ? 'همان آگهی‌ای که روی نقشه انتخاب کردید'
     : FA(items.length) + ' آگهی' +
       (query ? ` شامل «${query}»` : '') +
       (days ? ` از ${FA(days)} روز گذشته` : '') +
       ' — روی هر ردیف کلیک کنید تا روی نقشه نشان داده شود' +
-      (Object.keys(mix).length > 1 ? '  |  ' + mixText : '');
+      (Object.keys(mix).length > 1 ? '  |  ' + mixText : '') +
+      pinNote;
 
   const shown = items.slice(0, LIST_LIMIT);
   body.innerHTML = shown.map(l => `
@@ -1643,11 +1857,17 @@ function toJalali(gy, gm, gd) {
   return [jy, jm, jd];
 }
 
+// the stamp needs J_MONTHS, so it is drawn from here rather than from the
+// top of the script, where the constant is still in its dead zone
 const J_MONTHS = ["فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور",
                   "مهر","آبان","آذر","دی","بهمن","اسفند"];
 
+const EN_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun",
+                   "Jul","Aug","Sep","Oct","Nov","Dec"];
+
 function faDate(iso) {
   const [y, m, d] = iso.split("-").map(Number);
+  if (LANG === 'en') return `${d} ${EN_MONTHS[m - 1]} ${y}`;
   const [jy, jm, jd] = toJalali(y, m, d);
   const year = String(jy).replace(/[0-9]/g, (d) => "۰۱۲۳۴۵۶۷۸۹"[+d]);
   return `${FA(jd)} ${J_MONTHS[jm - 1]} ${year}`;
@@ -1655,6 +1875,7 @@ function faDate(iso) {
 
 function faShortDate(iso) {
   const [y, m, d] = iso.split("-").map(Number);
+  if (LANG === 'en') return `${d} ${EN_MONTHS[m - 1]}`;
   const [, jm, jd] = toJalali(y, m, d);
   return `${FA(jd)} ${J_MONTHS[jm - 1]}`;
 }
@@ -2015,6 +2236,10 @@ function wireHoodRows(box){
   const more = box.querySelector('#hmore');
   if (more) more.addEventListener('click', () => { showThin = !showThin; render(); });
 }
+
+
+// every declaration above has run by now, so the Jalali converter is ready
+stampVersion();
 
 </script>
 </body>
