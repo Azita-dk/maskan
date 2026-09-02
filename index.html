@@ -689,6 +689,295 @@ const FA = n => LANG === 'en'
 const FA1 = n => LANG === 'en'
   ? Number(n).toLocaleString('en-US',{minimumFractionDigits:1,maximumFractionDigits:1})
   : Number(n).toLocaleString('fa-IR',{minimumFractionDigits:1,maximumFractionDigits:1}).replace(/,/g,'\u066C');
+const CITY_EN = {
+ "تهران": "Tehran",
+ "مشهد": "Mashhad",
+ "اصفهان": "Isfahan",
+ "کرج": "Karaj",
+ "شیراز": "Shiraz",
+ "تبریز": "Tabriz",
+ "قم": "Qom",
+ "اهواز": "Ahvaz",
+ "کرمانشاه": "Kermanshah",
+ "ارومیه": "Urmia",
+ "رشت": "Rasht",
+ "زاهدان": "Zahedan",
+ "همدان": "Hamadan",
+ "کرمان": "Kerman",
+ "یزد": "Yazd",
+ "اردبیل": "Ardabil",
+ "بندرعباس": "Bandar Abbas",
+ "اراک": "Arak",
+ "اسلامشهر": "Eslamshahr",
+ "زنجان": "Zanjan",
+ "سنندج": "Sanandaj",
+ "قزوین": "Qazvin",
+ "خرم‌آباد": "Khorramabad",
+ "خرم آباد": "Khorramabad",
+ "گرگان": "Gorgan",
+ "ساری": "Sari",
+ "قدس": "Qods",
+ "کاشان": "Kashan",
+ "دزفول": "Dezful",
+ "بروجرد": "Borujerd",
+ "نیشابور": "Neyshabur",
+ "سبزوار": "Sabzevar",
+ "بابل": "Babol",
+ "آمل": "Amol",
+ "نجف‌آباد": "Najafabad",
+ "نجف آباد": "Najafabad",
+ "بجنورد": "Bojnord",
+ "بوشهر": "Bushehr",
+ "قائم‌شهر": "Qaemshahr",
+ "قائم شهر": "Qaemshahr",
+ "ایلام": "Ilam",
+ "شهریار": "Shahriar",
+ "ملارد": "Malard",
+ "پاکدشت": "Pakdasht",
+ "سمنان": "Semnan",
+ "بیرجند": "Birjand",
+ "سیرجان": "Sirjan",
+ "رفسنجان": "Rafsanjan",
+ "شاهرود": "Shahroud",
+ "مراغه": "Maragheh",
+ "خوی": "Khoy",
+ "ورامین": "Varamin",
+ "بندر انزلی": "Bandar Anzali",
+ "انزلی": "Anzali",
+ "لاهیجان": "Lahijan",
+ "چالوس": "Chalus",
+ "نوشهر": "Nowshahr",
+ "رامسر": "Ramsar",
+ "بابلسر": "Babolsar",
+ "محمودآباد": "Mahmudabad",
+ "فردیس": "Fardis",
+ "کیش": "Kish",
+ "قشم": "Qeshm",
+ "مرودشت": "Marvdasht",
+ "جهرم": "Jahrom",
+ "بم": "Bam",
+ "شهرکرد": "Shahrekord",
+ "یاسوج": "Yasuj",
+ "خرمشهر": "Khorramshahr",
+ "آبادان": "Abadan",
+ "اندیمشک": "Andimeshk",
+ "شوشتر": "Shushtar",
+ "مسجدسلیمان": "Masjed Soleyman",
+ "ساوه": "Saveh",
+ "تربت حیدریه": "Torbat-e Heydarieh",
+ "گنبد کاووس": "Gonbad-e Kavus",
+ "مهاباد": "Mahabad",
+ "میاندوآب": "Miandoab",
+ "بوکان": "Bukan",
+ "سقز": "Saqqez",
+ "کاشمر": "Kashmar",
+ "تاکستان": "Takestan",
+ "آستارا": "Astara",
+ "تالش": "Talesh",
+ "فومن": "Fuman",
+ "صومعه‌سرا": "Sowmeh Sara",
+ "رودسر": "Rudsar",
+ "لنگرود": "Langarud"
+};
+
+// Persian omits short vowels, so transliterating by rule gives "thran" for
+// تهران and "ulnjk" for ولنجک. City names are therefore a hand table; a
+// place not in it keeps its Persian spelling, which is at least readable.
+const HOOD_EN = {
+ "ولنجک": "Velenjak",
+ "سعادت آباد": "Sa'adat Abad",
+ "سعادت‌آباد": "Sa'adat Abad",
+ "شهرک غرب": "Shahrak-e Gharb",
+ "یوسف آباد": "Yusef Abad",
+ "یوسف‌آباد": "Yusef Abad",
+ "نارمک": "Narmak",
+ "پونک": "Punak",
+ "اکباتان": "Ekbatan",
+ "ونک": "Vanak",
+ "تجریش": "Tajrish",
+ "نیاوران": "Niavaran",
+ "زعفرانیه": "Zafaraniyeh",
+ "الهیه": "Elahiyeh",
+ "فرمانیه": "Farmanieh",
+ "قیطریه": "Gheytarieh",
+ "پاسداران": "Pasdaran",
+ "دروس": "Darrous",
+ "قلهک": "Gholhak",
+ "اختیاریه": "Ekhtiarieh",
+ "کامرانیه": "Kamranieh",
+ "محمودیه": "Mahmoudieh",
+ "اقدسیه": "Aqdasieh",
+ "جماران": "Jamaran",
+ "دربند": "Darband",
+ "درکه": "Darakeh",
+ "اوین": "Evin",
+ "شمیران": "Shemiran",
+ "تهرانپارس": "Tehranpars",
+ "تهران پارس": "Tehranpars",
+ "تهرانسر": "Tehransar",
+ "صادقیه": "Sadeghiyeh",
+ "آریاشهر": "Aryashahr",
+ "گیشا": "Gisha",
+ "شهران": "Shahran",
+ "شهرزیبا": "Shahr-e Ziba",
+ "شهر زیبا": "Shahr-e Ziba",
+ "جنت آباد": "Jannat Abad",
+ "جنت‌آباد": "Jannat Abad",
+ "ستارخان": "Sattarkhan",
+ "مرزداران": "Marzdaran",
+ "سازمان برنامه": "Sazman Barnameh",
+ "بلوار فردوس": "Ferdows Blvd",
+ "فردوس": "Ferdows",
+ "امیرآباد": "Amirabad",
+ "امیر آباد": "Amir Abad",
+ "عباس آباد": "Abbas Abad",
+ "عباس‌آباد": "Abbas Abad",
+ "سید خندان": "Seyed Khandan",
+ "سیدخندان": "Seyed Khandan",
+ "رسالت": "Resalat",
+ "لویزان": "Lavizan",
+ "حکیمیه": "Hakimieh",
+ "ازگل": "Ozgol",
+ "سوهانک": "Sohanak",
+ "دارآباد": "Darabad",
+ "فرحزاد": "Farahzad",
+ "چیذر": "Chizar",
+ "دیباجی": "Dibaji",
+ "مهران": "Mehran",
+ "داوودیه": "Davoodieh",
+ "سهروردی": "Sohrevardi",
+ "شهرآرا": "Shahrara",
+ "طرشت": "Tarasht",
+ "صالح آباد": "Saleh Abad",
+ "نازی آباد": "Nazi Abad",
+ "نازی‌آباد": "Nazi Abad",
+ "یافت آباد": "Yaft Abad",
+ "یافت‌آباد": "Yaft Abad",
+ "جوادیه": "Javadieh",
+ "خانی آباد": "Khani Abad",
+ "خانی‌آباد": "Khani Abad",
+ "نعمت آباد": "Nemat Abad",
+ "افسریه": "Afsarieh",
+ "پیروزی": "Piroozi",
+ "نظام آباد": "Nezam Abad",
+ "نظام‌آباد": "Nezam Abad",
+ "دردشت": "Dardasht",
+ "هفت حوض": "Haft Howz",
+ "مجیدیه": "Majidieh",
+ "خاک سفید": "Khak-e Sefid",
+ "کیانشهر": "Kiyanshahr",
+ "مشیریه": "Moshirieh",
+ "خاوران": "Khavaran",
+ "خزانه": "Khazaneh",
+ "مولوی": "Molavi",
+ "بهارستان": "Baharestan",
+ "منیریه": "Moniriyeh",
+ "سلسبیل": "Salsabil",
+ "نواب": "Navab",
+ "گمرک": "Gomrok",
+ "جمهوری": "Jomhuri",
+ "فردوسی": "Ferdowsi",
+ "انقلاب": "Enghelab",
+ "آزادی": "Azadi",
+ "صادقیه شمالی": "North Sadeghiyeh",
+ "جردن": "Jordan",
+ "میرداماد": "Mirdamad",
+ "ظفر": "Zafar",
+ "شریعتی": "Shariati",
+ "ولیعصر": "Valiasr",
+ "کریمخان": "Karimkhan",
+ "توحید": "Towhid",
+ "آرژانتین": "Argentine",
+ "بهجت آباد": "Behjat Abad",
+ "پارک وی": "Parkway",
+ "باغ فیض": "Bagh Feiz",
+ "دهکده المپیک": "Olympic Village",
+ "چیتگر": "Chitgar",
+ "اندیشه": "Andisheh",
+ "پرند": "Parand",
+ "پردیس": "Pardis",
+ "ری": "Rey",
+ "ورامین": "Varamin",
+ "اسلامشهر": "Eslamshahr",
+ "گوهردشت": "Gohardasht",
+ "عظیمیه": "Azimieh",
+ "مهرشهر": "Mehrshahr",
+ "فردیس": "Fardis",
+ "کیانمهر": "Kianmehr",
+ "جهانشهر": "Jahanshahr",
+ "باغستان": "Baghestan",
+ "حصارک": "Hesarak",
+ "رجایی شهر": "Rajaee Shahr",
+ "احمدآباد": "Ahmad Abad",
+ "وکیل آباد": "Vakil Abad",
+ "وکیل‌آباد": "Vakil Abad",
+ "الهیه مشهد": "Elahieh",
+ "هاشمیه": "Hashemieh",
+ "سجاد": "Sajjad",
+ "قاسم آباد": "Qasem Abad",
+ "طرقبه": "Torqabeh",
+ "مرداویج": "Mardavij",
+ "سپاهان شهر": "Sepahan Shahr",
+ "خانه اصفهان": "Khaneh Isfahan",
+ "ملک شهر": "Malek Shahr",
+ "شاهین شهر": "Shahin Shahr",
+ "معالی آباد": "Ma'ali Abad",
+ "قصردشت": "Qasrdasht",
+ "ارم": "Eram",
+ "صدرا": "Sadra",
+ "شهرک اکباتان": "Ekbatan",
+ "شهرک ژاندارمری": "Jandarmeri",
+ "دریا": "Darya",
+ "آیت الله کاشانی": "Ayatollah Kashani",
+ "شهرک قدس": "Shahrak-e Qods",
+ "حشمتیه": "Heshmatieh",
+ "تهران نو": "Tehran No",
+ "وحیدیه": "Vahidieh",
+ "شمس آباد": "Shams Abad",
+ "علم و صنعت": "Elm-o Sanat",
+ "فرجام": "Farjam",
+ "دلاوران": "Delavaran",
+ "شهرک والفجر": "Valfajr",
+ "فاطمی": "Fatemi",
+ "جمالزاده": "Jamalzadeh",
+ "دانشگاه": "Daneshgah",
+ "آپادانا": "Apadana",
+ "خواجه عبدالله": "Khajeh Abdollah",
+ "شوش": "Shush",
+ "بازار": "Bazaar",
+ "عودلاجان": "Oudlajan",
+ "سنگلج": "Sangelaj",
+ "پامنار": "Pamenar",
+ "شهرری": "Shahr-e Rey",
+ "شهر ری": "Shahr-e Rey",
+ "دولت آباد": "Dowlat Abad",
+ "چهاردانگه": "Chahardangeh",
+ "شاهین ویلا": "Shahin Villa",
+ "بلوار وکیل آباد": "Vakil Abad Blvd",
+ "کوهسنگی": "Kuhsangi",
+ "شهرک امیریه": "Amirieh",
+ "جلفا": "Jolfa",
+ "عفیف آباد": "Afif Abad",
+ "چمران": "Chamran",
+ "زرگری": "Zargari",
+ "الهیه تبریز": "Elahieh",
+ "رشدیه": "Roshdieh",
+ "باغمیشه": "Baghmisheh"
+};
+
+// Established romanisations — the spellings these places are actually
+// written with in English, taken from maps and reference sources rather
+// than generated. Persian omits short vowels, so a rule would turn ولنجک
+// into "ulnjk". Anything not listed keeps its Persian name: an invented
+// spelling is harder to match against a map than the original.
+function hoodLabel(fa){
+  if (LANG !== 'en' || !fa) return fa;
+  const k = String(fa).trim().replace(/\u200c/g, ' ').replace(/\s+/g, ' ');
+  return HOOD_EN[fa] || HOOD_EN[k] || fa;
+}
+
+function cityLabel(fa){ return LANG === 'en' ? (CITY_EN[fa] || fa) : fa; }
+
 const EN = {
  "آمار قیمت مسکن": "Iran Housing Prices",
  "میانه قیمت درخواستی آگهی‌های فروش آپارتمان — به‌روزرسانی ماهانه": "Median asking price for apartment listings — updated daily",
@@ -788,10 +1077,56 @@ const EN = {
  "توزیع قیمت مسکن به‌شدت به راست کشیده است. یک ویلای گران میانگین یک محله را جابه‌جا می‌کند، ولی میانه را نه.": "Housing prices are heavily right-skewed. One expensive villa moves an area's mean; it does not move the median.",
  "آگهی‌های تازه هر چند دقیقه جمع‌آوری و آمار هر شبانه‌روز بازسازی می‌شود. تاریخ آخرین به‌روزرسانی پایین همین صفحه است.": "New listings are collected every few minutes and the statistics are rebuilt daily. The last update date is at the foot of this page.",
  "هر رقم نشان اعتبار دارد که بر پایه تعداد آگهی‌های پشت آن حساب می‌شود. تاریخچه این سایت از شهریور ۱۴۰۵ آغاز شده، بنابراین مقایسه‌های بلندمدت هنوز در دسترس نیست.": "Every figure carries a confidence badge based on how many listings sit behind it. This site's history begins in Shahrivar 1405, so long-term comparisons are not available yet.",
- "ارقام از آگهی‌های عمومی سایت‌های ملکی گردآوری و پس از حذف آگهی‌های تکراری و پرت محاسبه می‌شود. این قیمت درخواستی فروشنده است، نه قیمت معامله‌شده.": "Figures are gathered from public property listings and calculated after removing duplicates and outliers. These are sellers' asking prices, not agreed sale prices."
+ "ارقام از آگهی‌های عمومی سایت‌های ملکی گردآوری و پس از حذف آگهی‌های تکراری و پرت محاسبه می‌شود. این قیمت درخواستی فروشنده است، نه قیمت معامله‌شده.": "Figures are gathered from public property listings and calculated after removing duplicates and outliers. These are sellers' asking prices, not agreed sale prices.",
+ "تا نوسان روزبه‌روزِ ناشی از تغییر آگهی‌ها با تغییر واقعی قیمت اشتباه نشود": "so day-to-day movement caused by listings changing is not mistaken for a real price change",
+ "بر پایه آگهی‌های گردآوری‌شده از دیوار، شیپور و کیلید. این قیمت درخواستی ": "Based on listings gathered from Divar, Sheypoor and Kilid. These are asking ",
+ "میانه قیمت آگهی‌ها، میلیون تومان بر متر مربع — میانگین متحرک ۷ روزه، ": "Median listing price, million toman per m² — 7-day rolling average, ",
+ "همان آگهی‌ای که انتخاب کردید — برای دیدن بقیه، «نمای کل شهر» را بزنید": "The listing you selected — press “Whole city view” to see the rest",
+ "همان آگهی‌ای که روی نقشه انتخاب کردید": "The listing you selected on the map",
+ "میلیون تومان بر متر مربع — روی هر ستون کلیک کنید تا همان بازه بماند": "million toman per m² — click a bar to keep only that range",
+ "مرکز تقریبی محله‌ها — اطلاعات مکانی آگهی‌ها هنوز کامل نشده است.": "Approximate area centres — listing coordinates are not complete yet.",
+ "برای این انتخاب هنوز مختصاتی ثبت نشده است.": "No coordinates recorded for this selection yet.",
+ "برای این آگهی هنوز مختصاتی ثبت نشده است.": "No coordinates recorded for this listing yet.",
+ "برای بازگشت به همه محله‌ها، «نمایش کل شهر» را بزنید": "Press “Show whole city” to return to all areas",
+ "بارگذاری این شهر ممکن نشد. صفحه را دوباره باز کنید.": "This city could not be loaded. Please reload the page.",
+ "محله‌ای پیدا نشد": "No areas found",
+ "برای حرکت نقشه یک بار لمس کنید": "Tap once to move the map",
+ "پنهان کردن محله‌های کم‌آگهی": "Hide areas with few listings",
+ "روی نقشه هست": "On the map",
+ "مختصات ندارد": "No coordinates",
+ "دیدن آگهی": "View listing",
+ "میانه": "Median",
+ "کمترین": "Lowest",
+ "بیشترین": "Highest",
+ "چارک اول": "1st quartile",
+ "چارک سوم": "3rd quartile",
+ "منحنی نرمال هم‌میانگین": "Normal curve, same mean",
+ "میانه هفتگی": "7-day median",
+ "میانه روزانه": "Daily median",
+ "ارزان‌ترین یک‌چهارم": "Cheapest quarter",
+ "یک‌چهارم دوم": "Second quarter",
+ "یک‌چهارم سوم": "Third quarter",
+ "گران‌ترین یک‌چهارم": "Dearest quarter",
+ "بالاتر از چارک سوم": "Above the 3rd quartile",
+ "قیمت هر متر، میلیون تومان": "Price per m², million toman",
+ "اعتبار بر پایه تعداد آگهی‌هایی است که میانه از آن‌ها حساب شده. ": "Confidence is based on how many listings the median was calculated from. ",
+ "زیر ۲۰ آگهی، یک آگهی غیرعادی می‌تواند رقم را به‌روشنی جابه‌جا کند ": "Under 20 listings, a single unusual advert can visibly move the figure ",
+ "(اعتبار کم). بین ۲۰ تا ۱۰۰ آگهی رقم قابل استناد است ولی نوسان دارد ": "(low confidence). Between 20 and 100 the figure is usable but moves about ",
+ "(اعتبار متوسط). بالای ۱۰۰ آگهی، یک آگهی تکی تقریباً بی‌اثر است ": "(medium confidence). Above 100, one advert has almost no effect ",
+ "(اعتبار بالا). این عدد درباره درستی خود آگهی‌ها چیزی نمی‌گوید — ": "(high confidence). This says nothing about whether the adverts themselves are accurate — ",
+ "همه ارقام قیمت درخواستی فروشنده است، نه قیمت معامله‌شده.": "every figure is a seller's asking price, not an agreed sale price.",
+ "آگهی": "listings",
+ "محله‌ها در": "Areas in",
+ "روند قیمت در": "Price trend in",
+ "محله‌های": "Areas of",
+ "در": "in",
+ "مرکز تقریبی": "Approximate centre of",
+ "آگهی‌های این انتخاب مختصات ندارند.": "listings in this selection have no coordinates.",
+ "میلیون تومان بر متر مربع": "million toman per m²"
 };
 const EN_N = Object.fromEntries(
   Object.entries(EN).map(([k, v]) => [k.trim().replace(/\s+/g, ' '), v]));
+
 
 /**
  * Translation by lookup, not by rewriting the page.
@@ -875,7 +1210,7 @@ const cityCache = new Map();     // keep visited cities in memory
 
 // A visible stamp for the page itself. Checking whether a file actually
 // reached the browser has cost more time today than any real bug.
-const PAGE_VERSION = '2026-09-03 02:30';
+const PAGE_VERSION = '2026-09-03 04:00';
 const FA_DIGITS = t => String(t).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 function stampVersion(){
@@ -922,7 +1257,7 @@ function boot(){
   const sel = document.getElementById('fCity');
   // biggest markets first — build.py already sorts by listing count
   DB.cities.forEach(c => sel.add(new Option(
-    `${c.name} (${FA(c.n)} آگهی)`, c.id)));
+    `${cityLabel(c.name)} (${FA(c.n)} ${t('آگهی')})`, c.id)));
 
   ['fCity','fMin','fMax','fRooms','fAge','fSample','fDate']
     .forEach(id => document.getElementById(id).addEventListener('change', () => {
@@ -1114,15 +1449,15 @@ function showSuggestions(){
     html += '<div class="head">شهرها</div>';
     html += cities.map(c => `
       <div data-city="${c.id}">
-        <span>${highlight(c.name, query)}</span>
+        <span>${highlight(cityLabel(c.name), query)}</span>
         <span class="meta">${FA(c.n)} آگهی · ${FA(c.hoods)} محله</span>
       </div>`).join('');
   }
   if (hoods.length) {
-    html += `<div class="head">محله‌ها در ${esc(city.name)}</div>`;
+    html += `<div class="head">${t('محله‌ها در')} ${esc(cityLabel(city.name))}</div>`;
     html += hoods.map(h => `
       <div data-hood="${esc(h.hood)}">
-        <span>${highlight(h.hood, query)}</span>
+        <span>${highlight(hoodLabel(h.hood), query)}</span>
         <span class="meta">${FA1(h.median)} م/متر · ${FA(h.n)} آگهی</span>
       </div>`).join('');
   }
@@ -1228,7 +1563,7 @@ function clearQuery(){
 function render(){
   if (!CITY) return;
   const city = CITY;
-  const cityName = city.name;
+  const cityName = cityLabel(city.name);
   const minA = +document.getElementById('fMin').value;
   const maxA = +document.getElementById('fMax').value;
   const rooms = document.getElementById('fRooms').value;
@@ -1298,7 +1633,7 @@ function render(){
   const cb = document.getElementById('crumb');
   cb.classList.toggle('hide', !selectedHood);
   if (selectedHood) {
-    document.getElementById('crumbHood').textContent = selectedHood;
+    document.getElementById('crumbHood').textContent = hoodLabel(selectedHood);
     document.getElementById('crumbCount').textContent = FA(listings.length) + ' آگهی';
   }
 
@@ -1332,7 +1667,7 @@ function render(){
   }
 
   document.getElementById('hoodTitle').textContent =
-    selectedHood ? selectedHood : 'محله‌های ' + cityName;
+    selectedHood ? hoodLabel(selectedHood) : t('محله‌های') + ' ' + cityName;
   document.getElementById('hoodNote').textContent = hoodNote;
   document.getElementById('hoodScroll').classList.toggle('short', shown.length <= 18);
   document.getElementById('hoodView').style.display =
@@ -1562,7 +1897,8 @@ function drawDist(items, cityName, base){
   const sd = Math.sqrt(vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length);
 
   document.getElementById('distTitle').textContent =
-    'توزیع قیمت' + (selectedHood ? ' در ' + selectedHood : ' در ' + cityName);
+    t('توزیع قیمت') + ' ' + t('در') + ' ' +
+    (selectedHood ? hoodLabel(selectedHood) : cityName);
   document.getElementById('distNote').textContent =
     `چند آگهی در هر بازه قیمتی قرار می‌گیرد — ${FA(vals.length)} آگهی، ` +
     `میلیون تومان بر متر مربع — روی هر ستون کلیک کنید تا همان بازه بماند`;
@@ -1668,7 +2004,8 @@ function drawBreakdown(items, cityName, sizeBase, ageBase){
   panel.classList.remove('hide');
 
   document.getElementById('breakNote').textContent =
-    (selectedHood || cityName) + ' — میلیون تومان بر متر مربع';
+    (selectedHood ? hoodLabel(selectedHood) : cityName) +
+    ' — ' + t('میلیون تومان بر متر مربع');
 
   const bucket = (rows, bands, pick) => bands.map(b => {
     const vals = rows.filter(l => pick(l) != null && b.test(pick(l)))
@@ -1783,7 +2120,7 @@ function drawList(items, days, solo){
       <td><span class="${l.y ? 'pinicon' : 'nopin'}"
             title="${l.y ? 'روی نقشه هست' : 'مختصات ندارد'}">◉</span>${
         highlight(l.n, query)}${l.ad ? `<div style="color:var(--muted);font-size:13px">${highlight(l.ad, query)}</div>` : ''}</td>
-      <td data-l="محله">${highlight(l.h, query)}</td>
+      <td data-l="محله">${highlight(hoodLabel(l.h), query)}</td>
       <td class="num" data-l="متراژ">${FA(l.a)}</td>
       <td class="num" data-l="اتاق">${l.r == null ? '—' : FA(l.r)}</td>
       <td class="num" data-l="قیمت کل">${FA(l.p)}</td>
@@ -1955,7 +2292,7 @@ function drawMap(listings, rows, solo, scale){
       return;
     }
     note.textContent = selectedHood
-      ? `مرکز تقریبی ${selectedHood} — آگهی‌های این انتخاب مختصات ندارند.`
+      ? `${t('مرکز تقریبی')} ${hoodLabel(selectedHood)} — ${t('آگهی‌های این انتخاب مختصات ندارند.')}`
       : 'مرکز تقریبی محله‌ها — اطلاعات مکانی آگهی‌ها هنوز کامل نشده است.';
     const lo = Math.min(...centres.map(r => r.median));
     const hi = Math.max(...centres.map(r => r.median));
@@ -2100,8 +2437,8 @@ function drawYearly(city){
   const isHood = !!selectedHood;
   panel.classList.remove('hide');
 
-  const title = isHood ? `روند قیمت در ${selectedHood}`
-                       : `روند قیمت در ${city.name}`;
+  const title = isHood ? `${t('روند قیمت در')} ${hoodLabel(selectedHood)}`
+                       : `${t('روند قیمت در')} ${cityLabel(city.name)}`;
   document.getElementById('yearTitle').textContent = title;
 
   if (!all.length) {
@@ -2209,10 +2546,10 @@ function drawHoods(h, hidden){
     const col = x.thin ? CSSVAR('--rule') : priceColour(x.median, lo, max);
     const sel = x.hood === selectedHood ? ' on' : '';
     return `<div class="hrow${sel}${x.thin ? ' hthin' : ''}" data-hood="${esc(x.hood)}"
-                 title="${esc(x.hood)} — ${FA(x.n)} آگهی — ${confLevel(x.n).label}">
+                 title="${esc(hoodLabel(x.hood))} — ${FA(x.n)} ${t('آگهی')} — ${t(confLevel(x.n).label)}">
       <span class="hnum">${FA(i+1)}</span>
       <span class="hname"><span class="hnametext">${
-        highlight(x.hood, query)}</span>${
+        highlight(hoodLabel(x.hood), query)}</span>${
         confLevel(x.n).cls === 'hi' ? '' : confBadge(x.n, true)}</span>
       <span class="htrack"><span class="hfill"
             style="width:${w}%;background:${col}"></span></span>
