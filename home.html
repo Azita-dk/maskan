@@ -460,7 +460,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
-const PAGE_VERSION = '2026-09-03 06:30';
+const PAGE_VERSION = '2026-09-03 07:10';
 const DETAIL_PAGE = 'index.html';
 
 const FA  = n => Number(n).toLocaleString('fa-IR').replace(/,/g,'\u066C');
@@ -525,7 +525,7 @@ async function boot(){
   setupValuation();
 
   try {
-    DB = await (await fetch(DATA_BASE + '/data/index.json')).json();
+    DB = await (await fetch(DATA_BASE + '/data/stats.json')).json();
   } catch (e) {
     document.getElementById('cityCards').innerHTML =
       '<div class="loading">داده‌ها بارگذاری نشد. صفحه را دوباره باز کنید.</div>';
@@ -634,7 +634,7 @@ function drawCityCards(){
     b.innerHTML = `
       <div class="top">
         <div><h3>${esc(c.name)}</h3>
-          <div class="big">${c.m2 ? FA1(c.m2) : '—'}</div>
+          <div class="big">${c.median ? FA1(c.median) : '—'}</div>
           <div class="unit">میلیون تومان · قیمت هر متر مربع</div></div>
         ${landmark(c.name)}
       </div>
@@ -682,18 +682,18 @@ function changeCell(hood){
   if (h.length < 2)
     return '<span class="muted" title="برای مقایسه، داده بیشتری لازم است">—</span>';
   const first = h[0], last = h[h.length - 1];
-  if (!first.m2 || !last.m2) return '<span class="muted">—</span>';
-  const days = Math.round((new Date(last.day) - new Date(first.day)) / 864e5);
+  if (!first.v || !last.v) return '<span class="muted">—</span>';
+  const days = Math.round((new Date(last.d) - new Date(first.d)) / 864e5);
   if (days < 25)
     return '<span class="muted" title="هنوز یک ماه داده ثبت نشده">—</span>';
-  const pct = (last.m2 - first.m2) / first.m2 * 100;
+  const pct = (last.v - first.v) / first.v * 100;
   return `<span class="${pct >= 0 ? 'up' : 'down'}" title="در ${FA(days)} روز گذشته">${
     pct >= 0 ? '+' : '\u2212'}${FA1(Math.abs(pct))}\u066A</span>`;
 }
 
 function drawAreas(){
-  const rows = (CITY.rows || []).filter(r => r.m2 > 0 && r.n >= 20);
-  rows.sort((a, b) => areaSort === 'price' ? b.m2 - a.m2 : b.n - a.n);
+  const rows = (CITY.rows || []).filter(r => r.median > 0 && r.n >= 10);
+  rows.sort((a, b) => areaSort === 'price' ? b.median - a.median : b.n - a.n);
   const body = document.getElementById('areaBody');
   if (!rows.length) {
     body.innerHTML = '<tr><td colspan="5" class="loading">برای این شهر هنوز محله‌ای با آگهی کافی ثبت نشده است.</td></tr>';
@@ -703,7 +703,7 @@ function drawAreas(){
     <tr data-hood="${esc(r.hood)}">
       <td class="rank">${FA(i+1)}</td>
       <td>${esc(r.hood)}</td>
-      <td>${FA1(r.m2)} میلیون تومان</td>
+      <td>${FA1(r.median)} میلیون تومان</td>
       <td>${changeCell(r.hood)}</td>
       <td>${FA(r.n)}</td>
     </tr>`).join('');
@@ -744,7 +744,7 @@ function openDetail(cityId, hood){
 function historyDays(){
   const h = CITY.ours || [];
   if (h.length < 2) return 0;
-  const a = new Date(h[0].day), b = new Date(h[h.length-1].day);
+  const a = new Date(h[0].d), b = new Date(h[h.length-1].d);
   return Math.round((b - a) / 864e5);
 }
 
@@ -768,11 +768,11 @@ function drawTrendTabs(){
 }
 
 function drawTrend(){
-  let hist = (CITY.ours || []).filter(r => r.m2 > 0);
+  let hist = (CITY.ours || []).filter(r => r.v > 0);
   if (trendPeriod !== 'all') {
     const cut = new Date(Date.now() - (+trendPeriod) * 864e5)
       .toISOString().slice(0, 10);
-    hist = hist.filter(r => r.day >= cut);
+    hist = hist.filter(r => r.d >= cut);
   }
   const note = document.getElementById('trendNote');
   trendChart && trendChart.destroy();
@@ -786,7 +786,7 @@ function drawTrend(){
 
   const span = historyDays();
   note.textContent = `میانه قیمت آگهی‌ها، میلیون تومان بر متر مربع — ` +
-    `تاریخچه از ${faDate(hist[0].day)}، یعنی ${FA(span)} روز.` +
+    `تاریخچه از ${faDate(hist[0].d)}، یعنی ${FA(span)} روز.` +
     (span < 365 ? ' مقایسه چندساله وقتی در دسترس می‌شود که داده‌اش جمع شده باشد.' : '');
 
   const ink = getComputedStyle(document.documentElement)
@@ -794,17 +794,17 @@ function drawTrend(){
   const line = getComputedStyle(document.documentElement)
     .getPropertyValue('--line').trim();
 
-  const vals = hist.map(r => r.m2);
+  const vals = hist.map(r => r.v);
   const lo = Math.min(...vals), hi = Math.max(...vals);
   const pad = Math.max((hi - lo) * .25, hi * .05);
 
   const latest = hist[hist.length - 1];
   const callout = document.getElementById('callout');
   callout.classList.remove('hide');
-  const pctAll = hist.length > 1 && hist[0].m2
-    ? (latest.m2 - hist[0].m2) / hist[0].m2 * 100 : null;
-  callout.innerHTML = `<div class="n">${FA1(latest.m2)} میلیون تومان</div>
-    <div class="d">${faMonth(latest.day)}${
+  const pctAll = hist.length > 1 && hist[0].v
+    ? (latest.v - hist[0].v) / hist[0].v * 100 : null;
+  callout.innerHTML = `<div class="n">${FA1(latest.v)} میلیون تومان</div>
+    <div class="d">${faMonth(latest.d)}${
       pctAll === null ? '' :
       ` · ${pctAll >= 0 ? '+' : '−'}${FA1(Math.abs(pctAll))}٪ در این بازه`}</div>`;
 
@@ -815,7 +815,7 @@ function drawTrend(){
 
   trendChart = new Chart(ctx, {
     type: 'line',
-    data: { labels: hist.map(r => faDate(r.day)),
+    data: { labels: hist.map(r => faDate(r.d)),
       datasets: [{ data: vals, borderColor: '#0E9F6E', backgroundColor: grad,
         borderWidth: 2.5, fill: true, tension: .3,
         pointRadius: hist.length > 40 ? 0 : 3, pointBackgroundColor: '#fff',
@@ -987,7 +987,7 @@ function setupSearch(){
       (hoods.length ? `<div class="head">محله‌ها در ${esc(CITY.name)}</div>` +
         hoods.map(h => `<div class="row" data-hood="${esc(h.hood)}">
          <span>${esc(h.hood)}</span>
-         <span class="meta">${FA1(h.m2)} میلیون</span></div>`).join('') : '');
+         <span class="meta">${FA1(h.median)} میلیون</span></div>`).join('') : '');
     box.classList.remove('hide');
     box.querySelectorAll('[data-city]').forEach(el =>
       el.addEventListener('click', () => { loadCity(el.dataset.city); q.value=''; close(); }));
