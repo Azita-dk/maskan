@@ -135,7 +135,12 @@
           border-top:1px solid var(--rule)}
   .banner{background:#FDF6E6;border:1px solid #E0C48D;color:#6B5410;
           font-size:14px;padding:10px 14px;border-radius:2px;margin-bottom:14px}
-  .hide{display:none}
+  /* `.crumb{display:flex}` sits further down the sheet, and at equal
+     specificity the later rule wins — so adding `hide` to the class list did
+     nothing and the selected-neighbourhood bar stayed on screen no matter
+     what the code did. !important is the right tool here: this class exists
+     for exactly one purpose and must beat every layout rule in the file. */
+  .hide{display:none !important}
 
   /* ── phones ─────────────────────────────────────────────────────────
      Most visitors will arrive on a phone, where an eight-column table is
@@ -680,7 +685,7 @@ const cityCache = new Map();     // keep visited cities in memory
 
 // A visible stamp for the page itself. Checking whether a file actually
 // reached the browser has cost more time today than any real bug.
-const PAGE_VERSION = '03 Sep 00:05';
+const PAGE_VERSION = '03 Sep 00:40';
 function stampVersion(){
   const w = window.innerWidth;
   const mob = window.matchMedia('(max-width: 720px)').matches;
