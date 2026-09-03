@@ -147,6 +147,16 @@ function drawTrend(){
     `${faDate(hist[0].d)}، یعنی ${FA(span)} روز.` +
     (span < 365 ? ' مقایسه چندساله وقتی ممکن می‌شود که داده‌اش جمع شده باشد.' : '');
 
+  // The history is a stored daily median per city and per neighbourhood — one
+  // number a day, not the listings behind it. A size or age filter cannot be
+  // applied retrospectively to a number that was already averaged. Saying so
+  // is better than drawing a line that looks filtered and is not.
+  const fc = activeFilterCount();
+  if (fc) note.textContent += ' — این خط از میانه‌های روزانه ثبت‌شده ساخته می‌شود' +
+    ' و فیلترهای متراژ، اتاق و سن بنا روی آن اثر ندارد؛ بقیه نمودارهای این صفحه' +
+    ' فیلتر شده‌اند.';
+
+
   const latest = hist[hist.length-1];
   const pct = hist[0].v ? (latest.v - hist[0].v) / hist[0].v * 100 : null;
   callout.classList.remove('hide');

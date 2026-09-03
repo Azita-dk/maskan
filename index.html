@@ -183,10 +183,23 @@ function landmark(name){
             <g fill="currentColor">${L.svg}</g></svg>`;
 }
 
+/** The card figure: the stored city median, or the filtered one when filters
+ *  are on and this is the city whose listings we hold. */
+function cardMedian(c, filtered){
+  if (!filtered) return c.median ? FA1(c.median) : '—';
+  const v = activeListings().map(l => l.m).filter(x => x > 0);
+  return v.length ? FA1(round1(median(v))) : '—';
+}
+
 function drawCityCards(){
   const box = document.getElementById('cityCards');
   const all = citiesInProvince().sort((a, b) => (b.median || 0) - (a.median || 0));
-  const list = allOpen ? all : all.slice(0, 4);
+  // With a filter on, only the selected city has listings loaded, so only its
+  // card can honour the filter. Showing the other cards unchanged would put
+  // unfiltered figures next to filtered ones.
+  const filtered = activeFilterCount() > 0 || !!S.q;
+  const list = filtered ? all.filter(c => c.id === S.city)
+             : allOpen ? all : all.slice(0, 4);
   box.innerHTML = '';
   list.forEach(c => {
     const b = document.createElement('button');
@@ -195,12 +208,14 @@ function drawCityCards(){
     b.innerHTML = `
       <div class="top">
         <div><h3>${esc(c.name)}</h3>
-          <div class="big">${c.median ? FA1(c.median) : '—'}</div>
-          <div class="unit">میلیون تومان · هر متر مربع</div></div>
+          <div class="big">${cardMedian(c, filtered)}</div>
+          <div class="unit">میلیون تومان · هر متر مربع${
+            filtered ? ' (با فیلترها)' : ''}</div></div>
         ${landmark(c.name)}
       </div>
       <div class="foot2">
-        <span><span class="k">تعداد آگهی</span><span class="v">${FA(c.n)}</span></span>
+        <span><span class="k">تعداد آگهی</span><span class="v">${
+          FA(filtered ? activeListings().length : c.n)}</span></span>
         <span><span class="k">محله‌ها</span><span class="v">${FA(c.hoods || 0)}</span></span>
       </div>`;
     b.addEventListener('click', async () => {
@@ -214,9 +229,10 @@ function drawCityCards(){
     });
     box.appendChild(b);
   });
+  const btn = document.getElementById('allCities');
+  btn.classList.toggle('hide', filtered);
   const n = citiesInProvince().length;
-  document.getElementById('allCities').textContent = allOpen
-    ? 'نمایش کمتر ↑' : `مشاهده همه شهرها (${FA(n)}) →`;
+  btn.textContent = allOpen ? 'نمایش کمتر ↑' : `مشاهده همه شهرها (${FA(n)}) →`;
 }
 
 document.getElementById('allCities').addEventListener('click', () => {
@@ -426,6 +442,16 @@ function drawTrend(){
   note.textContent = `میانه قیمت آگهی‌ها، میلیون تومان بر متر مربع — تاریخچه از ` +
     `${faDate(hist[0].d)}، یعنی ${FA(span)} روز.` +
     (span < 365 ? ' مقایسه چندساله وقتی ممکن می‌شود که داده‌اش جمع شده باشد.' : '');
+
+  // The history is a stored daily median per city and per neighbourhood — one
+  // number a day, not the listings behind it. A size or age filter cannot be
+  // applied retrospectively to a number that was already averaged. Saying so
+  // is better than drawing a line that looks filtered and is not.
+  const fc = activeFilterCount();
+  if (fc) note.textContent += ' — این خط از میانه‌های روزانه ثبت‌شده ساخته می‌شود' +
+    ' و فیلترهای متراژ، اتاق و سن بنا روی آن اثر ندارد؛ بقیه نمودارهای این صفحه' +
+    ' فیلتر شده‌اند.';
+
 
   const latest = hist[hist.length-1];
   const pct = hist[0].v ? (latest.v - hist[0].v) / hist[0].v * 100 : null;

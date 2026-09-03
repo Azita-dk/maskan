@@ -86,14 +86,46 @@ const row = (c, label) => `
  */
 function drawCities(){
   const body = document.getElementById('cityBody');
+  const scope = citiesInProvince();
+  const filtered = activeFilterCount() > 0 || !!S.q;
 
-  // A chosen province narrows the table to that province; a chosen city
-  // narrows it to that city. Showing all fifty underneath a selection was
-  // the thing that made the page feel disconnected from the filters.
-  let scope = citiesInProvince();
-  const only = scope.find(c => c.id === S.city);
-  const narrowed = !!S.prov;
-  document.getElementById('cityScope').innerHTML = narrowed
+  /* The city table is built from stats.json, which holds one median and one
+     count per city and nothing else. A filter like "50 to 75 metres" can only
+     be applied to listings, and the only city whose listings are loaded is the
+     selected one — fetching the other forty-nine would be tens of megabytes.
+     So when a filter is on, this table shows the one city it can actually
+     answer for, rather than fifty figures that quietly ignore the filter. */
+  if (filtered) {
+    const c = DB.cities.find(x => x.id === S.city);
+    const rows = activeListings();
+    const vals = rows.map(l => l.m).filter(v => v > 0);
+    const hoods = new Set(rows.map(l => l.h).filter(Boolean));
+    body.innerHTML = c ? `
+      <tr data-city="${c.id}" style="background:var(--green-pale)">
+        <td class="rank"></td>
+        <td>${esc(c.name)}${S.hood ? ' — ' + esc(S.hood) : ''}</td>
+        <td>${vals.length ? FA1(round1(median(vals))) + ' میلیون' : '—'}</td>
+        <td>${FA(rows.length)}</td>
+        <td>${FA(hoods.size)}</td>
+      </tr>` : '';
+    document.getElementById('cityScope').innerHTML =
+      `فیلتر فعال است، بنابراین فقط ${esc(c ? c.name : '')} نشان داده می‌شود — ` +
+      'ارقام شهرهای دیگر با این فیلترها محاسبه نشده است. ' +
+      '<button class="reset" id="showAll">پاک کردن فیلترها و دیدن همه شهرها</button>';
+    document.getElementById('showAll').addEventListener('click', () => {
+      const city = S.city;
+      Object.assign(S, DEFAULTS, { city });
+      const q = document.getElementById('q'); if (q) q.value = '';
+      for (const [id, k] of [['fMin','min'],['fMax','max'],['fRooms','rooms'],['fAge','age']])
+        document.getElementById(id).value = S[k];
+      fillProvSelect(); fillCitySelect(); fillHoodSelect();
+      commit();
+    });
+    wireCityRows();
+    return;
+  }
+
+  document.getElementById('cityScope').innerHTML = S.prov
     ? `فقط استان ${esc(S.prov)} — <button class="reset" id="showAll">نمایش همه استان‌ها</button>`
     : '';
   const btn = document.getElementById('showAll');
@@ -120,9 +152,13 @@ function drawCities(){
     else                           rows.sort((a,b) => byFa(a.name, b.name));
     body.innerHTML = rows.map((c, i) => row(c, FA(i+1))).join('');
   }
+  wireCityRows();
+}
 
+function wireCityRows(){
   document.querySelectorAll('#cityBody tr[data-city]').forEach(tr =>
     tr.addEventListener('click', async () => {
+      if (tr.dataset.city === S.city) return;
       S.city = tr.dataset.city; S.hood = ''; S.q = '';
       await loadCity(S.city);
       fillCitySelect(); fillHoodSelect();
@@ -188,8 +224,10 @@ function drawHoods(){
 }
 
 bootPage('cities.html', () => {
-  document.getElementById('cityHead').textContent =
-    S.prov ? `شهرهای استان ${S.prov}` : 'همه شهرها';
+  const filtered = activeFilterCount() > 0 || !!S.q;
+  document.getElementById('cityHead').textContent = filtered
+    ? 'شهر انتخاب‌شده' : (S.prov ? `شهرهای استان ${S.prov}` : 'همه شهرها');
+  document.getElementById('cityTabs').classList.toggle('hide', filtered);
   drawCities();
   document.getElementById('hoodHead').textContent = `محله‌های ${CITY.name}`;
   drawHoods();

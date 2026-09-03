@@ -21,8 +21,9 @@
 
   <div class="value">
     <h3 style="margin:0 0 4px;font-size:18px;font-weight:800">اطلاعات ملک شما</h3>
-    <p class="muted" style="margin:0 0 16px;font-size:13.5px">
+    <p class="muted" style="margin:0 0 6px;font-size:13.5px">
       از روی آگهی‌های مشابه در همان محله تخمین زده می‌شود.</p>
+    <p class="muted hide" id="vFilterNote" style="margin:0 0 16px;font-size:13px"></p>
     <div class="vgrid">
       <label><span>شهر</span><select id="vCity"></select></label>
       <label><span>محله</span><select id="vHood"></select></label>
@@ -105,7 +106,9 @@ function valuate(){
     out.innerHTML = '<div class="note">متراژ ملک را وارد کنید (بین ۱۵ تا ۲۰۰۰ متر).</div>';
     return;
   }
-  const base = (CITY.listings || []).filter(l => l.m > 0 && l.a > 0);
+  // Comparables come from the filtered set, so the estimate agrees with
+  // whatever the reader narrowed to at the top of the page.
+  const base = activeListings('area').filter(l => l.m > 0 && l.a > 0);
   let comps = base.filter(l => (!hood || l.h === hood) &&
     l.a >= area*.75 && l.a <= area*1.25);
   if (rooms) comps = comps.filter(l => String(l.r) === rooms);
@@ -146,6 +149,20 @@ document.getElementById('vGo').addEventListener('click', valuate);
 bootPage('value.html', () => {
   fillCities();
   fillHoods();
+
+  // start from the filters above rather than blank, so the two agree
+  const r = document.getElementById('vRooms');
+  if (S.rooms !== 'all' && [...r.options].some(o => o.value === S.rooms)) r.value = S.rooms;
+  const f = document.getElementById('vFeat');
+  const feats = [...featureSet()];
+  if (feats.length && [...f.options].some(o => o.value === feats[0])) f.value = feats[0];
+
+  const note = document.getElementById('vFilterNote');
+  const n = activeFilterCount();
+  note.classList.toggle('hide', !n);
+  if (n) note.innerHTML =
+    `تخمین از میان ${FA(activeListings('area').length)} آگهی‌ای گرفته می‌شود که ` +
+    `فیلترهای بالای صفحه از آن‌ها باقی گذاشته‌اند.`;
 });
 </script>
 </body>
