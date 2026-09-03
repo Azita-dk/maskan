@@ -28,7 +28,7 @@
   <section>
     <div class="shead">
       <h2 id="areaHead">شهر و محله‌ها</h2>
-      <a href="cities.html" data-page="cities.html">فهرست کامل →</a>
+      <button id="allHoods">همه محله‌ها ↓</button>
     </div>
 
     <div class="kpis" id="kpis"></div>
@@ -346,6 +346,15 @@ function drawHoods(){
     'حساب شده · روی هر محله بزنید تا همه صفحه‌ها به آن محدود شوند.';
   drawHoodBars(rows);
 }
+
+// The neighbourhood list scrolls inside a fixed height; this releases it so
+// the whole list is on the page, which is what the removed page was for.
+document.getElementById('allHoods').addEventListener('click', () => {
+  const box = document.getElementById('hoodRows');
+  const open = box.style.maxHeight === 'none';
+  box.style.maxHeight = open ? '' : 'none';
+  document.getElementById('allHoods').textContent = open ? 'همه محله‌ها ↓' : 'کوتاه کردن فهرست ↑';
+});
 
 document.getElementById('hoodTabs').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;

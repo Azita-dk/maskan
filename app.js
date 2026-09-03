@@ -7,7 +7,7 @@
  */
 
 const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
-const APP_VERSION = '2026-09-03 21:10';
+const APP_VERSION = '2026-09-03 23:20';
 
 /* ------------------------------------------------------------- numbers */
 const FA_DIGITS = t => String(t).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
@@ -327,7 +327,9 @@ const byFa = (a, b) => String(a).localeCompare(String(b), 'fa');
 /* ------------------------------------------------------- shared state */
 const PAGES = [
   { file:'index.html',  label:'صفحه اصلی' },
-  { file:'cities.html', label:'شهرها و محله‌ها' },
+  /* شهرها و محله‌ها was removed from the menu at the owner's request. The page
+     itself is kept as _cities.html.unused; to bring it back, rename the file
+     to cities.html and restore this line. Nothing else references it. */
   { file:'stats.html',  label:'آمار و نمودارها' },
   { file:'ads.html',    label:'آگهی‌ها و نقشه' },
   { file:'value.html',  label:'قیمت خانه من' },
