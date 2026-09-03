@@ -199,6 +199,10 @@ tbody tr:last-child td{border-bottom:0}
 /* ---------- trust ---------- */
 .trust{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
   padding:66px 0 70px}
+.method{display:grid;grid-template-columns:1fr 1fr;gap:18px 26px;padding:20px}
+@media (max-width:720px){ .method{grid-template-columns:1fr;gap:16px} }
+.method b{display:block;font-size:14.5px;margin-bottom:5px}
+.method p{font-size:13.5px;color:var(--slate);line-height:1.85;margin:0}
 .trust div{background:var(--card);border:1px solid var(--line);border-radius:14px;
   padding:20px;box-shadow:var(--shadow)}
 .trust .ic{width:42px;height:42px;border-radius:11px;background:var(--green-pale);
@@ -249,6 +253,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
       <a href="#areas">محله‌ها</a>
       <a href="#cities">شهرها</a>
       <a href="#valuation">قیمت خانه من</a>
+      <a href="#ads">آگهی‌ها</a>
       <a href="#method">روش کار</a>
     </div>
     <button class="iconbtn" id="theme" title="روشن / تیره" aria-label="روشن یا تیره">◐</button>
@@ -433,6 +438,29 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   </div>
 </section>
 
+<section id="ads">
+  <div class="wrap">
+    <div class="panel">
+      <header>
+        <h3 id="adsTitle">آگهی‌های تازه</h3>
+        <div class="tabs" id="adsTabs">
+          <button data-sort="new" class="on">تازه‌ترین</button>
+          <button data-sort="cheap">ارزان‌ترین هر متر</button>
+          <button data-sort="dear">گران‌ترین هر متر</button>
+        </div>
+      </header>
+      <table>
+        <thead><tr><th>عنوان</th><th>محله</th><th>متراژ</th>
+          <th>قیمت کل</th><th>هر متر</th><th>منبع</th></tr></thead>
+        <tbody id="adsBody"><tr><td colspan="6" class="loading">در حال بارگذاری…</td></tr></tbody>
+      </table>
+      <p class="muted" style="padding:12px 18px;margin:0;font-size:12.5px">
+        آگهی‌ها متعلق به دیوار، شیپور و کیلید است و با کلیک روی هر ردیف در
+        همان سایت باز می‌شود. این سایت آگهی منتشر نمی‌کند.</p>
+    </div>
+  </div>
+</section>
+
 <section id="method">
   <div class="wrap">
     <div class="trust">
@@ -444,6 +472,33 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
         <span>تحلیل هزاران آگهی واقعی از دیوار، شیپور و کیلید در سراسر کشور.</span></div>
       <div><div class="ic">◈</div><b>شفاف و قابل بررسی</b>
         <span>این ارقام قیمت درخواستی فروشنده است، نه قیمت معامله‌شده. روش محاسبه باز است.</span></div>
+    </div>
+
+    <div class="panel" style="margin-bottom:70px">
+      <header><h3>روش کار و منبع داده‌ها</h3></header>
+      <div class="method">
+        <div><b>داده از کجا می‌آید</b>
+          <p>آگهی‌های عمومی فروش آپارتمان در دیوار، شیپور و کیلید. هیچ داده‌ای
+             از کاربران این سایت گرفته یا منتشر نمی‌شود.</p></div>
+        <div><b>این چه نوع قیمتی است</b>
+          <p>قیمت درخواستی فروشنده است، نه قیمت معامله‌شده. در ایران دفتر
+             عمومی معاملات ثبت‌شده وجود ندارد. قیمت نهایی معمولاً پایین‌تر از
+             رقم آگهی بسته می‌شود.</p></div>
+        <div><b>روی داده چه کاری انجام می‌شود</b>
+          <p>حذف آگهی‌های تکراری، حذف آگهی‌های پرت با روش انحراف مطلق از میانه،
+             یکسان‌سازی املای نام محله‌ها، و کنار گذاشتن آگهی‌های اقساطی،
+             پیش‌فروش، مشارکت، تجاری و اداری.</p></div>
+        <div><b>چرا میانه و نه میانگین</b>
+          <p>توزیع قیمت مسکن به‌شدت به راست کشیده است. یک ویلای گران میانگین یک
+             محله را جابه‌جا می‌کند، ولی میانه را نه.</p></div>
+        <div><b>هر چند وقت به‌روز می‌شود</b>
+          <p>آگهی‌های تازه هر چند دقیقه جمع‌آوری و آمار هر شبانه‌روز بازسازی
+             می‌شود. تاریخ آخرین به‌روزرسانی پایین همین صفحه است.</p></div>
+        <div><b>تا کجا می‌شود به عدد اتکا کرد</b>
+          <p>هر رقم بر پایه تعداد آگهی‌های پشت آن اعتبار دارد. تاریخچه این
+             سایت از شهریور ۱۴۰۵ آغاز شده، بنابراین مقایسه‌های بلندمدت هنوز
+             در دسترس نیست.</p></div>
+      </div>
     </div>
   </div>
 </section>
@@ -460,7 +515,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
-const PAGE_VERSION = '2026-09-03 07:10';
+const PAGE_VERSION = '2026-09-03 09:40';
 const DETAIL_PAGE = 'index.html';
 
 const FA  = n => Number(n).toLocaleString('fa-IR').replace(/,/g,'\u066C');
@@ -663,6 +718,7 @@ async function loadCity(id){
   document.getElementById('areaMore').textContent = `مشاهده همه محله‌های ${CITY.name} →`;
 
   drawAreas();
+  drawAds();
   drawTrendTabs();
   drawTrend();
   drawMap();
@@ -860,8 +916,16 @@ function drawMap(){
       radius: 6, weight: 1, color: '#fff', opacity: .9,
       fillColor: heat(l.m, lo, hi), fillOpacity: .85
     }).bindPopup(
-      `<b>${esc(l.h || '')}</b><br>${FA1(l.m)} میلیون تومان بر متر مربع` +
-      (l.a ? `<br>${FA(l.a)} متر` : '')).addTo(layer);
+      `<div style="min-width:170px">` +
+      `<b>${esc(l.n || l.h || '')}</b><br>` +
+      `<span style="color:#5F7A72">${esc(l.h || '')}</span><br>` +
+      `${FA1(l.m)} میلیون تومان بر متر مربع` +
+      (l.a ? ` · ${FA(l.a)} متر` : '') +
+      (l.p ? `<br>قیمت کل: ${FA(Math.round(l.p/1000))} میلیارد تومان` : '') +
+      (l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener"
+              style="color:#0E9F6E;font-weight:700">دیدن آگهی در ${
+              SOURCE_NAME[l.s] || l.s} ↗</a>` : '') +
+      `</div>`).addTo(layer);
   });
   map.fitBounds(L.latLngBounds(pts.slice(0, 1500).map(l => [l.y, l.x])).pad(.08));
 }
@@ -961,6 +1025,52 @@ function valuate(){
     <div class="note" style="margin-top:8px">این رقم تخمین قیمت
       <b>درخواستی</b> است، نه قیمت معامله. قیمت نهایی معمولاً پایین‌تر بسته می‌شود.</div>`;
 }
+
+
+const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };
+let adsSort = 'new';
+
+/**
+ * The adverts themselves, linking out to where they were published.
+ *
+ * The statistics are the point of this site, but a reader who sees that
+ * Velenjak runs at 280 million a metre immediately wants to know which
+ * listings that came from. Every row opens the original on Divar, Sheypoor
+ * or Kilid — this site republishes nothing.
+ */
+function drawAds(){
+  const body = document.getElementById('adsBody');
+  let rows = (CITY.listings || []).filter(l => l.m > 0);
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="6" class="loading">آگهی‌ای برای نمایش نیست.</td></tr>';
+    return;
+  }
+  if (adsSort === 'new')        rows = [...rows].sort((a, b) => (b.d || '').localeCompare(a.d || ''));
+  else if (adsSort === 'cheap') rows = [...rows].sort((a, b) => a.m - b.m);
+  else                          rows = [...rows].sort((a, b) => b.m - a.m);
+
+  document.getElementById('adsTitle').textContent = `آگهی‌های ${CITY.name}`;
+  body.innerHTML = rows.slice(0, 12).map(l => `
+    <tr${l.u ? ` data-url="${esc(l.u)}"` : ''}>
+      <td>${esc(l.n || '—')}</td>
+      <td>${esc(l.h || '')}</td>
+      <td>${l.a ? FA(l.a) : '—'}</td>
+      <td>${l.p ? FA1(l.p / 1000) + ' میلیارد' : '—'}</td>
+      <td>${FA1(l.m)}</td>
+      <td>${esc(SOURCE_NAME[l.s] || l.s || '')}${l.u ? ' ↗' : ''}</td>
+    </tr>`).join('');
+  body.querySelectorAll('tr[data-url]').forEach(tr =>
+    tr.addEventListener('click', () =>
+      window.open(tr.dataset.url, '_blank', 'noopener')));
+}
+
+document.getElementById('adsTabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  adsSort = b.dataset.sort;
+  document.querySelectorAll('#adsTabs button')
+    .forEach(x => x.classList.toggle('on', x === b));
+  drawAds();
+});
 
 /* --------------------------------------------------------------- search */
 function setupSearch(){

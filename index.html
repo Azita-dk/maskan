@@ -1195,6 +1195,7 @@ let period = 'all', hoodView = 'top', showThin = false;
 // A pin click narrows the table to that one listing. Highlighting a row was
 // no use when the table stops at 300 rows and most pins fall outside them.
 let soloToken = null, keepMapView = false;
+let pendingHood = null;   // a neighbourhood asked for in the URL
 // Bands picked by clicking a chart. Kept apart from the dropdowns because a
 // bar means an exact range — "6 to 10 years" — while the dropdown can only
 // say "up to 10", and quietly widening what the reader clicked would be a
@@ -1210,7 +1211,7 @@ const cityCache = new Map();     // keep visited cities in memory
 
 // A visible stamp for the page itself. Checking whether a file actually
 // reached the browser has cost more time today than any real bug.
-const PAGE_VERSION = '2026-09-03 04:00';
+const PAGE_VERSION = '2026-09-03 09:20';
 const FA_DIGITS = t => String(t).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 
 function stampVersion(){
@@ -1299,6 +1300,17 @@ function boot(){
 
   setupFilterToggle();
   setupSearch();
+
+  const params = new URLSearchParams(location.search);
+  const wantCity = params.get('city');
+  const wantHood = params.get('hood');
+  const citySel = document.getElementById('fCity');
+  if (wantCity && [...citySel.options].some(o => o.value === wantCity))
+    citySel.value = wantCity;
+  // held until the city's listings are in, since a neighbourhood that is not
+  // in the loaded city is dropped on sight
+  pendingHood = wantHood;
+
   switchCity();
 
   let saved = null;
@@ -1314,6 +1326,12 @@ async function switchCity(){
     document.getElementById('listNote').textContent =
       'بارگذاری این شهر ممکن نشد. صفحه را دوباره باز کنید.';
     return;
+  }
+  if (pendingHood) {
+    // only if the arriving city actually has it
+    if ((CITY.listings || []).some(l => l.h === pendingHood))
+      selectedHood = pendingHood;
+    pendingHood = null;
   }
   render();
 }
