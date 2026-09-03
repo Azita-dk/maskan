@@ -176,15 +176,17 @@ section{padding:8px 0 0}
 .hname,.hhead span:nth-child(2){flex:0 1 170px;min-width:72px;
   display:flex;align-items:center;gap:6px;overflow:hidden}
 .hnametext{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.htrack,.hhead span:nth-child(3){flex:1 1 auto;min-width:56px;
+.htrack,.hhead span:nth-child(3){position:relative;flex:1 1 auto;min-width:56px;
   height:13px;border-radius:99px;background:var(--paper);overflow:hidden;
   border:1px solid var(--rule)}
 .hhead span:nth-child(3){height:auto;background:none}
 /* The width is the price relative to the dearest area; the colour is the
-   same green-to-red scale the map and the charts use, so a row can be read
-   two ways at once. */
-.hfill{height:100%;border-radius:99px;background:var(--green-mid);
-  transition:width .2s}
+   same green-to-red scale the map and the charts use.
+   position:absolute is load-bearing, not decoration: .hfill is a <span>, and
+   width and height are ignored on an inline element. Without it the fill is
+   drawn at zero size and every bar looks like an empty grey track. */
+.hfill{position:absolute;inset-block:0;inset-inline-start:0;
+  border-radius:99px;background:var(--green-mid)}
 .scalekey{display:flex;align-items:center;gap:9px;padding:11px 16px;
   border-top:1px solid var(--rule);font-size:12px;color:var(--muted)}
 .scalekey .bar{flex:0 0 130px;height:8px;border-radius:99px;
