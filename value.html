@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>قیمت خانه من — تحلیل بازار مسکن</title>
+<meta name="description" content="تخمین ارزش تقریبی ملک از روی آگهی‌های مشابه در همان محله.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<main id="main" class="wrap">
+  <div class="phead">
+    <h1>قیمت خانه من چقدر است؟</h1>
+    <p>تخمین از روی آگهی‌های مشابه — قیمت درخواستی، نه قیمت معامله‌شده.</p>
+  </div>
+
+  <div id="searchHost"></div>
+
+  <div class="value">
+    <h3 style="margin:0 0 4px;font-size:18px;font-weight:800">اطلاعات ملک شما</h3>
+    <p class="muted" style="margin:0 0 16px;font-size:13.5px">
+      از روی آگهی‌های مشابه در همان محله تخمین زده می‌شود.</p>
+    <div class="vgrid">
+      <label><span>شهر</span><select id="vCity"></select></label>
+      <label><span>محله</span><select id="vHood"></select></label>
+      <label><span>متراژ (متر)</span>
+        <input id="vArea" type="number" inputmode="numeric" placeholder="۱۲۰"></label>
+      <label><span>تعداد اتاق</span><select id="vRooms">
+        <option value="">مهم نیست</option><option>1</option><option>2</option>
+        <option>3</option><option>4</option></select></label>
+      <label><span>سن بنا (سال)</span>
+        <input id="vAge" type="number" inputmode="numeric" placeholder="۸"></label>
+      <label><span>امکانات</span><select id="vFeat">
+        <option value="">مهم نیست</option><option value="پارکینگ">پارکینگ</option>
+        <option value="آسانسور">آسانسور</option><option value="انباری">انباری</option>
+        <option value="نوساز">نوساز</option></select></label>
+    </div>
+    <button class="vgo" id="vGo">محاسبه ارزش تقریبی</button>
+    <div class="vout hide" id="vOut"></div>
+  </div>
+
+  <div class="panel" style="margin-top:16px">
+    <header><h3>این عدد چه می‌گوید و چه نمی‌گوید</h3></header>
+    <div class="method">
+      <div><b>چطور حساب می‌شود</b>
+        <p>آگهی‌های همان محله که متراژشان تا ۲۵٪ با ملک شما فاصله دارد پیدا
+           می‌شود، و نیمه میانی قیمت هر متر مربع آن‌ها گرفته می‌شود. اگر آگهی
+           مشابه کم باشد، بازه گسترده‌تر می‌شود و همین را می‌نویسد.</p></div>
+      <div><b>چه چیزی را نشان نمی‌دهد</b>
+        <p>این تخمینِ قیمتی است که ملک با آن <b>آگهی</b> می‌شود، نه قیمتی که با
+           آن معامله می‌شود. در ایران قیمت نهایی معمولاً پایین‌تر بسته می‌شود.</p></div>
+      <div><b>چه چیزهایی در آن نیست</b>
+        <p>نما، کیفیت ساخت، طبقه، نورگیری، وضعیت سند و موقعیت دقیق در محله —
+           هیچ‌کدام در داده آگهی‌ها به شکل قابل اتکا وجود ندارد.</p></div>
+      <div><b>کی قابل اتکاست</b>
+        <p>وقتی تعداد آگهی مشابه بالا باشد. زیر ۲۰ آگهی، بازه را جدی نگیرید؛
+           تعداد آگهی همیشه زیر نتیجه نوشته می‌شود.</p></div>
+    </div>
+  </div>
+
+</main>
+
+<footer><div class="wrap">
+  <span>ارقام از آگهی‌های عمومی سایت‌های ملکی گردآوری و پس از حذف آگهی‌های
+    تکراری و پرت محاسبه می‌شود. قیمت درخواستی فروشنده است، نه قیمت معامله‌شده.</span>
+  <span id="ver"></span>
+</div></footer>
+
+<script src="app.js"></script>
+<script>
+function fillCities(){
+  const sel = document.getElementById('vCity');
+  sel.innerHTML = DB.cities.map(c =>
+    `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  sel.value = S.city;
+  sel.addEventListener('change', async () => {
+    S.city = sel.value; S.hood = '';
+    await loadCity(S.city);
+    fillCitySelect(); fillHoodSelect(); fillHoods(); commit();
+  });
+}
+function fillHoods(){
+  const sel = document.getElementById('vHood');
+  const rows = ((CITY && CITY.rows) || []).filter(r => r.n >= 10)
+    .sort((a,b) => byFa(a.hood, b.hood));
+  sel.innerHTML = '<option value="">کل شهر</option>' +
+    rows.map(r => `<option value="${esc(r.hood)}">${esc(r.hood)}</option>`).join('');
+  sel.value = S.hood || '';
+  sel.onchange = () => { S.hood = sel.value; fillHoodSelect(); commit(); };
+}
+
+function valuate(){
+  const out = document.getElementById('vOut');
+  const area = +document.getElementById('vArea').value;
+  const hood = document.getElementById('vHood').value;
+  const rooms = document.getElementById('vRooms').value;
+  const age = document.getElementById('vAge').value;
+  const feat = document.getElementById('vFeat').value;
+  out.classList.remove('hide');
+
+  if (!area || area < 15 || area > 2000) {
+    out.innerHTML = '<div class="note">متراژ ملک را وارد کنید (بین ۱۵ تا ۲۰۰۰ متر).</div>';
+    return;
+  }
+  const base = (CITY.listings || []).filter(l => l.m > 0 && l.a > 0);
+  let comps = base.filter(l => (!hood || l.h === hood) &&
+    l.a >= area*.75 && l.a <= area*1.25);
+  if (rooms) comps = comps.filter(l => String(l.r) === rooms);
+  if (age !== '') comps = comps.filter(l => l.g != null && Math.abs(l.g - (+age)) <= 5);
+  if (feat) comps = comps.filter(l => (l.f || []).includes(feat));
+
+  let widened = '';
+  if (comps.length < 8) {
+    comps = base.filter(l => (!hood || l.h === hood) && l.a >= area*.6 && l.a <= area*1.4);
+    widened = ' با بازه متراژ گسترده‌تر،';
+  }
+  if (comps.length < 5 && hood) {
+    comps = base.filter(l => l.a >= area*.6 && l.a <= area*1.4);
+    widened = ' بر پایه کل شهر (آگهی مشابه در این محله کم بود)،';
+  }
+  if (comps.length < 5) {
+    out.innerHTML = '<div class="note">آگهی مشابه کافی برای تخمین پیدا نشد. ' +
+      'متراژ یا محله دیگری را امتحان کنید.</div>';
+    return;
+  }
+  const m2 = comps.map(l => l.m).sort((a,b) => a-b);
+  const q = p => m2[Math.max(0, Math.min(m2.length-1, Math.floor(m2.length*p)))];
+  const mid = median(m2), loM = q(.25), hiM = q(.75);
+  const bn = v => (v * area) / 1000;
+  const c = confLevel(comps.length);
+
+  out.innerHTML = `
+    <div class="note">ارزش تقریبی درخواستی</div>
+    <div class="num">${FA1(bn(loM))} تا ${FA1(bn(hiM))} میلیارد تومان</div>
+    <div class="note">میانه ${FA1(round1(mid))} میلیون تومان بر متر مربع ·
+      بر پایه${widened} ${FA(comps.length)} آگهی مشابه ${confBadge(comps.length)}</div>
+    <div class="note" style="margin-top:8px">این رقم تخمین قیمت
+      <b>درخواستی</b> است، نه قیمت معامله. قیمت نهایی معمولاً پایین‌تر بسته می‌شود.</div>`;
+}
+
+document.getElementById('vGo').addEventListener('click', valuate);
+
+bootPage('value.html', () => {
+  fillCities();
+  fillHoods();
+});
+</script>
+</body>
+</html>

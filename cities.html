@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>شهرها و محله‌ها — تحلیل بازار مسکن</title>
+<meta name="description" content="فهرست شهرها و محله‌های ایران با میانه قیمت هر متر مربع.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<main id="main" class="wrap">
+  <div class="phead">
+    <h1>شهرها و محله‌ها</h1>
+    <p>هر شهر را باز کنید تا محله‌هایش را ببینید.</p>
+  </div>
+
+  <div id="searchHost"></div>
+
+  <section>
+    <div class="shead"><h2>همه شهرها</h2>
+      <div class="tabs" id="cityTabs">
+        <button data-sort="prov" class="on">بر پایه استان</button>
+        <button data-sort="name">الفبا</button>
+        <button data-sort="price">بیشترین قیمت</button>
+        <button data-sort="count">تعداد آگهی</button>
+      </div>
+    </div>
+    <div class="panel">
+      <table>
+        <thead><tr><th class="rank"></th><th>شهر</th><th>میانه هر متر مربع</th>
+          <th>تعداد آگهی</th><th>تعداد محله</th></tr></thead>
+        <tbody id="cityBody"><tr><td colspan="5" class="loading">در حال بارگذاری…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="shead"><h2 id="hoodHead">محله‌ها</h2>
+      <div class="tabs" id="hoodTabs">
+        <button data-sort="price" class="on">گران‌ترین</button>
+        <button data-sort="cheap">ارزان‌ترین</button>
+        <button data-sort="count">بیشترین آگهی</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="hhead"><span></span><span>محله</span><span></span>
+        <span>میلیون/متر</span><span>آگهی</span></div>
+      <div class="hoodscroll" id="hoodRows" style="max-height:none"></div>
+      <p class="foot" id="hoodFoot"></p>
+    </div>
+  </section>
+
+</main>
+
+<footer><div class="wrap">
+  <span>ارقام از آگهی‌های عمومی سایت‌های ملکی گردآوری و پس از حذف آگهی‌های
+    تکراری و پرت محاسبه می‌شود. قیمت درخواستی فروشنده است، نه قیمت معامله‌شده.</span>
+  <span id="ver"></span>
+</div></footer>
+
+<script src="app.js"></script>
+<script>
+let citySort = 'prov', hoodSort = 'price';
+
+const row = (c, label) => `
+  <tr data-city="${c.id}"${c.id === S.city ? ' style="background:var(--green-pale)"' : ''}>
+    <td class="rank">${label}</td>
+    <td>${esc(c.name)}</td>
+    <td>${c.median ? FA1(c.median) + ' میلیون' : '—'}</td>
+    <td>${FA(c.n)}</td>
+    <td>${FA(c.hoods || 0)}</td>
+  </tr>`;
+
+/**
+ * Grouped by province by default.
+ *
+ * Fifty city names in one column is a list nobody reads; the same fifty under
+ * thirty-one headings is a map of the country. Karaj sits under Alborz, not
+ * Tehran — the province was separated in 1389 and Karaj is its capital.
+ */
+function drawCities(){
+  const body = document.getElementById('cityBody');
+
+  if (citySort === 'prov') {
+    const groups = {};
+    for (const c of DB.cities) (groups[provinceOf(c.name)] ||= []).push(c);
+    body.innerHTML = Object.keys(groups).sort(byFa).map(prov => {
+      const rows = groups[prov].sort((a,b) => byFa(a.name, b.name));
+      const total = rows.reduce((s, c) => s + c.n, 0);
+      return `<tr class="provhead"><td colspan="5">
+          <b>استان ${esc(prov)}</b>
+          <span class="muted" style="font-weight:400">
+            · ${FA(rows.length)} شهر · ${FA(total)} آگهی</span>
+        </td></tr>` + rows.map(c => row(c, '')).join('');
+    }).join('');
+  } else {
+    const rows = [...DB.cities];
+    if (citySort === 'price')      rows.sort((a,b) => (b.median||0) - (a.median||0));
+    else if (citySort === 'count') rows.sort((a,b) => b.n - a.n);
+    else                           rows.sort((a,b) => byFa(a.name, b.name));
+    body.innerHTML = rows.map((c, i) => row(c, FA(i+1))).join('');
+  }
+
+  document.querySelectorAll('#cityBody tr[data-city]').forEach(tr =>
+    tr.addEventListener('click', async () => {
+      S.city = tr.dataset.city; S.hood = ''; S.q = '';
+      await loadCity(S.city);
+      fillCitySelect(); fillHoodSelect();
+      const q = document.getElementById('q'); if (q) q.value = '';
+      commit();
+      document.getElementById('hoodHead').scrollIntoView({behavior:'smooth'});
+    }));
+}
+
+document.getElementById('cityTabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  citySort = b.dataset.sort;
+  document.querySelectorAll('#cityTabs button').forEach(x => x.classList.toggle('on', x === b));
+  drawCities();
+});
+document.getElementById('hoodTabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  hoodSort = b.dataset.sort;
+  document.querySelectorAll('#hoodTabs button').forEach(x => x.classList.toggle('on', x === b));
+  drawHoods();
+});
+
+function drawHoods(){
+  const keep = S.hood; S.hood = '';
+  const rows0 = activeListings(); S.hood = keep;
+  const g = {};
+  for (const l of rows0) { if (l.h && l.m > 0) (g[l.h] ||= []).push(l.m); }
+  let rows = Object.entries(g)
+    .map(([hood, v]) => ({ hood, n: v.length, med: round1(median(v)) }))
+    .filter(r => r.n >= 5);
+
+  const box = document.getElementById('hoodRows');
+  if (!rows.length) {
+    box.innerHTML = '<div class="loading">با این فیلترها محله‌ای نمانده است.</div>';
+    document.getElementById('hoodFoot').textContent = '';
+    return;
+  }
+  if (hoodSort === 'price')      rows.sort((a,b) => b.med - a.med);
+  else if (hoodSort === 'cheap') rows.sort((a,b) => a.med - b.med);
+  else                           rows.sort((a,b) => b.n - a.n);
+
+  const top = Math.max(...rows.map(r => r.med));
+  box.innerHTML = rows.map((r, i) => `
+    <div class="hrow${r.hood === S.hood ? ' on' : ''}" data-hood="${esc(r.hood)}"
+         title="${esc(r.hood)} — ${FA(r.n)} آگهی — ${confLevel(r.n).label}">
+      <span class="hnum">${FA(i+1)}</span>
+      <span class="hname"><span class="hnametext">${esc(r.hood)}</span>${
+        confLevel(r.n).cls === 'hi' ? '' : confBadge(r.n, true)}</span>
+      <span class="htrack"><span class="hfill" style="width:${
+        Math.max(3, r.med / top * 100).toFixed(1)}%"></span></span>
+      <span class="hval">${FA1(r.med)}</span>
+      <span class="hcount">${FA(r.n)}</span>
+    </div>`).join('');
+  box.querySelectorAll('[data-hood]').forEach(el =>
+    el.addEventListener('click', () => {
+      S.hood = S.hood === el.dataset.hood ? '' : el.dataset.hood;
+      fillHoodSelect(); commit();
+    }));
+  document.getElementById('hoodFoot').textContent =
+    `${FA(rows.length)} محله در ${CITY.name}`;
+}
+
+bootPage('cities.html', () => {
+  drawCities();
+  document.getElementById('hoodHead').textContent = `محله‌های ${CITY.name}`;
+  drawHoods();
+});
+</script>
+</body>
+</html>

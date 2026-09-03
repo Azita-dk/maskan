@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>روش کار — تحلیل بازار مسکن</title>
+<meta name="description" content="منبع داده، روش محاسبه، و محدودیت‌های ارقام این سایت.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<main id="main" class="wrap">
+  <div class="phead">
+    <h1>روش کار و منبع داده‌ها</h1>
+    <p>قیمت مسکن تصمیم مالی بزرگی است، پس روش رسیدن به این ارقام باز است.</p>
+  </div>
+
+  <div id="searchHost"></div>
+
+  <div class="trust">
+    <div><div class="ic" id="i1"></div><b>حریم خصوصی</b>
+      <span>هیچ اطلاعاتی از بازدیدکنندگان این سایت جمع‌آوری یا منتشر نمی‌شود.</span></div>
+    <div><div class="ic" id="i2"></div><b>به‌روزرسانی منظم</b>
+      <span>آگهی‌های تازه هر چند دقیقه جمع‌آوری و آمار هر شبانه‌روز بازسازی می‌شود.</span></div>
+    <div><div class="ic" id="i3"></div><b>داده‌های واقعی</b>
+      <span>تحلیل هزاران آگهی واقعی از دیوار، شیپور و کیلید در سراسر کشور.</span></div>
+    <div><div class="ic" id="i4"></div><b>شفاف و قابل بررسی</b>
+      <span>روش محاسبه پایین همین صفحه توضیح داده شده است.</span></div>
+  </div>
+
+  <div class="panel">
+    <header><h3>روش کار و منبع داده‌ها</h3></header>
+    <div class="method">
+      <div><b>داده از کجا می‌آید</b>
+        <p>آگهی‌های عمومی فروش آپارتمان در دیوار، شیپور و کیلید.</p></div>
+      <div><b>این چه نوع قیمتی است</b>
+        <p>قیمت درخواستی فروشنده است، نه قیمت معامله‌شده. در ایران دفتر عمومی
+           معاملات ثبت‌شده وجود ندارد. قیمت نهایی معمولاً پایین‌تر بسته می‌شود.</p></div>
+      <div><b>روی داده چه کاری انجام می‌شود</b>
+        <p>حذف آگهی‌های تکراری، حذف آگهی‌های پرت با روش انحراف مطلق از میانه،
+           یکسان‌سازی املای نام محله‌ها، و کنار گذاشتن آگهی‌های اقساطی،
+           پیش‌فروش، مشارکت، تجاری و اداری.</p></div>
+      <div><b>چرا میانه و نه میانگین</b>
+        <p>توزیع قیمت مسکن به‌شدت به راست کشیده است. یک ویلای گران میانگین یک
+           محله را جابه‌جا می‌کند، ولی میانه را نه.</p></div>
+      <div><b>اعتبار ارقام</b>
+        <p>هر رقم بر پایه تعداد آگهی‌های پشت آن نشان اعتبار دارد: زیر ۲۰ آگهی
+           کم، تا ۱۰۰ متوسط، بالاتر از آن بالا.</p></div>
+      <div><b>تاریخچه</b>
+        <p>ثبت تاریخچه از شهریور ۱۴۰۵ آغاز شده است. مقایسه‌های چندساله وقتی
+           در دسترس می‌شود که داده‌اش جمع شده باشد — ساختن آن از هیچ ممکن نیست.</p></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <header><h3>وضعیت داده‌ها</h3></header>
+    <div class="statrow" id="dataStats"></div>
+    <p class="foot" id="dataNote"></p>
+  </div>
+
+</main>
+
+<footer><div class="wrap">
+  <span>ارقام از آگهی‌های عمومی سایت‌های ملکی گردآوری و پس از حذف آگهی‌های
+    تکراری و پرت محاسبه می‌شود. قیمت درخواستی فروشنده است، نه قیمت معامله‌شده.</span>
+  <span id="ver"></span>
+</div></footer>
+
+<script src="app.js"></script>
+<script>
+bootPage('about.html', () => {
+  document.getElementById('i1').innerHTML = ICONS.lock;
+  document.getElementById('i2').innerHTML = ICONS.refresh;
+  document.getElementById('i3').innerHTML = ICONS.data;
+  document.getElementById('i4').innerHTML = ICONS.shield;
+
+  const totalAds = DB.cities.reduce((s, c) => s + c.n, 0);
+  const totalHoods = DB.cities.reduce((s, c) => s + (c.hoods || 0), 0);
+  const hist = (CITY.ours || []).filter(r => r.v > 0);
+  const days = hist.length > 1
+    ? Math.round((new Date(hist[hist.length-1].d) - new Date(hist[0].d))/864e5) : 0;
+  const withCoords = (CITY.listings || []).filter(l => l.y).length;
+
+  document.getElementById('dataStats').innerHTML = [
+    ['شهرها', FA(DB.cities.length)],
+    ['محله‌ها', FA(totalHoods)],
+    ['آگهی‌ها', FA(totalAds)],
+    ['روز تاریخچه', FA(days)],
+    ['مختصات در این شهر', FA(withCoords)],
+  ].map(([k,v]) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
+
+  document.getElementById('dataNote').textContent =
+    (DB.generated ? `آخرین بازسازی آمار: ${faDate(DB.generated.slice(0,10))}. ` : '') +
+    'مختصات آگهی‌ها به‌تدریج تکمیل می‌شود، بنابراین تعداد نقطه‌های نقشه هر روز بیشتر می‌شود.';
+});
+</script>
+</body>
+</html>

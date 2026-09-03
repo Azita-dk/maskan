@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>آمار و نمودارها — تحلیل بازار مسکن</title>
+<meta name="description" content="روند قیمت، توزیع قیمت، و قیمت بر پایه متراژ و سن بنا.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<main id="main" class="wrap">
+  <div class="phead">
+    <h1>آمار و نمودارها</h1>
+    <p>همه نمودارها از همان انتخابی که در بالا کرده‌اید ساخته می‌شوند.</p>
+  </div>
+
+  <div id="searchHost"></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="panel">
+    <header><h3 id="trendTitle">روند قیمت</h3>
+      <div class="tabs" id="trendTabs"></div></header>
+    <div class="chartbox"><div class="chart">
+      <canvas id="trend"></canvas><div class="callout hide" id="callout"></div>
+    </div></div>
+    <p class="foot" id="trendNote"></p>
+  </div>
+
+  <div class="panel">
+    <header><h3 id="distTitle">توزیع قیمت</h3></header>
+    <div class="chartbox"><div class="chart short"><canvas id="dist"></canvas></div></div>
+    <div class="statrow" id="distStats"></div>
+    <p class="foot">چند آگهی در هر بازه قیمتی قرار می‌گیرد. منحنی، توزیع نرمالِ
+      هم‌میانگین است تا کجی توزیع دیده شود.</p>
+  </div>
+
+  <div class="panel">
+    <header><h3>قیمت بر پایه متراژ و سن بنا</h3></header>
+    <div class="chartbox"><div class="twochart">
+      <div><div class="chartlbl">میانه هر متر مربع بر پایه متراژ</div>
+        <div class="chart short"><canvas id="bySize"></canvas></div></div>
+      <div><div class="chartlbl">میانه هر متر مربع بر پایه سن بنا</div>
+        <div class="chart short"><canvas id="byAge"></canvas></div></div>
+    </div></div>
+    <p class="foot">ستون‌های کم‌رنگ کمتر از ۲۰ آگهی دارند. آپارتمان کوچک معمولاً
+      در هر متر گران‌تر از بزرگ است، چون قیمت زمین بین متر کمتری پخش می‌شود.</p>
+  </div>
+
+</main>
+
+<footer><div class="wrap">
+  <span>ارقام از آگهی‌های عمومی سایت‌های ملکی گردآوری و پس از حذف آگهی‌های
+    تکراری و پرت محاسبه می‌شود. قیمت درخواستی فروشنده است، نه قیمت معامله‌شده.</span>
+  <span id="ver"></span>
+</div></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+<script>
+let trendChart=null, distChart=null, sizeChart=null, ageChart=null;
+let period = 'all';
+
+function drawKpis(){
+  const rows = activeListings();
+  const vals = rows.map(l => l.m).filter(v => v > 0);
+  const med = vals.length ? round1(median(vals)) : null;
+  const hist = (CITY.ours || []).filter(r => r.v > 0);
+  let change = '—', cls = '';
+  if (hist.length > 1) {
+    const a = hist[0], b = hist[hist.length-1];
+    const days = Math.round((new Date(b.d) - new Date(a.d)) / 864e5);
+    if (days >= 7 && a.v) {
+      const pct = (b.v - a.v) / a.v * 100;
+      change = (pct >= 0 ? '+' : '\u2212') + FA1(Math.abs(pct)) + '\u066A';
+      cls = pct >= 0 ? 'up' : 'down';
+    }
+  }
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="k">میانه هر متر مربع</div>
+      <div class="v">${med === null ? '—' : FA1(med)}</div>
+      <div class="u">میلیون تومان</div></div>
+    <div class="kpi"><div class="k">تغییر در کل تاریخچه</div>
+      <div class="v ${cls}">${change}</div>
+      <div class="u">${hist.length > 1 ? 'از ' + faDate(hist[0].d) : 'داده کافی نیست'}</div></div>
+    <div class="kpi"><div class="k">تعداد آگهی</div>
+      <div class="v">${FA(rows.length)}</div><div class="u">در این انتخاب</div></div>
+    <div class="kpi"><div class="k">اعتبار</div>
+      <div class="v" style="font-size:18px;padding-top:6px">${confBadge(rows.length)}</div>
+      <div class="u">بر پایه تعداد آگهی</div></div>`;
+}
+
+function historySeries(){
+  if (S.hood) {
+    const h = (CITY.hood_hist || {})[S.hood] || [];
+    return h.filter(r => r.v > 0);
+  }
+  return (CITY.ours || []).filter(r => r.v > 0);
+}
+function historyDays(h){
+  if (h.length < 2) return 0;
+  return Math.round((new Date(h[h.length-1].d) - new Date(h[0].d)) / 864e5);
+}
+
+function drawTrendTabs(){
+  const span = historyDays(historySeries());
+  const opts = [['all','همه']];
+  if (span >= 7)  opts.push(['7','۷ روز']);
+  if (span >= 30) opts.push(['30','۱ ماه']);
+  if (span >= 90) opts.push(['90','۳ ماه']);
+  if (span >= 365) opts.push(['365','۱ سال']);
+  if (!opts.some(o => o[0] === period)) period = 'all';
+  const box = document.getElementById('trendTabs');
+  box.innerHTML = opts.reverse().map(([v,l]) =>
+    `<button data-p="${v}"${v === period ? ' class="on"' : ''}>${l}</button>`).join('');
+  box.querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => {
+      period = b.dataset.p;
+      box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+      drawTrend();
+    }));
+}
+
+function drawTrend(){
+  let hist = historySeries();
+  if (period !== 'all') {
+    const cut = new Date(Date.now() - (+period)*864e5).toISOString().slice(0,10);
+    hist = hist.filter(r => r.d >= cut);
+  }
+  trendChart && trendChart.destroy();
+  const note = document.getElementById('trendNote');
+  const callout = document.getElementById('callout');
+  document.getElementById('trendTitle').textContent =
+    'روند قیمت در ' + (S.hood || CITY.name);
+
+  if (hist.length < 2) {
+    callout.classList.add('hide');
+    note.textContent = 'برای رسم نمودار هنوز روز کافی ثبت نشده است. ' +
+      'این سایت تازه شروع به ثبت تاریخچه کرده و هر شبانه‌روز یک نقطه اضافه می‌شود.';
+    return;
+  }
+  const span = historyDays(hist);
+  note.textContent = `میانه قیمت آگهی‌ها، میلیون تومان بر متر مربع — تاریخچه از ` +
+    `${faDate(hist[0].d)}، یعنی ${FA(span)} روز.` +
+    (span < 365 ? ' مقایسه چندساله وقتی ممکن می‌شود که داده‌اش جمع شده باشد.' : '');
+
+  const latest = hist[hist.length-1];
+  const pct = hist[0].v ? (latest.v - hist[0].v) / hist[0].v * 100 : null;
+  callout.classList.remove('hide');
+  callout.innerHTML = `<div class="n">${FA1(latest.v)} میلیون تومان</div>
+    <div class="d">${faMonth(latest.d)}${pct === null ? '' :
+      ' · ' + (pct >= 0 ? '+' : '\u2212') + FA1(Math.abs(pct)) + '\u066A در این بازه'}</div>`;
+
+  const vals = hist.map(r => r.v);
+  const lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = Math.max((hi-lo)*.25, hi*.05);
+  const ctx = document.getElementById('trend');
+  const grad = ctx.getContext('2d').createLinearGradient(0,0,0,280);
+  grad.addColorStop(0, CSSVAR('--green-mid') + '44');
+  grad.addColorStop(1, CSSVAR('--green-mid') + '00');
+
+  trendChart = new Chart(ctx, {
+    type:'line',
+    data:{ labels: hist.map(r => faShortDate(r.d)),
+      datasets:[{ data: vals, borderColor: CSSVAR('--green-mid'),
+        backgroundColor: grad, borderWidth:2.5, fill:true, tension:.3,
+        pointRadius: hist.length > 40 ? 0 : 3, pointBackgroundColor: CSSVAR('--card'),
+        pointBorderColor: CSSVAR('--green-mid'), pointBorderWidth:2 }] },
+    options:{ maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ rtl:true, displayColors:false,
+          bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
+          callbacks:{ label: c => FA1(c.parsed.y) + ' میلیون تومان' } } },
+      scales:{ x:{ grid:{display:false},
+                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                          maxTicksLimit:8, maxRotation:0} },
+               y:{ position:'right', min:Math.max(0, lo-pad), max:hi+pad,
+                   grid:{color:CSSVAR('--rule')},
+                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                          callback:v=>FA(Math.round(v))} } } }
+  });
+}
+
+function drawDist(){
+  const rows = activeListings();
+  const vals = rows.map(l => l.m).filter(v => v > 0).sort((a,b)=>a-b);
+  distChart && distChart.destroy();
+  const panel = document.getElementById('dist').closest('.panel');
+  if (vals.length < 20) { panel.classList.add('hide'); return; }
+  panel.classList.remove('hide');
+  document.getElementById('distTitle').textContent =
+    'توزیع قیمت در ' + (S.hood || CITY.name);
+
+  const q = p => vals[Math.max(0, Math.min(vals.length-1, Math.floor(vals.length*p)))];
+  const lo = q(.02), hi = q(.98), bins = 26, w = (hi-lo)/bins || 1;
+  const counts = new Array(bins).fill(0);
+  for (const v of vals) {
+    if (v < lo || v > hi) continue;
+    counts[Math.min(bins-1, Math.floor((v-lo)/w))]++;
+  }
+  const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
+  const sd = Math.sqrt(vals.reduce((a,b)=>a+(b-mean)**2,0)/vals.length) || 1;
+  const peak = Math.max(...counts);
+  const curve = counts.map((_, i) => {
+    const x = lo + w*(i+.5);
+    return peak * Math.exp(-((x-mean)**2)/(2*sd*sd));
+  });
+  const med = round1(median(vals));
+
+  distChart = new Chart(document.getElementById('dist'), {
+    data:{ labels: counts.map((_, i) => FA1(round1(lo + w*i))),
+      datasets:[
+        { type:'bar', label:'تعداد آگهی', data:counts, borderWidth:0,
+          barPercentage:.96, categoryPercentage:1,
+          backgroundColor: counts.map((_, i) => heat(lo + w*i, lo, hi)) },
+        { type:'line', label:'منحنی نرمال هم‌میانگین', data:curve,
+          borderColor:CSSVAR('--muted'), borderWidth:1.5, borderDash:[5,4],
+          pointRadius:0, fill:false, tension:.4 }] },
+    options:{ maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom',
+          labels:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
+                  boxWidth:12, usePointStyle:true} },
+        tooltip:{ rtl:true, bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'} } },
+      scales:{ x:{ grid:{display:false},
+                   ticks:{font:{family:'Vazirmatn',size:10}, color:CSSVAR('--muted'),
+                          maxTicksLimit:9, maxRotation:0} },
+               y:{ position:'right', grid:{color:CSSVAR('--rule')},
+                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                          callback:v=>FA(v)} } } }
+  });
+
+  document.getElementById('distStats').innerHTML = [
+    ['کمترین', q(.02)], ['چارک اول', q(.25)], ['میانه', med],
+    ['چارک سوم', q(.75)], ['بیشترین', q(.98)],
+  ].map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${FA1(round1(v))}</div></div>`).join('');
+}
+
+function drawBreakdown(){
+  const SIZE = [
+    { label:'زیر ۵۰', t:a => a < 50 }, { label:'۵۰ تا ۷۵', t:a => a>=50&&a<75 },
+    { label:'۷۵ تا ۱۰۰', t:a => a>=75&&a<100 }, { label:'۱۰۰ تا ۱۵۰', t:a => a>=100&&a<150 },
+    { label:'۱۵۰ تا ۲۰۰', t:a => a>=150&&a<200 }, { label:'بالای ۲۰۰', t:a => a>=200 } ];
+  const AGE = [
+    { label:'نوساز', t:g => g <= 1 }, { label:'۲ تا ۵', t:g => g>1&&g<=5 },
+    { label:'۶ تا ۱۰', t:g => g>5&&g<=10 }, { label:'۱۱ تا ۲۰', t:g => g>10&&g<=20 },
+    { label:'بالای ۲۰', t:g => g>20 } ];
+
+  const bucket = (rows, bands, pick) => bands.map(b => {
+    const v = rows.filter(l => pick(l) != null && b.t(pick(l))).map(l => l.m).filter(x => x>0);
+    return { label:b.label, n:v.length, med: v.length ? round1(median(v)) : null };
+  }).filter(x => x.n > 0);
+
+  const sizes = bucket(activeListings('area'), SIZE, l => l.a);
+  const ages  = bucket(activeListings('age'),  AGE,  l => l.g);
+
+  const paint = (id, rows, prev) => {
+    prev && prev.destroy();
+    if (!rows.length) return null;
+    const meds = rows.map(r => r.med);
+    const lo = Math.min(...meds), hi = Math.max(...meds);
+    return new Chart(document.getElementById(id), {
+      type:'bar',
+      data:{ labels: rows.map(r => r.label),
+        datasets:[{ data:meds, borderWidth:0, barPercentage:.78,
+          backgroundColor: rows.map(r =>
+            r.n < 20 ? CSSVAR('--rule') : heat(r.med, lo, hi)) }] },
+      options:{ maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{ rtl:true, displayColors:false,
+            bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
+            callbacks:{ label: c => FA1(meds[c.dataIndex]) + ' م/متر — ' +
+                                    FA(rows[c.dataIndex].n) + ' آگهی' } } },
+        scales:{ x:{ grid:{display:false},
+                     ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                            maxRotation:0} },
+                 y:{ position:'right', grid:{color:CSSVAR('--rule')},
+                     ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                            callback:v=>FA(v)} } } }
+    });
+  };
+  sizeChart = paint('bySize', sizes, sizeChart);
+  ageChart  = paint('byAge',  ages,  ageChart);
+}
+
+bootPage('stats.html', () => {
+  drawKpis();
+  drawTrendTabs();
+  drawTrend();
+  drawDist();
+  drawBreakdown();
+});
+</script>
+</body>
+</html>
