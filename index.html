@@ -46,6 +46,8 @@
         <span>میلیون/متر</span><span>آگهی</span>
       </div>
       <div class="hoodscroll" id="hoodRows"><div class="loading">در حال بارگذاری…</div></div>
+      <div class="scalekey"><span>ارزان‌ترین</span><span class="bar"></span>
+        <span>گران‌ترین</span><span>— رنگ نوار بر پایه قیمت هر متر مربع است</span></div>
       <p class="foot" id="hoodFoot"></p>
     </div>
 
@@ -274,7 +276,7 @@ function drawHoods(){
       <span class="htrack"><span class="hfill" style="width:${
         Math.max(3, r.med / top * 100).toFixed(1)}%;background:${
         heat(r.med, lo, hi)}"></span></span>
-      <span class="hval">${FA1(r.med)}</span>
+      <span class="hval" style="color:${heat(r.med, lo, hi)}">${FA1(r.med)}</span>
       <span class="hcount">${FA(r.n)}</span>
     </div>`).join('');
 

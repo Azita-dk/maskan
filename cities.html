@@ -50,6 +50,8 @@
       <div class="hhead"><span></span><span>محله</span><span></span>
         <span>میلیون/متر</span><span>آگهی</span></div>
       <div class="hoodscroll" id="hoodRows" style="max-height:none"></div>
+      <div class="scalekey"><span>ارزان‌ترین</span><span class="bar"></span>
+        <span>گران‌ترین</span><span>— رنگ نوار بر پایه قیمت هر متر مربع است</span></div>
       <p class="foot" id="hoodFoot"></p>
     </div>
   </section>
@@ -162,7 +164,8 @@ function drawHoods(){
   else if (hoodSort === 'cheap') rows.sort((a,b) => a.med - b.med);
   else                           rows.sort((a,b) => b.n - a.n);
 
-  const top = Math.max(...rows.map(r => r.med));
+  const meds = rows.map(r => r.med);
+  const top = Math.max(...meds), lo = Math.min(...meds), hi = top;
   box.innerHTML = rows.map((r, i) => `
     <div class="hrow${r.hood === S.hood ? ' on' : ''}" data-hood="${esc(r.hood)}"
          title="${esc(r.hood)} — ${FA(r.n)} آگهی — ${confLevel(r.n).label}">
@@ -170,8 +173,9 @@ function drawHoods(){
       <span class="hname"><span class="hnametext">${esc(r.hood)}</span>${
         confLevel(r.n).cls === 'hi' ? '' : confBadge(r.n, true)}</span>
       <span class="htrack"><span class="hfill" style="width:${
-        Math.max(3, r.med / top * 100).toFixed(1)}%"></span></span>
-      <span class="hval">${FA1(r.med)}</span>
+        Math.max(3, r.med / top * 100).toFixed(1)}%;background:${
+        heat(r.med, lo, hi)}"></span></span>
+      <span class="hval" style="color:${heat(r.med, lo, hi)}">${FA1(r.med)}</span>
       <span class="hcount">${FA(r.n)}</span>
     </div>`).join('');
   box.querySelectorAll('[data-hood]').forEach(el =>
