@@ -17,8 +17,6 @@
     <p>قیمت مسکن تصمیم مالی بزرگی است، پس روش رسیدن به این ارقام باز است.</p>
   </div>
 
-  <div id="searchHost"></div>
-
   <div class="trust">
     <div><div class="ic" id="i1"></div><b>حریم خصوصی</b>
       <span>هیچ اطلاعاتی از بازدیدکنندگان این سایت جمع‌آوری یا منتشر نمی‌شود.</span></div>
@@ -81,14 +79,13 @@ bootPage('about.html', () => {
   const hist = (CITY.ours || []).filter(r => r.v > 0);
   const days = hist.length > 1
     ? Math.round((new Date(hist[hist.length-1].d) - new Date(hist[0].d))/864e5) : 0;
-  const withCoords = (CITY.listings || []).filter(l => l.y).length;
 
   document.getElementById('dataStats').innerHTML = [
     ['شهرها', FA(DB.cities.length)],
     ['محله‌ها', FA(totalHoods)],
     ['آگهی‌ها', FA(totalAds)],
     ['روز تاریخچه', FA(days)],
-    ['مختصات در این شهر', FA(withCoords)],
+    ['استان‌ها', FA(new Set(DB.cities.map(c => provinceOf(c.name))).size)],
   ].map(([k,v]) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
 
   document.getElementById('dataNote').textContent =

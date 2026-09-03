@@ -7,7 +7,7 @@
  */
 
 const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
-const APP_VERSION = '2026-09-03 18:20';
+const APP_VERSION = '2026-09-03 19:40';
 
 /* ------------------------------------------------------------- numbers */
 const FA_DIGITS = t => String(t).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
@@ -334,7 +334,7 @@ const PAGES = [
   { file:'about.html',  label:'روش کار' },
 ];
 
-const DEFAULTS = { city:'', hood:'', min:'0', max:'9999', rooms:'all',
+const DEFAULTS = { prov:'', city:'', hood:'', min:'0', max:'9999', rooms:'all',
                    age:'999', date:'0', sample:'20', q:'', feat:'' };
 
 const S = { ...DEFAULTS };          // current filter state
@@ -360,6 +360,11 @@ function linkTo(file){
     if (v && v !== DEFAULTS[k]) p.set(k, v);
   return file + (p.toString() ? '?' + p : '');
 }
+
+// The top menu starts each page clean. Links inside a page — the cards at the
+// foot of the main page, a neighbourhood row — carry the view across, which is
+// what makes those feel connected; the menu is for starting again.
+function menuLink(file){ return file; }
 
 const featureSet = () => new Set(S.feat ? S.feat.split(',').filter(Boolean) : []);
 
@@ -407,6 +412,7 @@ function cityWideListings(){
 
 function activeFilterCount(){
   let n = 0;
+  if (S.prov !== DEFAULTS.prov) n++;
   if (S.min !== DEFAULTS.min) n++;
   if (S.max !== DEFAULTS.max) n++;
   if (S.rooms !== DEFAULTS.rooms) n++;
@@ -464,11 +470,11 @@ const LOGO = `<rect width="64" height="64" rx="14" fill="#0C7A4F"/>
 /* ------------------------------------------------------------- the nav */
 function renderNav(current){
   const links = PAGES.map(p =>
-    `<a href="${linkTo(p.file)}"${p.file === current ? ' class="on"' : ''}
-       data-page="${p.file}">${p.label}</a>`).join('');
+    `<a href="${menuLink(p.file)}"${p.file === current ? ' class="on"' : ''}
+       >${p.label}</a>`).join('');
   document.body.insertAdjacentHTML('afterbegin', `
     <nav class="nav"><div class="wrap">
-      <a class="brand" href="${linkTo('index.html')}">
+      <a class="brand" href="index.html">
         <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">${LOGO}</svg>
         <span><b>تحلیل بازار مسکن</b><small>قیمت‌ها و روند بازار در یک نگاه</small></span>
       </a>
@@ -492,11 +498,10 @@ function renderNav(current){
 
 /* Links are rebuilt whenever the filters change, so every page in the menu
    opens on the view the reader is currently looking at. */
+// Only in-page links track the filters; the menu deliberately does not.
 function refreshNavLinks(){
   document.querySelectorAll('[data-page]').forEach(a =>
     a.href = linkTo(a.dataset.page));
-  const brand = document.querySelector('.brand');
-  if (brand) brand.href = linkTo('index.html');
 }
 
 /* ------------------------------------------------------- the search bar */
@@ -514,6 +519,7 @@ function renderSearchBar(host){
       <button class="filterbtn" id="filterBtn">فیلترها</button>
 
       <div class="filters" id="filters">
+        <label><span>استان</span><select id="fProv"></select></label>
         <label><span>شهر</span><select id="fCity"></select></label>
         <label><span>محله</span><select id="fHood"></select></label>
         <label><span>حداقل متراژ</span><select id="fMin">
@@ -543,10 +549,23 @@ function renderSearchBar(host){
   q.value = S.q;
   document.getElementById('qClear').classList.toggle('hide', !S.q);
 
+  fillProvSelect();
   fillCitySelect();
   fillHoodSelect();
   for (const [id, key] of [['fMin','min'],['fMax','max'],['fRooms','rooms'],['fAge','age']])
     document.getElementById(id).value = S[key];
+
+  document.getElementById('fProv').addEventListener('change', async e => {
+    S.prov = e.target.value;
+    // a city outside the chosen province cannot stay selected
+    const inProv = DB.cities.filter(c => !S.prov || provinceOf(c.name) === S.prov);
+    if (inProv.length && !inProv.some(c => c.id === S.city)) {
+      S.city = inProv.sort((a,b) => b.n - a.n)[0].id;
+      S.hood = '';
+      await loadCity(S.city);
+    }
+    fillCitySelect(); fillHoodSelect(); commit();
+  });
 
   document.getElementById('fCity').addEventListener('change', async e => {
     S.city = e.target.value; S.hood = ''; S.q = '';
@@ -589,7 +608,7 @@ function fillCitySelect(){
   const sel = document.getElementById('fCity');
   if (!sel || !DB) return;
   const groups = {};
-  for (const c of DB.cities) (groups[provinceOf(c.name)] ||= []).push(c);
+  for (const c of citiesInProvince()) (groups[provinceOf(c.name)] ||= []).push(c);
   sel.innerHTML = Object.keys(groups).sort(byFa).map(prov => {
     const rows = groups[prov].sort((a, b) => byFa(a.name, b.name));
     return `<optgroup label="استان ${esc(prov)}">` + rows.map(c =>
@@ -597,6 +616,50 @@ function fillCitySelect(){
       + '</optgroup>';
   }).join('');
   sel.value = S.city;
+}
+
+function fillProvSelect(){
+  const sel = document.getElementById('fProv');
+  if (!sel || !DB) return;
+  const provs = [...new Set(DB.cities.map(c => provinceOf(c.name)))].sort(byFa);
+  sel.innerHTML = '<option value="">همه استان‌ها</option>' +
+    provs.map(pv => `<option value="${esc(pv)}">${esc(pv)}</option>`).join('');
+  sel.value = S.prov;
+}
+
+/** The cities the current province filter allows. */
+function citiesInProvince(){
+  if (!DB) return [];
+  return DB.cities.filter(c => !S.prov || provinceOf(c.name) === S.prov);
+}
+
+/**
+ * A province summary from stats.json alone.
+ *
+ * Charting a whole province would mean downloading every one of its city
+ * files. The median is instead interpolated from the city medians weighted by
+ * how many listings sit behind each — the same method used to rebuild the
+ * early snapshots, about 2% off in testing. It is labelled as a summary, not
+ * presented as a measured figure.
+ */
+function provinceSummary(prov){
+  const rows = DB.cities.filter(c => provinceOf(c.name) === prov && c.median > 0)
+    .sort((a, b) => a.median - b.median);
+  if (!rows.length) return null;
+  const total = rows.reduce((s, c) => s + c.n, 0);
+  const half = total / 2;
+  let run = 0;
+  const pts = rows.map(c => { const mid = run + c.n/2; run += c.n; return [mid, c.median]; });
+  let v = pts[pts.length-1][1];
+  for (let i = 0; i < pts.length; i++) {
+    if (pts[i][0] < half) continue;
+    if (i === 0) { v = pts[0][1]; break; }
+    const [x0,y0] = pts[i-1], [x1,y1] = pts[i];
+    v = y0 + (y1-y0)*(half-x0)/(x1-x0);
+    break;
+  }
+  return { prov, median: round1(v), listings: total, cities: rows.length,
+           dearest: rows[rows.length-1], cheapest: rows[0] };
 }
 
 function fillHoodSelect(){
@@ -677,7 +740,8 @@ function drawSummary(){
   const box = document.getElementById('summary');
   if (!box) return;
   const n = activeListings().length;
-  const where = S.hood ? `${esc(S.hood)}، ${esc(CITY.name)}` : esc(CITY ? CITY.name : '');
+  const where = S.hood ? `${esc(S.hood)}، ${esc(CITY.name)}`
+    : esc(CITY ? CITY.name : '') + (S.prov ? ` (استان ${esc(S.prov)})` : '');
   const fc = activeFilterCount();
   box.innerHTML =
     `<span><b>${FA(n)}</b> آگهی در ${where}</span>` +
@@ -691,7 +755,7 @@ function drawSummary(){
     const q = document.getElementById('q'); if (q) q.value = '';
     for (const [id, key] of [['fMin','min'],['fMax','max'],['fRooms','rooms'],['fAge','age']])
       document.getElementById(id).value = S[key];
-    fillHoodSelect();
+    fillProvSelect(); fillCitySelect(); fillHoodSelect();
     commit();
   });
 

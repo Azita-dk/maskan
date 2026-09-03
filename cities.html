@@ -20,7 +20,7 @@
   <div id="searchHost"></div>
 
   <section>
-    <div class="shead"><h2>همه شهرها</h2>
+    <div class="shead"><h2 id="cityHead">همه شهرها</h2>
       <div class="tabs" id="cityTabs">
         <button data-sort="prov" class="on">بر پایه استان</button>
         <button data-sort="name">الفبا</button>
@@ -29,6 +29,7 @@
       </div>
     </div>
     <div class="panel">
+      <p class="note" id="cityScope" style="padding:12px 16px 0"></p>
       <table>
         <thead><tr><th class="rank"></th><th>شهر</th><th>میانه هر متر مربع</th>
           <th>تعداد آگهی</th><th>تعداد محله</th></tr></thead>
@@ -84,9 +85,23 @@ const row = (c, label) => `
 function drawCities(){
   const body = document.getElementById('cityBody');
 
+  // A chosen province narrows the table to that province; a chosen city
+  // narrows it to that city. Showing all fifty underneath a selection was
+  // the thing that made the page feel disconnected from the filters.
+  let scope = citiesInProvince();
+  const only = scope.find(c => c.id === S.city);
+  const narrowed = !!S.prov;
+  document.getElementById('cityScope').innerHTML = narrowed
+    ? `فقط استان ${esc(S.prov)} — <button class="reset" id="showAll">نمایش همه استان‌ها</button>`
+    : '';
+  const btn = document.getElementById('showAll');
+  if (btn) btn.addEventListener('click', () => {
+    S.prov = ''; fillProvSelect(); fillCitySelect(); commit();
+  });
+
   if (citySort === 'prov') {
     const groups = {};
-    for (const c of DB.cities) (groups[provinceOf(c.name)] ||= []).push(c);
+    for (const c of scope) (groups[provinceOf(c.name)] ||= []).push(c);
     body.innerHTML = Object.keys(groups).sort(byFa).map(prov => {
       const rows = groups[prov].sort((a,b) => byFa(a.name, b.name));
       const total = rows.reduce((s, c) => s + c.n, 0);
@@ -97,7 +112,7 @@ function drawCities(){
         </td></tr>` + rows.map(c => row(c, '')).join('');
     }).join('');
   } else {
-    const rows = [...DB.cities];
+    const rows = [...scope];
     if (citySort === 'price')      rows.sort((a,b) => (b.median||0) - (a.median||0));
     else if (citySort === 'count') rows.sort((a,b) => b.n - a.n);
     else                           rows.sort((a,b) => byFa(a.name, b.name));
@@ -169,6 +184,8 @@ function drawHoods(){
 }
 
 bootPage('cities.html', () => {
+  document.getElementById('cityHead').textContent =
+    S.prov ? `شهرهای استان ${S.prov}` : 'همه شهرها';
   drawCities();
   document.getElementById('hoodHead').textContent = `محله‌های ${CITY.name}`;
   drawHoods();
