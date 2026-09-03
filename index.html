@@ -536,9 +536,7 @@ function drawNext(){
   ];
   document.getElementById('next').innerHTML = cards.map(([f, icon, t, d]) => `
     <a class="citycard" href="${linkTo(f)}" data-page="${f}">
-      <div class="ic" style="width:40px;height:40px;border-radius:10px;
-        background:var(--green-pale);color:var(--green);display:grid;
-        place-items:center;margin-bottom:11px">${icon}</div>
+      <div class="ic">${icon}</div>
       <b style="font-size:15px;display:block;margin-bottom:3px">${t}</b>
       <span class="muted" style="font-size:12.5px">${d}</span>
     </a>`).join('');

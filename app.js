@@ -7,7 +7,7 @@
  */
 
 const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
-const APP_VERSION = '2026-09-03 19:40';
+const APP_VERSION = '2026-09-03 21:10';
 
 /* ------------------------------------------------------------- numbers */
 const FA_DIGITS = t => String(t).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
@@ -443,21 +443,55 @@ function heat(v, lo, hi){
 }
 
 /* ------------------------------------------------------------ the icons */
+/* One icon set, drawn on a 24-grid with a single stroke weight.
+   The previous set was too light and too small for the box it sat in, which
+   is what made it look like clip-art. These are heavier, fill the frame, and
+   use a filled accent shape where a solid mass reads better than an outline. */
 const ico = b => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-  stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+  stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"
   aria-hidden="true">${b}</svg>`;
+
 const ICONS = {
-  search:  ico('<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>'),
-  theme:   ico('<path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5A6.5 6.5 0 0 1 12 3.5z"/>'),
-  burger:  ico('<path d="M4 7h16M4 12h16M4 17h16"/>'),
-  trend:   ico('<path d="M3 17l5.5-5.5 3.5 3.5L21 6"/><path d="M15 6h6v6"/>'),
-  house:   ico('<path d="M3 10.5L12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/>'),
-  chart:   ico('<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v8.5h8.5"/>'),
-  clock:   ico('<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h3M8 17.5h6"/>'),
-  lock:    ico('<rect x="4.5" y="10" width="15" height="10.5" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v2.5"/>'),
-  refresh: ico('<path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3.5V9h-5.5"/>'),
-  data:    ico('<ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/>'),
-  shield:  ico('<path d="M12 3l7.5 3v6c0 4.4-3.1 8.1-7.5 9-4.4-.9-7.5-4.6-7.5-9V6z"/><path d="M9 12l2.2 2.2L15.5 10"/>'),
+  search:  ico('<circle cx="10.5" cy="10.5" r="6.75"/><path d="M15.6 15.6L21 21"/>'),
+  theme:   ico('<path d="M20.4 13.6A8.4 8.4 0 0 1 10.4 3.6a8.4 8.4 0 1 0 10 10z"/>'),
+  burger:  ico('<path d="M3.5 7h17M3.5 12h17M3.5 17h17"/>'),
+
+  // a line rising through plotted points, not a bare arrow
+  trend:   ico('<path d="M3 20V4"/><path d="M3 20h18"/>'
+             + '<path d="M6.5 15.5l4-4.5 3.5 3 5.5-7"/>'
+             + '<circle cx="6.5" cy="15.5" r="1.4" fill="currentColor" stroke="none"/>'
+             + '<circle cx="10.5" cy="11" r="1.4" fill="currentColor" stroke="none"/>'
+             + '<circle cx="14" cy="14" r="1.4" fill="currentColor" stroke="none"/>'
+             + '<circle cx="19.5" cy="7" r="1.4" fill="currentColor" stroke="none"/>'),
+
+  // a house with a door, so it reads at 20px
+  house:   ico('<path d="M2.5 11L12 3l9.5 8"/>'
+             + '<path d="M5 9.4V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.4"/>'
+             + '<path d="M9.75 21v-5.5a2.25 2.25 0 0 1 4.5 0V21"/>'),
+
+  // a filled segment, which reads better than a hairline wedge
+  chart:   ico('<circle cx="12" cy="12" r="8.75"/>'
+             + '<path d="M12 3.25A8.75 8.75 0 0 1 20.75 12H12z" fill="currentColor" stroke="none"/>'
+             + '<path d="M12 3.25v8.75h8.75"/>'),
+
+  clock:   ico('<rect x="3" y="4.75" width="18" height="16.25" rx="2.75"/>'
+             + '<path d="M3 9.75h18"/><path d="M8 2.5v4.5M16 2.5v4.5"/>'
+             + '<path d="M7.5 13.75h3M7.5 17.25h7"/>'),
+
+  lock:    ico('<rect x="4" y="10" width="16" height="11" rx="2.75"/>'
+             + '<path d="M7.75 10V7.25a4.25 4.25 0 0 1 8.5 0V10"/>'
+             + '<circle cx="12" cy="15" r="1.5" fill="currentColor" stroke="none"/>'
+             + '<path d="M12 16.5v1.75"/>'),
+
+  refresh: ico('<path d="M20.5 12a8.5 8.5 0 1 1-2.9-6.4"/>'
+             + '<path d="M20.5 3.5V10h-6.5"/>'),
+
+  data:    ico('<ellipse cx="12" cy="5.75" rx="8" ry="3.25"/>'
+             + '<path d="M4 5.75v12.5c0 1.8 3.6 3.25 8 3.25s8-1.45 8-3.25V5.75"/>'
+             + '<path d="M4 12c0 1.8 3.6 3.25 8 3.25s8-1.45 8-3.25"/>'),
+
+  shield:  ico('<path d="M12 2.5l8 3.25v6.25c0 4.6-3.35 8.5-8 9.5-4.65-1-8-4.9-8-9.5V5.75z"/>'
+             + '<path d="M8.5 12l2.5 2.5 4.5-5"/>'),
 };
 
 const LOGO = `<rect width="64" height="64" rx="14" fill="#0C7A4F"/>
