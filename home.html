@@ -3,29 +3,32 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>قیمت خانه در ایران — آمار قیمت مسکن</title>
+<title>تحلیل بازار مسکن — قیمت‌ها و روند بازار در ایران</title>
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCI+PHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiByeD0iMTQiIGZpbGw9IiM4QjVFMzQiLz48cGF0aCBkPSJNMTQgMzBMMzIgMTZsMTggMTQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSI1IiBmaWxsPSJub25lIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz48cmVjdCB4PSIxOCIgeT0iMzYiIHdpZHRoPSI3IiBoZWlnaHQ9IjEyIiByeD0iMiIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjU1Ii8+PHJlY3QgeD0iMjguNSIgeT0iMzEiIHdpZHRoPSI3IiBoZWlnaHQ9IjE3IiByeD0iMiIgZmlsbD0iI2ZmZiIgb3BhY2l0eT0iLjc4Ii8+PHJlY3QgeD0iMzkiIHk9IjI2IiB3aWR0aD0iNyIgaGVpZ2h0PSIyMiIgcng9IjIiIGZpbGw9IiNmZmYiLz48L3N2Zz4=">
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
 :root{
-  --green:#0E9F6E; --green-d:#046C4E; --green-pale:#E7F6F0;
-  --ink:#0F2A22; --slate:#5F7A72; --paper:#F6FAF8; --card:#FFFFFF;
-  --line:#E2EDE8; --rise:#0E9F6E; --fall:#DC2626;
-  --shadow:0 1px 2px rgba(15,42,34,.05), 0 8px 24px rgba(15,42,34,.07);
-  /* the hero keeps the mockup's cool sky; green is for the data below it */
-  --sky-1:#1B2A5E; --sky-2:#2E4C93; --sky-3:#4A7FC1;
+  /* Mid brown at 5.60:1 against white, so small links and labels are
+     legible. The previous green measured 3.39:1 — under the 4.5:1 needed for
+     body text — and it also competed with the green used for a price rise.
+     The accent is now a different colour from "up", which it should be. */
+  --green:#8B5E34; --green-d:#6B4423; --green-pale:#F0E7DC;
+  --ink:#221E18; --slate:#6E6558; --paper:#F2EDE4; --card:#FFFFFF;
+  --line:#E5DDD0; --rise:#047857; --fall:#DC2626;
+  --shadow:0 1px 2px rgba(60,48,30,.06), 0 8px 24px rgba(60,48,30,.08);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme=light]){
-    --ink:#E6F0EC; --slate:#93AAA3; --paper:#0C1714; --card:#132320;
-    --line:#22403A; --green-pale:#153029;
+    --ink:#F0EAE2; --slate:#A99B89; --paper:#16120D; --card:#201A13;
+    --line:#31291F; --green-pale:#33261A; --green:#D9A66C;
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
   }
 }
 :root[data-theme=dark]{
-  --ink:#E6F0EC; --slate:#93AAA3; --paper:#0C1714; --card:#132320;
-  --line:#22403A; --green-pale:#153029;
+  --ink:#F0EAE2; --slate:#A99B89; --paper:#16120D; --card:#201A13;
+  --line:#31291F; --green-pale:#33261A; --green:#D9A66C;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.3);
 }
 
@@ -46,9 +49,7 @@ button{font:inherit;font-family:inherit;cursor:pointer}
   position:sticky;top:0;z-index:600}
 .nav .wrap{display:flex;align-items:center;gap:24px;height:66px}
 .brand{display:flex;align-items:center;gap:10px;margin-inline-end:auto}
-.brand .mark{width:34px;height:34px;border-radius:9px;
-  background:linear-gradient(140deg,var(--green),var(--green-d));
-  display:grid;place-items:center;color:#fff;font-weight:800;font-size:17px}
+.brand .mark{width:36px;height:36px;flex:0 0 auto}
 .brand b{font-size:18px;font-weight:800;display:block;line-height:1.2}
 .brand span{font-size:11px;color:var(--slate);display:block}
 .menu{display:flex;gap:22px;font-size:14px}
@@ -56,31 +57,30 @@ button{font:inherit;font-family:inherit;cursor:pointer}
 .menu a.on{color:var(--green);border-bottom-color:var(--green);font-weight:700}
 .menu a:hover{color:var(--ink)}
 .iconbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);
-  background:var(--card);color:var(--slate);display:grid;place-items:center;font-size:16px}
+  background:var(--card);color:var(--slate);display:grid;place-items:center}
+.iconbtn svg{width:19px;height:19px}
 .iconbtn:hover{border-color:var(--green);color:var(--green)}
 .navtoggle{display:none}
 
 /* ---------- hero ---------- */
-.hero{position:relative;overflow:hidden;
-  background:var(--sky-1);
-  color:#fff;padding:78px 0 0}
-.hero h1,.hero p.sub{text-shadow:0 2px 18px rgba(8,14,32,.55)}
+.hero{position:relative;background:var(--card);
+  border-bottom:1px solid var(--line);padding:62px 0 0}
 .hero .wrap{position:relative;z-index:2;text-align:center}
-.hero h1{font-size:38px;font-weight:800;margin:0 0 12px;line-height:1.35;
-  letter-spacing:-.4px}
-.hero p.sub{font-size:16px;margin:0 auto 30px;max-width:60ch;opacity:.9}
-.scene{position:absolute;inset:0;width:100%;height:100%;z-index:0}
-.hero::after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
-  background:linear-gradient(180deg,rgba(12,20,45,.58) 0%,rgba(12,20,45,.30) 44%,
-                             rgba(12,20,45,.52) 100%)}
+.hero h1{font-size:36px;font-weight:800;margin:0 0 10px;line-height:1.35;
+  letter-spacing:-.5px;color:var(--ink)}
+.hero p.sub{font-size:16px;margin:0 auto 28px;max-width:60ch;color:var(--slate)}
+
 
 .search{position:relative;max-width:640px;margin:0 auto}
-.search input{width:100%;height:60px;border-radius:14px;border:0;
-  padding:0 22px 0 56px;font:inherit;font-size:16px;color:var(--ink);
-  background:#fff;box-shadow:0 10px 34px rgba(20,18,50,.28)}
-.search .go{position:absolute;inset-inline-start:10px;top:10px;width:40px;height:40px;
+.search input{width:100%;height:58px;border-radius:12px;
+  border:1px solid var(--line);padding:0 20px 0 54px;font:inherit;font-size:16px;
+  color:var(--ink);background:var(--card)}
+.search input:focus{border-color:var(--green);outline:0;
+  box-shadow:0 0 0 3px var(--green-pale)}
+.search .go{position:absolute;inset-inline-start:9px;top:9px;width:40px;height:40px;
   border-radius:10px;border:0;background:var(--green-pale);color:var(--green);
   display:grid;place-items:center}
+.search .go svg{width:19px;height:19px}
 .sugg{position:absolute;top:68px;inset-inline:0;background:var(--card);
   border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
   overflow:hidden;text-align:start;max-height:340px;overflow-y:auto;z-index:40}
@@ -93,23 +93,23 @@ button{font:inherit;font-family:inherit;cursor:pointer}
 
 .popular{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
   margin:22px 0 0;padding-bottom:34px}
-.popular b{font-size:13.5px;opacity:.85;font-weight:400;align-self:center}
-.popular button{border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.12);
-  color:#fff;border-radius:99px;padding:6px 15px;font-size:13.5px}
-.popular button:hover{background:#fff;color:var(--green);border-color:#fff}
 
-.strip{position:relative;z-index:3;background:var(--card);border-radius:16px;
-  box-shadow:var(--shadow);display:grid;grid-template-columns:repeat(4,1fr);
-  margin:0 auto -44px;max-width:1040px}
+.popular button{border:1px solid var(--line);background:var(--card);
+  color:var(--slate);border-radius:99px;padding:6px 15px;font-size:13.5px}
+.popular button:hover{border-color:var(--green);color:var(--green)}
+
+.strip{background:transparent;display:grid;grid-template-columns:repeat(4,1fr);
+  margin:0 auto;max-width:1040px;border-top:1px solid var(--line)}
 .strip div{display:flex;gap:13px;align-items:flex-start;padding:20px 22px}
 .strip div + div{border-inline-start:1px solid var(--line)}
-.strip .ic{width:42px;height:42px;border-radius:11px;background:var(--green-pale);
+.strip .ic{width:40px;height:40px;border-radius:10px;background:var(--green-pale);
   color:var(--green);display:grid;place-items:center;flex:0 0 auto}
+.strip .ic svg{width:20px;height:20px}
 .strip b{display:block;font-size:14.5px;margin-bottom:2px}
 .strip span{font-size:12.5px;color:var(--slate);line-height:1.6;display:block}
 
 /* ---------- sections ---------- */
-section{padding:66px 0 0}
+section{padding:56px 0 0}
 .shead{display:flex;align-items:baseline;justify-content:space-between;
   gap:16px;margin-bottom:20px}
 .shead h2{font-size:23px;font-weight:800;margin:0}
@@ -207,6 +207,7 @@ tbody tr:last-child td{border-bottom:0}
   padding:20px;box-shadow:var(--shadow)}
 .trust .ic{width:42px;height:42px;border-radius:11px;background:var(--green-pale);
   color:var(--green);display:grid;place-items:center;margin-bottom:12px}
+.trust .ic svg{width:22px;height:22px}
 .trust b{display:block;font-size:15px;margin-bottom:4px}
 .trust span{font-size:12.5px;color:var(--slate);line-height:1.7}
 
@@ -245,109 +246,43 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 <nav class="nav">
   <div class="wrap">
     <a class="brand" href="#top">
-      <span class="mark">⌂</span>
-      <span><b>آمار قیمت مسکن</b><span>داده و تحلیل بازار مسکن ایران</span></span>
+      <svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#8B5E34"/><path d="M14 30L32 16l18 14" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><rect x="18" y="36" width="7" height="12" rx="2" fill="#fff" opacity=".55"/><rect x="28.5" y="31" width="7" height="17" rx="2" fill="#fff" opacity=".78"/><rect x="39" y="26" width="7" height="22" rx="2" fill="#fff"/></svg>
+      <span><b>تحلیل بازار مسکن</b><span>قیمت‌ها و روند بازار در یک نگاه</span></span>
     </a>
     <div class="menu">
-      <a class="on" href="#top">خانه</a>
+      <a class="on" href="#top">صفحه اصلی</a>
       <a href="#areas">محله‌ها</a>
       <a href="#cities">شهرها</a>
       <a href="#valuation">قیمت خانه من</a>
       <a href="#ads">آگهی‌ها</a>
       <a href="#method">روش کار</a>
     </div>
-    <button class="iconbtn" id="theme" title="روشن / تیره" aria-label="روشن یا تیره">◐</button>
+    <button class="iconbtn" id="theme" title="روشن / تیره" aria-label="روشن یا تیره"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5A6.5 6.5 0 0 1 12 3.5z"/></svg></button>
   </div>
 </nav>
 
 <header class="hero" id="top">
-  <svg class="scene" viewBox="0 0 1200 460" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-    <defs>
-      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%"  stop-color="#16224F"/>
-        <stop offset="42%" stop-color="#2C4A8C"/>
-        <stop offset="72%" stop-color="#4E7FB8"/>
-        <stop offset="100%" stop-color="#8FA9C6"/>
-      </linearGradient>
-      <radialGradient id="glow" cx="72%" cy="76%" r="46%">
-        <stop offset="0%"  stop-color="#FFD9A0" stop-opacity=".55"/>
-        <stop offset="55%" stop-color="#F0A868" stop-opacity=".16"/>
-        <stop offset="100%" stop-color="#F0A868" stop-opacity="0"/>
-      </radialGradient>
-      <linearGradient id="ridgeFar" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#5D7BA8"/><stop offset="100%" stop-color="#3E5786"/>
-      </linearGradient>
-      <linearGradient id="ridgeMid" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#3B5480"/><stop offset="100%" stop-color="#27395C"/>
-      </linearGradient>
-      <linearGradient id="ridgeNear" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#22345A"/><stop offset="100%" stop-color="#16233F"/>
-      </linearGradient>
-    </defs>
 
-    <rect width="1200" height="460" fill="url(#sky)"/>
-    <rect width="1200" height="460" fill="url(#glow)"/>
-
-    <g opacity=".55" fill="#fff">
-      <circle cx="120" cy="52" r="1.4"/><circle cx="300" cy="34" r="1"/>
-      <circle cx="470" cy="70" r="1.2"/><circle cx="640" cy="40" r="1"/>
-      <circle cx="820" cy="62" r="1.3"/><circle cx="980" cy="30" r="1"/>
-      <circle cx="1090" cy="66" r="1.2"/><circle cx="210" cy="96" r="1"/>
-    </g>
-
-    <path fill="url(#ridgeFar)" d="M0 268l128-74 74 44 96-62 88 56 104-72 92 60 120-78 96 64 108-54 94 52 100-40v264H0z"/>
-    <path fill="#DCE6F2" opacity=".85" d="M128 194l40 24-22 6-18-8-16 10-18-10zM416 162l38 24-20 6-18-8-16 10-18-10zM704 138l40 26-22 6-18-8-16 10-18-10zM908 156l38 24-20 6-18-8-16 10-18-10z"/>
-    <path fill="url(#ridgeMid)" d="M0 322l150-58 92 40 116-52 96 44 128-58 104 48 132-54 98 44 130-40 154 46v170H0z"/>
-    <path fill="url(#ridgeNear)" d="M0 366l180-40 120 30 140-34 128 32 152-38 124 34 160-30 196 38v104H0z"/>
-
-    <g fill="#101B33" opacity=".92">
-      <rect x="60" y="392" width="34" height="68"/><rect x="104" y="376" width="26" height="84"/>
-      <rect x="140" y="404" width="40" height="56"/><rect x="196" y="384" width="30" height="76"/>
-      <rect x="238" y="410" width="46" height="50"/><rect x="296" y="370" width="28" height="90"/>
-      <rect x="334" y="398" width="38" height="62"/><rect x="386" y="414" width="44" height="46"/>
-      <rect x="444" y="380" width="26" height="80"/><rect x="482" y="402" width="40" height="58"/>
-      <rect x="536" y="416" width="52" height="44"/><rect x="600" y="388" width="30" height="72"/>
-      <rect x="642" y="406" width="42" height="54"/><rect x="698" y="374" width="26" height="86"/>
-      <rect x="736" y="400" width="38" height="60"/><rect x="788" y="418" width="48" height="42"/>
-      <rect x="848" y="392" width="30" height="68"/><rect x="890" y="408" width="40" height="52"/>
-      <rect x="978" y="386" width="28" height="74"/><rect x="1018" y="404" width="44" height="56"/>
-      <rect x="1074" y="394" width="32" height="66"/><rect x="1118" y="412" width="46" height="48"/>
-    </g>
-    <g fill="#0C1526">
-      <path d="M944 460V300l4-8h4l4 8v160z"/>
-      <path d="M934 296h40l-6 22h-28z"/>
-      <ellipse cx="954" cy="288" rx="26" ry="13"/>
-      <path d="M948 246h12l-2 30h-8z"/>
-      <path d="M950 214h8l-1 34h-6z"/>
-    </g>
-    <g fill="#FFE3B0" opacity=".75">
-      <rect x="110" y="386" width="4" height="5"/><rect x="118" y="396" width="4" height="5"/>
-      <rect x="302" y="380" width="4" height="5"/><rect x="310" y="394" width="4" height="5"/>
-      <rect x="450" y="390" width="4" height="5"/><rect x="704" y="384" width="4" height="5"/>
-      <rect x="712" y="398" width="4" height="5"/><rect x="984" y="396" width="4" height="5"/>
-      <rect x="946" y="330" width="5" height="6"/><rect x="956" y="348" width="5" height="6"/>
-    </g>
-  </svg>
   <div class="wrap">
-    <h1>قیمت خانه در ایران چقدر است؟</h1>
-    <p class="sub">قیمت مسکن در شهرها و محله‌های ایران را ببینید، روند بازار را دنبال کنید و ارزش خانه خود را تخمین بزنید.</p>
+    <h1>تحلیل بازار مسکن</h1>
+    <p class="sub">قیمت‌ها و روند بازار در یک نگاه، بر پایه آگهی‌های واقعی فروش.</p>
 
     <div class="search">
       <input id="q" type="search" autocomplete="off" placeholder="جست‌وجوی شهر، محله یا منطقه…">
-      <button class="go" id="qgo" aria-label="جست‌وجو">⌕</button>
+      <button class="go" id="qgo" aria-label="جست‌وجو"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg></button>
       <div class="sugg hide" id="sugg"></div>
     </div>
 
-    <div class="popular" id="popular"><b>محبوب‌ترین جست‌وجوها:</b></div>
+    <div class="popular" id="popular"></div>
 
     <div class="strip">
-      <div><span class="ic">↗</span><span><b>روندهای بازار</b>
+      <div><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5.5-5.5 3.5 3.5L21 6"/><path d="M15 6h6v6"/></svg></span><span><b>روندهای بازار</b>
         <span>بررسی تغییرات قیمت در ماه‌ها و بازه‌های مختلف</span></span></div>
-      <div><span class="ic">⌂</span><span><b>ارزش‌گذاری خانه</b>
+      <div><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></svg></span><span><b>ارزش‌گذاری خانه</b>
         <span>تخمین ارزش ملک شما بر اساس آگهی‌های مشابه</span></span></div>
-      <div><span class="ic">◔</span><span><b>تحلیل محله‌ها</b>
+      <div><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v8.5h8.5"/></svg></span><span><b>تحلیل محله‌ها</b>
         <span>مقایسه محله‌ها و یافتن گران‌ترین و ارزان‌ترین‌ها</span></span></div>
-      <div><span class="ic">▤</span><span><b>داده‌های به‌روز</b>
+      <div><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h3M8 17.5h6"/></svg></span><span><b>داده‌های به‌روز</b>
         <span id="lastUpdate">در حال بارگذاری…</span></span></div>
     </div>
   </div>
@@ -357,8 +292,26 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 <section id="cities">
   <div class="wrap">
     <div class="shead"><h2>نمای کلی بازار مسکن</h2>
-      <a href="#areas" id="allCities">مشاهده همه شهرها →</a></div>
+      <button id="allCities" style="background:none;border:0;padding:0;
+        font-size:13.5px;color:var(--green);font-weight:700">
+        مشاهده همه شهرها →</button></div>
     <div class="grid4" id="cityCards"><div class="loading">در حال بارگذاری…</div></div>
+
+    <div class="panel hide" id="allCitiesPanel" style="margin-top:16px">
+      <header>
+        <h3>همه شهرها</h3>
+        <div class="tabs" id="cityTabs">
+          <button data-sort="price" class="on">بیشترین قیمت</button>
+          <button data-sort="count">تعداد آگهی</button>
+          <button data-sort="name">نام شهر</button>
+        </div>
+      </header>
+      <table>
+        <thead><tr><th class="rank"></th><th>شهر</th><th>قیمت هر متر مربع</th>
+          <th>تعداد آگهی</th><th>تعداد محله</th></tr></thead>
+        <tbody id="allCitiesBody"></tbody>
+      </table>
+    </div>
   </div>
 </section>
 
@@ -464,13 +417,13 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 <section id="method">
   <div class="wrap">
     <div class="trust">
-      <div><div class="ic">🔒</div><b>حریم خصوصی</b>
+      <div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10" width="15" height="10.5" rx="2.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v2.5"/></svg></div><b>حریم خصوصی</b>
         <span>هیچ اطلاعاتی از بازدیدکنندگان این سایت جمع‌آوری یا منتشر نمی‌شود.</span></div>
-      <div><div class="ic">↻</div><b>به‌روزرسانی منظم</b>
+      <div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.6-5.9"/><path d="M20 3.5V9h-5.5"/></svg></div><b>به‌روزرسانی منظم</b>
         <span>آگهی‌های تازه هر چند دقیقه جمع‌آوری و آمار هر شبانه‌روز بازسازی می‌شود.</span></div>
-      <div><div class="ic">▤</div><b>داده‌های واقعی</b>
+      <div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="6" rx="7.5" ry="3"/><path d="M4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6"/><path d="M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></svg></div><b>داده‌های واقعی</b>
         <span>تحلیل هزاران آگهی واقعی از دیوار، شیپور و کیلید در سراسر کشور.</span></div>
-      <div><div class="ic">◈</div><b>شفاف و قابل بررسی</b>
+      <div><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7.5 3v6c0 4.4-3.1 8.1-7.5 9-4.4-.9-7.5-4.6-7.5-9V6z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg></div><b>شفاف و قابل بررسی</b>
         <span>این ارقام قیمت درخواستی فروشنده است، نه قیمت معامله‌شده. روش محاسبه باز است.</span></div>
     </div>
 
@@ -515,8 +468,14 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
-const PAGE_VERSION = '2026-09-03 09:40';
+const PAGE_VERSION = '2026-09-03 15:05';
 const DETAIL_PAGE = 'index.html';
+
+// The accent lives in one place, the stylesheet. Repeating the hex in the
+// script is how three of these ended up still green after the palette changed.
+const CSSVAR = n => getComputedStyle(document.documentElement)
+  .getPropertyValue(n).trim();
+const ACCENT = () => CSSVAR('--green') || '#8B5E34';
 
 const FA  = n => Number(n).toLocaleString('fa-IR').replace(/,/g,'\u066C');
 const FA1 = n => Number(n).toLocaleString('fa-IR',
@@ -592,6 +551,8 @@ async function boot(){
 
   drawPopular();
   drawCityCards();
+  document.getElementById('allCities').textContent =
+    `مشاهده همه شهرها (${FA(DB.cities.length)}) →`;
   fillValuationCities();
   await loadCity(DB.cities[0].id);
 }
@@ -658,7 +619,7 @@ const LANDMARKS = {
     <rect x="24" y="44" width="8" height="14" rx="4"/>
     <rect x="38" y="44" width="8" height="14" rx="4"/>` },
 };
-const HOUSE = { c:'#0E9F6E', svg:`
+const HOUSE = { c:'currentColor', svg:`
     <path d="M34 10l24 18v30H10V28z"/>
     <rect x="24" y="38" width="9" height="9" fill="#fff" opacity=".85"/>
     <rect x="37" y="38" width="9" height="9" fill="#fff" opacity=".85"/>
@@ -666,8 +627,9 @@ const HOUSE = { c:'#0E9F6E', svg:`
 
 function landmark(name){
   const L = LANDMARKS[name] || HOUSE;
+  const c = L.c === 'currentColor' ? ACCENT() : L.c;
   return `<svg class="lm" viewBox="0 0 68 64" aria-hidden="true"
-            style="color:${L.c}"><g fill="currentColor">${L.svg}</g></svg>`;
+            style="color:${c}"><g fill="currentColor">${L.svg}</g></svg>`;
 }
 
 function drawPopular(){
@@ -703,6 +665,55 @@ function drawCityCards(){
     box.appendChild(b);
   });
 }
+
+
+/**
+ * All fifty cities, not the four that fit across the top.
+ *
+ * The link said "see all cities" and scrolled to the neighbourhood panel,
+ * which is a different thing entirely. Every row opens that city.
+ */
+let citySort = 'price', allCitiesOpen = false;
+
+function drawAllCities(){
+  const rows = [...DB.cities];
+  if (citySort === 'price')      rows.sort((a, b) => (b.median || 0) - (a.median || 0));
+  else if (citySort === 'count') rows.sort((a, b) => b.n - a.n);
+  else                           rows.sort((a, b) => a.name.localeCompare(b.name, 'fa'));
+
+  document.getElementById('allCitiesBody').innerHTML = rows.map((c, i) => `
+    <tr data-city="${c.id}">
+      <td class="rank">${FA(i + 1)}</td>
+      <td>${esc(c.name)}</td>
+      <td>${c.median ? FA1(c.median) + ' میلیون تومان' : '—'}</td>
+      <td>${FA(c.n)}</td>
+      <td>${FA(c.hoods || 0)}</td>
+    </tr>`).join('');
+
+  document.querySelectorAll('#allCitiesBody tr[data-city]').forEach(tr =>
+    tr.addEventListener('click', () => {
+      loadCity(tr.dataset.city);
+      document.getElementById('areas').scrollIntoView({behavior:'smooth'});
+    }));
+}
+
+function toggleAllCities(){
+  allCitiesOpen = !allCitiesOpen;
+  const panel = document.getElementById('allCitiesPanel');
+  panel.classList.toggle('hide', !allCitiesOpen);
+  document.getElementById('allCities').textContent =
+    allCitiesOpen ? 'بستن فهرست شهرها ↑' : `مشاهده همه شهرها (${FA(DB.cities.length)}) →`;
+  if (allCitiesOpen) { drawAllCities(); panel.scrollIntoView({behavior:'smooth', block:'nearest'}); }
+}
+
+document.getElementById('allCities').addEventListener('click', toggleAllCities);
+document.getElementById('cityTabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  citySort = b.dataset.sort;
+  document.querySelectorAll('#cityTabs button')
+    .forEach(x => x.classList.toggle('on', x === b));
+  drawAllCities();
+});
 
 /* ----------------------------------------------------------- load a city */
 async function loadCity(id){
@@ -866,16 +877,16 @@ function drawTrend(){
 
   const ctx = document.getElementById('trend');
   const grad = ctx.getContext('2d').createLinearGradient(0, 0, 0, 280);
-  grad.addColorStop(0, 'rgba(14,159,110,.28)');
-  grad.addColorStop(1, 'rgba(14,159,110,0)');
+  grad.addColorStop(0, ACCENT() + '44');
+  grad.addColorStop(1, ACCENT() + '00');
 
   trendChart = new Chart(ctx, {
     type: 'line',
     data: { labels: hist.map(r => faDate(r.d)),
-      datasets: [{ data: vals, borderColor: '#0E9F6E', backgroundColor: grad,
+      datasets: [{ data: vals, borderColor: ACCENT(), backgroundColor: grad,
         borderWidth: 2.5, fill: true, tension: .3,
         pointRadius: hist.length > 40 ? 0 : 3, pointBackgroundColor: '#fff',
-        pointBorderColor: '#0E9F6E', pointBorderWidth: 2 }] },
+        pointBorderColor: ACCENT(), pointBorderWidth: 2 }] },
     options: { maintainAspectRatio: false,
       plugins: { legend: { display: false },
         tooltip: { rtl: true, displayColors: false,
@@ -923,7 +934,7 @@ function drawMap(){
       (l.a ? ` · ${FA(l.a)} متر` : '') +
       (l.p ? `<br>قیمت کل: ${FA(Math.round(l.p/1000))} میلیارد تومان` : '') +
       (l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener"
-              style="color:#0E9F6E;font-weight:700">دیدن آگهی در ${
+              style="color:${ACCENT()};font-weight:700">دیدن آگهی در ${
               SOURCE_NAME[l.s] || l.s} ↗</a>` : '') +
       `</div>`).addTo(layer);
   });
