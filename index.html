@@ -7,6 +7,7 @@
 <meta name="description" content="میانه قیمت درخواستی آگهی‌های فروش آپارتمان در شهرها و محله‌های ایران.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
@@ -93,6 +94,42 @@
   </section>
 
   <section>
+    <div class="shead"><h2 id="adsHead">آگهی‌ها و نقشه</h2>
+      <a href="ads.html" data-page="ads.html">صفحه کامل آگهی‌ها →</a></div>
+  <div class="panel">
+    <header><h3 id="mapTitle">نقشه قیمت</h3>
+      <button class="tabs" id="mapReset" style="display:none"></button></header>
+    <div id="map"></div>
+    <div class="legend"><span>کمترین قیمت</span><span class="bar"></span><span>بیشترین قیمت</span></div>
+    <p class="foot" id="mapNote"></p>
+  </div>
+
+  <div class="panel">
+    <header><h3 id="adsTitle">آگهی‌ها</h3>
+      <div class="tabs" id="adsTabs">
+        <button data-sort="new" class="on">تازه‌ترین</button>
+        <button data-sort="cheap">ارزان‌ترین هر متر</button>
+        <button data-sort="dear">گران‌ترین هر متر</button>
+      </div></header>
+    <div id="soloBar" class="hide" style="padding:11px 16px;border-bottom:1px solid var(--rule);
+      display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13.5px">
+      <span>یک آگهی از روی نقشه انتخاب شده است</span>
+      <button class="reset" id="soloClear" style="border:1px solid var(--rule);
+        background:transparent;color:var(--muted);border-radius:8px;padding:4px 11px">
+        نمایش همه آگهی‌ها</button>
+    </div>
+    <table>
+      <thead><tr><th>عنوان</th><th>محله</th><th>متراژ</th>
+        <th>قیمت کل</th><th>هر متر</th><th>تاریخ</th><th>منبع</th></tr></thead>
+      <tbody id="adsBody"><tr><td colspan="7" class="loading">در حال بارگذاری…</td></tr></tbody>
+    </table>
+    <button class="more hide" id="adsMore"></button>
+    <p class="foot">آگهی‌ها متعلق به دیوار، شیپور و کیلید است و با کلیک روی هر
+      ردیف در همان سایت باز می‌شود. این سایت آگهی منتشر نمی‌کند.</p>
+  </div>
+  </section>
+
+  <section>
     <div class="shead"><h2>ادامه بررسی</h2></div>
     <div class="grid4" id="next"></div>
   </section>
@@ -105,6 +142,7 @@
   <span id="ver"></span>
 </div></footer>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="app.js"></script>
 <script>
@@ -527,6 +565,122 @@ function drawBreakdown(){
   ageChart  = paint('byAge',  ages,  ageChart);
 }
 
+const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };
+let adsSort = 'new', shown = 24, solo = null;
+let map = null, layer = null, keepView = false;
+
+function rows(){
+  let r = activeListings();
+  if (solo) {
+    const one = r.filter(l => l.t === solo);
+    if (one.length) return one;
+    solo = null;                       // a filter excluded it; fall back
+  }
+  if (adsSort === 'new')        r = [...r].sort((a,b) => (b.d||'').localeCompare(a.d||''));
+  else if (adsSort === 'cheap') r = [...r].sort((a,b) => a.m - b.m);
+  else                          r = [...r].sort((a,b) => b.m - a.m);
+  return r;
+}
+
+function drawAds(){
+  const all = rows();
+  const body = document.getElementById('adsBody');
+  document.getElementById('soloBar').classList.toggle('hide', !solo);
+  document.getElementById('adsTitle').textContent =
+    solo ? 'آگهی انتخاب‌شده' : `آگهی‌های ${S.hood || CITY.name}`;
+
+  if (!all.length) {
+    body.innerHTML = '<tr><td colspan="7" class="loading">با این فیلترها آگهی‌ای نمانده است.</td></tr>';
+    document.getElementById('adsMore').classList.add('hide');
+    return;
+  }
+  const list = solo ? all : all.slice(0, shown);
+  body.innerHTML = list.map(l => `
+    <tr${l.u ? ` data-url="${esc(l.u)}"` : ''} data-token="${esc(l.t)}">
+      <td>${esc(l.n || '—')}</td>
+      <td>${esc(l.h || '')}</td>
+      <td>${l.a ? FA(l.a) : '—'}</td>
+      <td>${l.p ? FA1(l.p/1000) + ' میلیارد' : '—'}</td>
+      <td>${FA1(l.m)}</td>
+      <td>${l.d ? faShortDate(l.d) : '—'}</td>
+      <td>${esc(SOURCE_NAME[l.s] || l.s || '')}${l.u ? ' ↗' : ''}</td>
+    </tr>`).join('');
+
+  body.querySelectorAll('tr[data-token]').forEach(tr =>
+    tr.addEventListener('click', () => {
+      if (tr.dataset.url) window.open(tr.dataset.url, '_blank', 'noopener');
+    }));
+
+  const more = document.getElementById('adsMore');
+  more.classList.toggle('hide', solo || all.length <= shown);
+  more.textContent = `نمایش ${FA(Math.min(24, all.length - shown))} آگهی بیشتر ` +
+    `(${FA(all.length - shown)} باقی مانده) →`;
+}
+
+document.getElementById('adsMore').addEventListener('click', () => {
+  shown += 24; drawAds();
+});
+document.getElementById('adsTabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  adsSort = b.dataset.sort; shown = 24;
+  document.querySelectorAll('#adsTabs button').forEach(x => x.classList.toggle('on', x === b));
+  drawAds();
+});
+document.getElementById('soloClear').addEventListener('click', () => {
+  solo = null; drawAds(); drawMap();
+});
+
+function drawMap(){
+  const pts = activeListings().filter(l => l.y && l.x && l.m > 0);
+  if (!map) {
+    map = L.map('map', { scrollWheelZoom:false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom:18, attribution:'© OpenStreetMap' }).addTo(map);
+    layer = L.layerGroup().addTo(map);
+  }
+  layer.clearLayers();
+  document.getElementById('mapTitle').textContent =
+    'نقشه قیمت ' + (S.hood || CITY.name);
+
+  const note = document.getElementById('mapNote');
+  if (!pts.length) {
+    note.textContent = 'هیچ‌کدام از آگهی‌های این انتخاب هنوز مختصات ندارند. ' +
+      'مختصات در پس‌زمینه اضافه می‌شود و پوشش هر روز بیشتر می‌شود.';
+    map.setView([32.4, 53.7], 5);
+    return;
+  }
+  const draw = solo ? pts.filter(l => l.t === solo) : pts;
+  const vals = pts.map(l => l.m).sort((a,b) => a-b);
+  const lo = vals[Math.floor(vals.length*.05)], hi = vals[Math.floor(vals.length*.95)];
+
+  (draw.length ? draw : pts).slice(0, 1500).forEach(l => {
+    const mk = L.circleMarker([l.y, l.x], {
+      radius: solo ? 10 : 6, weight: solo ? 3 : 1,
+      color: solo ? CSSVAR('--ink') : '#fff', opacity:.9,
+      fillColor: heat(l.m, lo, hi), fillOpacity:.85 });
+    mk.bindPopup(`<div style="min-width:180px">
+      <b>${esc(l.n || l.h || '')}</b><br>
+      <span style="color:#5A6472">${esc(l.h || '')}</span><br>
+      ${FA1(l.m)} میلیون تومان بر متر مربع${l.a ? ' · ' + FA(l.a) + ' متر' : ''}
+      ${l.p ? '<br>قیمت کل: ' + FA1(l.p/1000) + ' میلیارد تومان' : ''}
+      ${l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener"
+        style="color:${CSSVAR('--green')};font-weight:700">دیدن آگهی در ${
+        SOURCE_NAME[l.s] || l.s} ↗</a>` : ''}</div>`);
+    mk.on('click', () => { solo = l.t; keepView = true; drawAds(); drawMap();
+      document.getElementById('adsTitle').scrollIntoView({behavior:'smooth', block:'center'}); });
+    mk.addTo(layer);
+  });
+
+  note.textContent = solo
+    ? 'همان آگهی‌ای که انتخاب کردید — برای دیدن بقیه دکمه بالای جدول را بزنید.'
+    : `${FA(pts.length)} آگهی روی نقشه از ${FA(activeListings().length)} آگهی این انتخاب. ` +
+      'موقعیت‌ها تقریبی است و ممکن است تا چند صد متر با محل واقعی فاصله داشته باشد.';
+
+  if (keepView) { keepView = false; return; }
+  const b = (draw.length ? draw : pts).slice(0, 1500).map(l => [l.y, l.x]);
+  map.fitBounds(L.latLngBounds(b).pad(.08), { maxZoom: solo ? 16 : 15 });
+}
+
 function drawNext(){
   const cards = [
     ['stats.html', ICONS.trend,  'آمار و نمودارها', 'روند قیمت، توزیع، متراژ و سن بنا'],
@@ -556,6 +710,11 @@ bootPage('index.html', () => {
   drawTrend();
   drawDist();
   drawBreakdown();
+  document.getElementById('adsHead').textContent =
+    'آگهی‌ها و نقشه ' + (S.hood || CITY.name);
+  shown = 24;
+  drawAds();
+  drawMap();
   drawNext();
 });
 </script>
