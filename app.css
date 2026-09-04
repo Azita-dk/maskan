@@ -221,6 +221,31 @@ tbody tr.provhead:hover{background:var(--paper)}
 tbody tr.provhead td{font-size:13px;padding:9px 14px;
   border-bottom:1px solid var(--rule)}
 .loading{padding:34px;text-align:center;color:var(--muted);font-size:14px}
+
+/* ---------------------------------------------------- tables on a phone */
+/* Seven columns need about 700px and a phone gives 300, so below 720px the
+   listings and city tables stop being tables. Each row becomes a card with
+   its label beside each value, taken from the header via data-l. Rotating
+   the phone should never be the way to read a page. */
+@media (max-width:720px){
+  table.cards, table.cards thead, table.cards tbody,
+  table.cards tr, table.cards th, table.cards td{display:block}
+  table.cards thead{position:absolute;width:1px;height:1px;overflow:hidden;
+    clip:rect(0 0 0 0);white-space:nowrap}
+  table.cards tr{border-bottom:1px solid var(--rule);padding:12px 14px}
+  table.cards tr:last-child{border-bottom:0}
+  table.cards td{border:0;padding:3px 0;display:flex;justify-content:space-between;
+    align-items:baseline;gap:14px;font-size:13.5px}
+  table.cards td::before{content:attr(data-l);color:var(--muted);font-size:12px;
+    flex:0 0 auto}
+  /* the first cell is the title: full width, no label, and it leads */
+  table.cards td:first-child{display:block;font-weight:700;font-size:14.5px;
+    margin-bottom:5px;line-height:1.6}
+  table.cards td:first-child::before{content:none}
+  table.cards td:empty{display:none}
+  table.cards .rank{display:none}
+}
+
 .more{display:block;width:100%;text-align:center;padding:12px;font-size:13.5px;
   color:var(--green);font-weight:700;border:0;border-top:1px solid var(--rule);
   background:transparent}
@@ -318,7 +343,17 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .filterbtn{display:block}
   .grid4,.kpis{grid-template-columns:1fr 1fr}
   .trust{grid-template-columns:1fr}
-  #map{height:320px}
+  #map{height:300px}
+  .chart{height:240px}
+  .chart.short{height:200px}
+  .callout{inset-inline-start:8px;top:8px;padding:6px 9px}
+  .callout .n{font-size:15px}
+  .callout .d{font-size:10.5px}
+  .panel > header{padding:12px 14px;gap:8px}
+  .panel h3{font-size:15px}
+  .tabs button{padding:5px 9px;font-size:12px}
+  .shead{margin:20px 0 12px}
+  .shead h2{font-size:18px}
   .statrow{grid-template-columns:repeat(3,1fr)}
 }
 @media (max-width:480px){
@@ -326,5 +361,18 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .vgrid{grid-template-columns:1fr}
   .phead h1{font-size:22px}
   .hnum,.hhead span:nth-child(1),.htrack,.hhead span:nth-child(3){display:none}
-  .hname,.hhead span:nth-child(2){flex:1 1 auto}
+  .hname,.hhead span:nth-child(2){flex:1 1 auto;min-width:60px}
+  .hrow,.hhead{padding:9px 12px;gap:8px}
 }
+/* On a 320px screen the value and count columns leave 72px for the name,
+   which is not enough for a neighbourhood, so they give some back. */
+@media (max-width:380px){
+  .hval,.hhead span:nth-child(4){flex:0 0 70px;font-size:13px}
+  .hcount,.hhead span:nth-child(5){flex:0 0 42px}
+  .wrap{padding:0 14px}
+  .scalekey{padding:10px 12px;font-size:11px}
+  .scalekey .bar{flex:0 0 80px}
+}
+/* Nothing should ever need the phone turned sideways; if a stray element
+   does overflow, the page clips rather than scrolling horizontally. */
+@media (max-width:720px){ body{overflow-x:hidden} }

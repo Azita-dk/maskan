@@ -118,7 +118,7 @@
         background:transparent;color:var(--muted);border-radius:8px;padding:4px 11px">
         نمایش همه آگهی‌ها</button>
     </div>
-    <table>
+    <table class="cards">
       <thead><tr><th>عنوان</th><th>محله</th><th>متراژ</th>
         <th>قیمت کل</th><th>هر متر</th><th>تاریخ</th><th>منبع</th></tr></thead>
       <tbody id="adsBody"><tr><td colspan="7" class="loading">در حال بارگذاری…</td></tr></tbody>
@@ -632,13 +632,13 @@ function drawAds(){
   const list = solo ? all : all.slice(0, shown);
   body.innerHTML = list.map(l => `
     <tr${l.u ? ` data-url="${esc(l.u)}"` : ''} data-token="${esc(l.t)}">
-      <td>${esc(l.n || '—')}</td>
-      <td>${esc(l.h || '')}</td>
-      <td>${l.a ? FA(l.a) : '—'}</td>
-      <td>${l.p ? FA1(l.p/1000) + ' میلیارد' : '—'}</td>
-      <td>${FA1(l.m)}</td>
-      <td>${l.d ? faShortDate(l.d) : '—'}</td>
-      <td>${esc(SOURCE_NAME[l.s] || l.s || '')}${l.u ? ' ↗' : ''}</td>
+      <td data-l="عنوان">${esc(l.n || '—')}</td>
+      <td data-l="محله">${esc(l.h || '')}</td>
+      <td data-l="متراژ">${l.a ? FA(l.a) + ' متر' : '—'}</td>
+      <td data-l="قیمت کل">${l.p ? FA1(l.p/1000) + ' میلیارد' : '—'}</td>
+      <td data-l="هر متر">${FA1(l.m)} میلیون</td>
+      <td data-l="تاریخ">${l.d ? faShortDate(l.d) : '—'}</td>
+      <td data-l="منبع">${esc(SOURCE_NAME[l.s] || l.s || '')}${l.u ? ' ↗' : ''}</td>
     </tr>`).join('');
 
   body.querySelectorAll('tr[data-token]').forEach(tr =>
