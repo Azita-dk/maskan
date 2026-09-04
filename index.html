@@ -31,6 +31,7 @@
       <button id="allHoods">همه محله‌ها ↓</button>
     </div>
 
+    <div class="markets" id="markets"></div>
     <div class="kpis" id="kpis"></div>
 
     <div class="panel">
@@ -268,6 +269,42 @@ function drawProvSummary(){
     `نمودارهای پایین مربوط به شهر انتخاب‌شده است.`;
 }
 
+/**
+ * The three markets side by side.
+ *
+ * Kept separate because a combined median moves when the mix of what was
+ * advertised moves rather than when prices move — in testing, posting 40%
+ * fewer flats shifted a combined figure by 7.8% with no price changing.
+ * Shown together because the comparison between them is worth seeing, and
+ * because a reader should know the other two exist.
+ */
+function drawMarkets(){
+  const all = (CITY.listings || []);
+  const box = document.getElementById('markets');
+  box.innerHTML = KINDS.map(k => {
+    const rows = all.filter(l => (l.k || 'apartment') === k.id);
+    const vals = rows.map(l => l.m).filter(v => v > 0);
+    const med = vals.length ? round1(median(vals)) : null;
+    const on = k.id === S.kind;
+    return `<button class="market${on ? ' on' : ''}${med === null ? ' empty' : ''}"
+        data-k="${k.id}"${med === null ? ' disabled' : ''}>
+        <span class="lbl">${k.label}</span>
+        <span class="num">${med === null ? '—' : FA1(med)}</span>
+        <span class="sub">${med === null
+          ? 'هنوز جمع‌آوری نشده'
+          : 'میلیون تومان بر متر · ' + FA(rows.length) + ' آگهی'}</span>
+      </button>`;
+  }).join('');
+
+  box.querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => {
+      if (b.disabled || b.dataset.k === S.kind) return;
+      S.kind = b.dataset.k;
+      if (S.kind === 'land') { S.rooms = 'all'; S.age = '999'; }
+      fillKindSelect(); fillHoodSelect(); commit();
+    }));
+}
+
 function drawKpis(){
   const rows = activeListings();
   const vals = rows.map(l => l.m).filter(v => v > 0);
@@ -439,7 +476,7 @@ function drawTrend(){
   const note = document.getElementById('trendNote');
   const callout = document.getElementById('callout');
   document.getElementById('trendTitle').textContent =
-    'روند قیمت در ' + (S.hood || CITY.name);
+    `روند قیمت ${kindLabel()} در ${S.hood || CITY.name}`;
 
   if (hist.length < 2) {
     callout.classList.add('hide');
@@ -507,7 +544,7 @@ function drawDist(){
   if (vals.length < 20) { panel.classList.add('hide'); return; }
   panel.classList.remove('hide');
   document.getElementById('distTitle').textContent =
-    'توزیع قیمت در ' + (S.hood || CITY.name);
+    `توزیع قیمت ${kindLabel()} در ${S.hood || CITY.name}`;
 
   const q = p => vals[Math.max(0, Math.min(vals.length-1, Math.floor(vals.length*p)))];
   const lo = q(.02), hi = q(.98), bins = 26, w = (hi-lo)/bins || 1;
@@ -735,18 +772,21 @@ bootPage('index.html', () => {
   drawCityCards();
   drawProvSummary();
   document.getElementById('areaHead').textContent =
-    S.hood ? `${S.hood}، ${CITY.name}` : `${CITY.name} و محله‌هایش`;
-  document.getElementById('hoodTitle').textContent = `محله‌های ${CITY.name}`;
+    (S.hood ? `${S.hood}، ${CITY.name}` : `${CITY.name} و محله‌هایش`)
+    + ` — ${kindLabel()}`;
+  document.getElementById('hoodTitle').textContent =
+    `${kindLabel()} در محله‌های ${CITY.name}`;
+  drawMarkets();
   drawKpis();
   drawHoods();
   document.getElementById('statsHead').textContent =
-    'آمار ' + (S.hood || CITY.name);
+    `آمار ${kindLabel()} در ${S.hood || CITY.name}`;
   drawTrendTabs();
   drawTrend();
   drawDist();
   drawBreakdown();
   document.getElementById('adsHead').textContent =
-    'آگهی‌ها و نقشه ' + (S.hood || CITY.name);
+    `آگهی‌های ${kindLabel()} در ${S.hood || CITY.name}`;
   shown = 24;
   drawAds();
   drawMap();

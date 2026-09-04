@@ -23,6 +23,7 @@
       از روی آگهی‌های مشابه در همان محله تخمین زده می‌شود.</p>
 
     <div class="vgrid">
+      <label><span>نوع ملک</span><select id="vKind"></select></label>
       <label><span>شهر</span><select id="vCity"></select></label>
       <label><span>محله</span><select id="vHood"></select></label>
       <label><span>متراژ (متر)</span>
@@ -106,7 +107,10 @@ function valuate(){
   }
   // This page carries no filter bar; the form below is the only input, so
   // comparables come from the whole city and are narrowed by the form alone.
-  const base = (CITY.listings || []).filter(l => l.m > 0 && l.a > 0);
+  // comparables must be the same kind of property, never mixed
+  const kind = document.getElementById('vKind').value;
+  const base = (CITY.listings || [])
+    .filter(l => (l.k || 'apartment') === kind && l.m > 0 && l.a > 0);
   let comps = base.filter(l => (!hood || l.h === hood) &&
     l.a >= area*.75 && l.a <= area*1.25);
   if (rooms) comps = comps.filter(l => String(l.r) === rooms);
@@ -145,6 +149,13 @@ function valuate(){
 document.getElementById('vGo').addEventListener('click', valuate);
 
 bootPage('value.html', () => {
+  const k = document.getElementById('vKind');
+  k.innerHTML = KINDS.map(x => `<option value="${x.id}">${x.label}</option>`).join('');
+  k.value = S.kind;
+  k.addEventListener('change', () => {
+    S.kind = k.value;
+    document.getElementById('vOut').classList.add('hide');
+  });
   fillCities();
   fillHoods();
 

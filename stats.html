@@ -134,7 +134,7 @@ function drawTrend(){
   const note = document.getElementById('trendNote');
   const callout = document.getElementById('callout');
   document.getElementById('trendTitle').textContent =
-    'روند قیمت در ' + (S.hood || CITY.name);
+    `روند قیمت ${kindLabel()} در ${S.hood || CITY.name}`;
 
   if (hist.length < 2) {
     callout.classList.add('hide');
@@ -202,7 +202,7 @@ function drawDist(){
   if (vals.length < 20) { panel.classList.add('hide'); return; }
   panel.classList.remove('hide');
   document.getElementById('distTitle').textContent =
-    'توزیع قیمت در ' + (S.hood || CITY.name);
+    `توزیع قیمت ${kindLabel()} در ${S.hood || CITY.name}`;
 
   const q = p => vals[Math.max(0, Math.min(vals.length-1, Math.floor(vals.length*p)))];
   const lo = q(.02), hi = q(.98), bins = 26, w = (hi-lo)/bins || 1;

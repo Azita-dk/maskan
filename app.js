@@ -7,7 +7,7 @@
  */
 
 const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
-const APP_VERSION = '2026-09-03 23:20';
+const APP_VERSION = '2026-09-04 10:30';
 
 /* ------------------------------------------------------------- numbers */
 const FA_DIGITS = t => String(t).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
@@ -336,8 +336,21 @@ const PAGES = [
   { file:'about.html',  label:'روش کار' },
 ];
 
-const DEFAULTS = { prov:'', city:'', hood:'', min:'0', max:'9999', rooms:'all',
-                   age:'999', date:'0', sample:'20', q:'', feat:'' };
+/* `kind` is not an ordinary filter. A flat, a villa and a plot of land are
+   three different markets — land in Tehran runs many times the price per
+   metre of a flat in the same street, because you are buying the ground
+   rather than a share of a building. Mixing them into one median produces a
+   figure that moves when the mix of what was advertised moves, not when
+   prices move. So kind always has a value, never blank, and every figure on
+   every page belongs to exactly one of them. */
+const KINDS = [
+  { id:'apartment', label:'آپارتمان' },
+  { id:'villa',     label:'خانه و ویلا' },
+  { id:'land',      label:'زمین و کلنگی' },
+];
+
+const DEFAULTS = { kind:'apartment', prov:'', city:'', hood:'', min:'0', max:'9999',
+                   rooms:'all', age:'999', date:'0', sample:'20', q:'', feat:'' };
 
 const S = { ...DEFAULTS };          // current filter state
 let DB = null, CITY = null;
@@ -403,18 +416,23 @@ const norm = t => String(t).replace(/[يﻯﻰ]/g,'ی').replace(/[ك]/g,'ک')
   .replace(/آ/g,'ا').replace(/[\u064B-\u0652\u200c\u0640]/g,'').toLowerCase();
 const matches = (text, q) => norm(text).includes(norm(q));
 
+// Every listing query runs inside one kind. Nothing on any page ever mixes
+// them, which is why kind is applied here rather than left to each caller.
+const ofKind = l => (l.k || 'apartment') === S.kind;
+
 function activeListings(except){
   const all = (CITY && CITY.listings) || [];
   const inHood = l => !S.hood || l.h === S.hood;
-  return all.filter(l => passes(l, except) && inHood(l));
+  return all.filter(l => ofKind(l) && passes(l, except) && inHood(l));
 }
 function cityWideListings(){
-  return ((CITY && CITY.listings) || []).filter(l => passes(l));
+  return ((CITY && CITY.listings) || []).filter(l => ofKind(l) && passes(l));
 }
 
 function activeFilterCount(){
   let n = 0;
-  if (S.prov !== DEFAULTS.prov) n++;
+  if (S.prov !== DEFAULTS.prov) n++;   // kind is deliberately not counted:
+                                       // it always has a value
   if (S.min !== DEFAULTS.min) n++;
   if (S.max !== DEFAULTS.max) n++;
   if (S.rooms !== DEFAULTS.rooms) n++;
@@ -552,6 +570,8 @@ function renderSearchBar(host){
         <div class="sugg hide" id="sugg"></div>
       </div>
 
+      <div class="kindtabs" id="kindTabs"></div>
+
       <button class="filterbtn" id="filterBtn">فیلترها</button>
 
       <div class="filters" id="filters">
@@ -585,6 +605,7 @@ function renderSearchBar(host){
   q.value = S.q;
   document.getElementById('qClear').classList.toggle('hide', !S.q);
 
+  fillKindSelect();
   fillProvSelect();
   fillCitySelect();
   fillHoodSelect();
@@ -653,6 +674,39 @@ function fillCitySelect(){
   }).join('');
   sel.value = S.city;
 }
+
+function fillKindSelect(){
+  const box = document.getElementById('kindTabs');
+  if (!box) return;
+  box.innerHTML = KINDS.map(k => {
+    const n = ((CITY && CITY.listings) || [])
+      .filter(l => (l.k || 'apartment') === k.id).length;
+    return `<button data-k="${k.id}"${k.id === S.kind ? ' class="on"' : ''}
+      ${n ? '' : ' disabled title="برای این شهر هنوز جمع‌آوری نشده"'}>
+      ${k.label}<span class="c">${n ? FA(n) : '—'}</span></button>`;
+  }).join('');
+  box.querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => {
+      if (b.disabled || b.dataset.k === S.kind) return;
+      S.kind = b.dataset.k;
+      // rooms and building age describe a building, not a plot
+      if (S.kind === 'land') { S.rooms = 'all'; S.age = '999'; }
+      for (const [id, key] of [['fRooms','rooms'],['fAge','age']]) {
+        const el = document.getElementById(id);
+        if (el) el.value = S[key];
+      }
+      fillKindSelect(); fillHoodSelect(); commit();
+    }));
+
+  const land = S.kind === 'land';
+  for (const id of ['fRooms','fAge']) {
+    const el = document.getElementById(id);
+    if (el) el.closest('label').classList.toggle('hide', land);
+  }
+}
+
+const kindLabel = () =>
+  (KINDS.find(k => k.id === S.kind) || KINDS[0]).label;
 
 function fillProvSelect(){
   const sel = document.getElementById('fProv');
@@ -780,6 +834,7 @@ function drawSummary(){
     : esc(CITY ? CITY.name : '') + (S.prov ? ` (استان ${esc(S.prov)})` : '');
   const fc = activeFilterCount();
   box.innerHTML =
+    `<span><b>${esc(kindLabel())}</b></span>` +
     `<span><b>${FA(n)}</b> آگهی در ${where}</span>` +
     (fc ? `<span>${FA(fc)} فیلتر فعال</span>` : '') +
     (S.q ? `<span>شامل «${esc(S.q)}»</span>` : '') +
@@ -804,6 +859,7 @@ let PAGE_RENDER = () => {};
 function commit(){
   writeState(true);
   refreshNavLinks();
+  fillKindSelect();
   drawChips();
   drawSummary();
   PAGE_RENDER();

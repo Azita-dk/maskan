@@ -85,7 +85,7 @@ function drawAds(){
   const body = document.getElementById('adsBody');
   document.getElementById('soloBar').classList.toggle('hide', !solo);
   document.getElementById('adsTitle').textContent =
-    solo ? 'آگهی انتخاب‌شده' : `آگهی‌های ${S.hood || CITY.name}`;
+    solo ? 'آگهی انتخاب‌شده' : `آگهی‌های ${kindLabel()} در ${S.hood || CITY.name}`;
 
   if (!all.length) {
     body.innerHTML = '<tr><td colspan="7" class="loading">با این فیلترها آگهی‌ای نمانده است.</td></tr>';
@@ -138,7 +138,7 @@ function drawMap(){
   }
   layer.clearLayers();
   document.getElementById('mapTitle').textContent =
-    'نقشه قیمت ' + (S.hood || CITY.name);
+    `نقشه قیمت ${kindLabel()} در ${S.hood || CITY.name}`;
 
   const note = document.getElementById('mapNote');
   if (!pts.length) {
