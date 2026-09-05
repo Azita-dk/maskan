@@ -187,7 +187,10 @@ function landmark(name){
 /** The card figure: the stored city median, or the filtered one when filters
  *  are on and this is the city whose listings we hold. */
 function cardMedian(c, filtered){
-  if (!filtered) return c.median ? FA1(c.median) : '—';
+  if (!filtered) {
+    const f = cityFigures(c);
+    return f.median ? FA1(f.median) : '—';
+  }
   const v = activeListings().map(l => l.m).filter(x => x > 0);
   return v.length ? FA1(round1(median(v))) : '—';
 }
@@ -216,8 +219,9 @@ function drawCityCards(){
       </div>
       <div class="foot2">
         <span><span class="k">تعداد آگهی</span><span class="v">${
-          FA(filtered ? activeListings().length : c.n)}</span></span>
-        <span><span class="k">محله‌ها</span><span class="v">${FA(c.hoods || 0)}</span></span>
+          FA(filtered ? activeListings().length : cityFigures(c).n)}</span></span>
+        <span><span class="k">محله‌ها</span><span class="v">${
+          FA(cityFigures(c).hoods || 0)}</span></span>
       </div>`;
     b.addEventListener('click', async () => {
       S.city = c.id; S.hood = ''; S.q = '';
@@ -305,11 +309,43 @@ function drawMarkets(){
     }));
 }
 
+/**
+ * Change over whatever history exists, labelled with the real span.
+ *
+ * Calling ten days of data a "monthly change" would be a lie, so the label
+ * says how long the comparison actually covers and grows into «تغییر ماهانه»
+ * and «تغییر سالانه» as the history does. Below a week there is nothing
+ * honest to say and it says that instead.
+ */
+function changeKpi(){
+  const h = historySeries();
+  if (h.length < 2)
+    return { label:'تغییر قیمت', text:'—', cls:'',
+             sub:'هنوز روز کافی ثبت نشده' };
+  const a = h[0], b = h[h.length - 1];
+  const days = Math.round((new Date(b.d) - new Date(a.d)) / 864e5);
+  if (days < 7 || !a.v)
+    return { label:'تغییر قیمت', text:'—', cls:'',
+             sub:`فقط ${FA(days)} روز داده — برای مقایسه کم است` };
+
+  const pct = (b.v - a.v) / a.v * 100;
+  const label = days >= 365 ? 'تغییر سالانه'
+              : days >= 28  ? 'تغییر ماهانه'
+              : `تغییر ${FA(days)} روزه`;
+  return {
+    label,
+    text: (pct >= 0 ? '+' : '\u2212') + FA1(Math.abs(pct)) + '\u066A',
+    cls: pct >= 0 ? 'up' : 'down',
+    sub: `از ${faDate(a.d)}`,
+  };
+}
+
 function drawKpis(){
   const rows = activeListings();
   const vals = rows.map(l => l.m).filter(v => v > 0);
   const med = vals.length ? round1(median(vals)) : null;
   const areas = new Set(rows.map(l => l.h).filter(Boolean));
+  const chg = changeKpi();
   document.getElementById('kpis').innerHTML = `
     <div class="kpi"><div class="k">میانه هر متر مربع</div>
       <div class="v">${med === null ? '—' : FA1(med)}</div>
@@ -317,9 +353,9 @@ function drawKpis(){
     <div class="kpi"><div class="k">تعداد آگهی</div>
       <div class="v">${FA(rows.length)}</div>
       <div class="u">در این انتخاب</div></div>
-    <div class="kpi"><div class="k">محله‌های دارای آگهی</div>
-      <div class="v">${FA(areas.size)}</div>
-      <div class="u">${esc(CITY.name)}</div></div>
+    <div class="kpi"><div class="k">${chg.label}</div>
+      <div class="v ${chg.cls}">${chg.text}</div>
+      <div class="u">${chg.sub}</div></div>
     <div class="kpi"><div class="k">اعتبار این رقم</div>
       <div class="v" style="font-size:18px;padding-top:6px">${confBadge(rows.length)}</div>
       <div class="u">بر پایه تعداد آگهی</div></div>`;
@@ -379,8 +415,9 @@ function drawHoods(){
     }));
 
   document.getElementById('hoodFoot').textContent =
-    `${FA(rows.length)} محله · ستون آخر تعداد آگهی‌هایی است که میانه از آن‌ها ` +
-    'حساب شده · روی هر محله بزنید تا همه صفحه‌ها به آن محدود شوند.';
+    `${FA(rows.length)} محله دارای آگهی در ${CITY.name} · ستون آخر تعداد ` +
+    'آگهی‌هایی است که میانه از آن‌ها حساب شده · روی هر محله بزنید تا همه ' +
+    'صفحه‌ها به آن محدود شوند.';
   drawHoodBars(rows);
 }
 
@@ -435,12 +472,17 @@ function drawHoodBars(rows){
   });
 }
 
+/* History is stored per kind. `ours` and `hood_hist` are objects keyed by
+   apartment / villa / land, never one merged series — joining them would put
+   a step in the line on the day the second market started being collected. */
 function historySeries(){
   if (S.hood) {
-    const h = (CITY.hood_hist || {})[S.hood] || [];
-    return h.filter(r => r.v > 0);
+    const byKind = (CITY.hood_hist || {})[S.kind] || {};
+    return (byKind[S.hood] || []).filter(r => r.v > 0);
   }
-  return (CITY.ours || []).filter(r => r.v > 0);
+  const ours = CITY.ours || {};
+  const series = Array.isArray(ours) ? ours : (ours[S.kind] || []);
+  return series.filter(r => r.v > 0);
 }
 function historyDays(h){
   if (h.length < 2) return 0;

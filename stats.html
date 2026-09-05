@@ -93,12 +93,17 @@ function drawKpis(){
       <div class="u">بر پایه تعداد آگهی</div></div>`;
 }
 
+/* History is stored per kind. `ours` and `hood_hist` are objects keyed by
+   apartment / villa / land, never one merged series — joining them would put
+   a step in the line on the day the second market started being collected. */
 function historySeries(){
   if (S.hood) {
-    const h = (CITY.hood_hist || {})[S.hood] || [];
-    return h.filter(r => r.v > 0);
+    const byKind = (CITY.hood_hist || {})[S.kind] || {};
+    return (byKind[S.hood] || []).filter(r => r.v > 0);
   }
-  return (CITY.ours || []).filter(r => r.v > 0);
+  const ours = CITY.ours || {};
+  const series = Array.isArray(ours) ? ours : (ours[S.kind] || []);
+  return series.filter(r => r.v > 0);
 }
 function historyDays(h){
   if (h.length < 2) return 0;

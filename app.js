@@ -7,7 +7,7 @@
  */
 
 const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
-const APP_VERSION = '2026-09-04 10:30';
+const APP_VERSION = '2026-09-04 14:00';
 
 /* ------------------------------------------------------------- numbers */
 const FA_DIGITS = t => String(t).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
@@ -718,6 +718,16 @@ function fillProvSelect(){
 }
 
 /** The cities the current province filter allows. */
+/** A city's figures for the selected market. Falls back to the flat figures
+ *  for a file written before kinds existed. */
+function cityFigures(c){
+  const bk = c.byKind && c.byKind[S.kind];
+  if (bk) return bk;
+  return S.kind === 'apartment'
+    ? { n: c.n, median: c.median, hoods: c.hoods }
+    : { n: 0, median: null, hoods: 0 };
+}
+
 function citiesInProvince(){
   if (!DB) return [];
   return DB.cities.filter(c => !S.prov || provinceOf(c.name) === S.prov);
@@ -756,7 +766,7 @@ function fillHoodSelect(){
   const sel = document.getElementById('fHood');
   if (!sel) return;
   const rows = ((CITY && CITY.rows) || [])
-    .filter(r => r.n >= 10)
+    .filter(r => (r.k || 'apartment') === S.kind && r.n >= 10)
     .sort((a, b) => byFa(a.hood, b.hood));
   sel.innerHTML = '<option value="">همه محله‌ها</option>' +
     rows.map(r => `<option value="${esc(r.hood)}">${esc(r.hood)}</option>`).join('');
@@ -775,7 +785,8 @@ function drawSuggestions(term){
   if (!term || !DB) return closeSugg();
   const cities = DB.cities.filter(c => matches(c.name, term)).slice(0, 5);
   const hoods = ((CITY && CITY.rows) || [])
-    .filter(r => matches(r.hood, term) && r.n >= 10).slice(0, 6);
+    .filter(r => (r.k || 'apartment') === S.kind &&
+                 matches(r.hood, term) && r.n >= 10).slice(0, 6);
   if (!cities.length && !hoods.length) {
     box.innerHTML = '<div class="head">چیزی پیدا نشد — همین متن در آگهی‌ها جست‌وجو می‌شود</div>';
     box.classList.remove('hide');
