@@ -7,7 +7,11 @@
  */
 
 const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
-const APP_VERSION = '2026-09-04 14:00';
+/* Bump this whenever the page files change. It is the only way to tell,
+   from a phone in another country, whether a push actually arrived — and a
+   stale stamp sends you hunting for a deployment problem that is not there,
+   which is exactly what it did on 7 September. */
+const APP_VERSION = '2026-09-07 12:30';
 
 /* ------------------------------------------------------------- numbers */
 const FA_DIGITS = t => String(t).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
