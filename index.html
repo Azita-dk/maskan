@@ -19,6 +19,7 @@
   <section>
     <div class="shead">
       <h2 id="areaHead">شهر و محله‌ها</h2>
+      <a href="cities.html" data-page="cities.html">همه محله‌ها ↓</a>
     </div>
 
     <div class="markets" id="markets"></div>
@@ -27,10 +28,17 @@
     <div class="panel">
       <header>
         <h3 id="hoodTitle">محله‌ها</h3>
+        <div class="tabs" id="hoodTabs">
+          <button data-sort="price" class="on">گران‌ترین</button>
+          <button data-sort="cheap">ارزان‌ترین</button>
+          <button data-sort="count">بیشترین آگهی</button>
+        </div>
       </header>
-      <div id="hoodMap"></div>
+      <div class="hhead"><span></span><span>محله</span><span></span>
+        <span>میلیون/متر</span><span>آگهی</span></div>
+      <div class="hoodscroll" id="hoodRows"><div class="loading">در حال بارگذاری…</div></div>
       <div class="scalekey"><span>ارزان‌ترین</span><span class="bar"></span>
-        <span>گران‌ترین</span><span>— رنگ هر دایره بر پایه میانه قیمت آن محله است</span></div>
+        <span>گران‌ترین</span><span>— رنگ نوار بر پایه قیمت هر متر مربع است</span></div>
       <p class="foot" id="hoodFoot"></p>
     </div>
 
@@ -370,110 +378,64 @@ function hoodStats(){
     .filter(r => r.n >= 5);
 }
 
-let hoodMap = null, hoodMapLayer = null;
-
-// Whether the map's background color at this price point is light or dark,
-// so label text can be the opposite and stay readable — perceived
-// luminance, not just "low values are dark": the yellow stop in the middle
-// of the scale is actually the lightest point, brighter than either the
-// green or the red ends.
-function heatIsLight(v, lo, hi){
-  if (!isFinite(v) || hi <= lo) return false;
-  const stops = [[12,122,79],[242,199,68],[217,119,6],[179,38,30]];
-  const x = Math.max(0, Math.min(1, (v-lo)/(hi-lo))) * (stops.length-1);
-  const i = Math.min(stops.length-2, Math.floor(x)), f = x - i;
-  const c = k => stops[i][k] + (stops[i+1][k]-stops[i][k])*f;
-  const lum = 0.299*c(0) + 0.587*c(1) + 0.114*c(2);
-  return lum > 150;
-}
-
 function drawHoods(){
-  // When one neighbourhood is selected the map would collapse to a single
-  // dot, so it is drawn from the whole city and the selection highlighted.
+  // The list is built from the whole city even when one neighbourhood is
+  // selected — narrowing it to the selection would leave a list of one.
+  // The selected row is highlighted instead.
   const keep = S.hood;
   S.hood = '';
   let rows = hoodStats();
   S.hood = keep;
 
-  const withGeo = rows.filter(r => r.y && r.x);
-
-  if (!hoodMap) {
-    hoodMap = L.map('hoodMap', { scrollWheelZoom:false });
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { maxZoom:18, attribution:'© OpenStreetMap' }).addTo(hoodMap);
-    hoodMapLayer = L.layerGroup().addTo(hoodMap);
-  }
-  hoodMapLayer.clearLayers();
+  const box = document.getElementById('hoodRows');
+  const foot = document.getElementById('hoodFoot');
 
   if (!rows.length) {
-    document.getElementById('hoodFoot').textContent =
-      'با این فیلترها محله‌ای با آگهی کافی نمانده است.';
-    hoodMap.setView([32.4, 53.7], 5);
+    box.innerHTML = '<div class="loading">با این فیلترها محله‌ای با آگهی کافی نمانده است.</div>';
+    foot.textContent = '';
     drawHoodBars([]);
     return;
   }
-  if (!withGeo.length) {
-    document.getElementById('hoodFoot').textContent =
-      `${FA(rows.length)} محله دارای آگهی در ${CITY.name}، ولی هنوز هیچ‌کدام ` +
-      'مختصات ندارند — نقشه با تکمیل مختصات در پس‌زمینه پر می‌شود.';
-    hoodMap.setView([32.4, 53.7], 5);
-    drawHoodBars(rows);
-    return;
-  }
 
-  const meds = withGeo.map(r => r.med);
-  const lo = Math.min(...meds), hi = Math.max(...meds);
-  const nMax = Math.max(...withGeo.map(r => r.n));
+  if (hoodSort === 'price')      rows.sort((a,b) => b.med - a.med);
+  else if (hoodSort === 'cheap') rows.sort((a,b) => a.med - b.med);
+  else                           rows.sort((a,b) => b.n - a.n);
 
-  withGeo.forEach(r => {
-    const on = r.hood === S.hood;
-    // radius carries how much data backs the dot — a lot of listings makes
-    // a bigger circle, not just a brighter one
-    const radius = 8 + Math.sqrt(r.n / nMax) * 18;
-    const color = heat(r.med, lo, hi);
-    const mk = L.circleMarker([r.y, r.x], {
-      radius, weight: on ? 3 : 1,
-      color: on ? CSSVAR('--ink') : '#fff', opacity:.9,
-      fillColor: color, fillOpacity: on ? .95 : .8 });
-    mk.bindPopup(`<div style="min-width:170px">
-      <b>${esc(r.hood)}</b><br>
-      ${FA1(r.med)} میلیون تومان بر متر مربع<br>
-      <span style="color:#5A6472">${FA(r.n)} آگهی${
-        confLevel(r.n).cls === 'hi' ? '' : ' — ' + confLevel(r.n).label}</span>
-      </div>`);
-    mk.on('click', () => {
-      S.hood = S.hood === r.hood ? '' : r.hood;
+  const meds = rows.map(r => r.med);
+  const top = Math.max(...meds), lo = Math.min(...meds), hi = top;
+
+  box.innerHTML = rows.map((r, i) => `
+    <div class="hrow${r.hood === S.hood ? ' on' : ''}" data-hood="${esc(r.hood)}"
+         title="${esc(r.hood)} — ${FA(r.n)} آگهی — ${confLevel(r.n).label}">
+      <span class="hnum">${FA(i+1)}</span>
+      <span class="hname"><span class="hnametext">${esc(r.hood)}</span>${
+        confLevel(r.n).cls === 'hi' ? '' : confBadge(r.n, true)}</span>
+      <span class="htrack"><span class="hfill" style="width:${
+        Math.max(3, r.med / top * 100).toFixed(1)}%;background:${
+        heat(r.med, lo, hi)}"></span></span>
+      <span class="hval" style="color:${heat(r.med, lo, hi)}">${FA1(r.med)}</span>
+      <span class="hcount">${FA(r.n)}</span>
+    </div>`).join('');
+
+  box.querySelectorAll('[data-hood]').forEach(el =>
+    el.addEventListener('click', () => {
+      S.hood = S.hood === el.dataset.hood ? '' : el.dataset.hood;
       fillHoodSelect();
       commit();
-    });
-    mk.addTo(hoodMapLayer);
+    }));
 
-    // The price sits directly on the map rather than hidden behind a click,
-    // the way the reference image the user liked shows a number on every
-    // district. Text darkness flips against light backgrounds so it stays
-    // readable on the pale end of the price scale.
-    if (radius >= 13) {
-      const light = heatIsLight(r.med, lo, hi);
-      const label = L.divIcon({
-        className: 'hood-label',
-        html: `<span style="color:${light ? '#1a1a1a' : '#fff'}">${FA1(r.med)}</span>`,
-        iconSize: [0, 0],
-      });
-      L.marker([r.y, r.x], { icon: label, interactive: false }).addTo(hoodMapLayer);
-    }
-  });
-
-  const bounds = withGeo.map(r => [r.y, r.x]);
-  hoodMap.fitBounds(L.latLngBounds(bounds).pad(.15), { maxZoom: 14 });
-
-  const missing = rows.length - withGeo.length;
-  document.getElementById('hoodFoot').textContent =
-    `${FA(withGeo.length)} محله روی نقشه از ${FA(rows.length)} محله دارای آگهی در ${CITY.name}` +
-    (missing ? ` — ${FA(missing)} محله هنوز مختصات ندارند` : '') +
-    ' · اندازه دایره بر پایه تعداد آگهی، رنگ بر پایه قیمت است · روی هر محله بزنید تا همه صفحه‌ها به آن محدود شوند.';
+  foot.textContent = `${FA(rows.length)} محله در ${CITY.name} ` +
+    '· روی هر محله بزنید تا همه صفحه‌ها به آن محدود شوند.';
 
   drawHoodBars(rows);
 }
+
+document.getElementById('hoodTabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  hoodSort = b.dataset.sort;
+  document.querySelectorAll('#hoodTabs button').forEach(x => x.classList.toggle('on', x === b));
+  drawHoods();
+});
 
 function drawHoodBars(rows){
   hoodBars && hoodBars.destroy();
@@ -852,7 +814,7 @@ bootPage('index.html', () => {
     (S.hood ? `${S.hood}، ${CITY.name}` : `${CITY.name} و محله‌هایش`)
     + ` — ${kindLabel()}`;
   document.getElementById('hoodTitle').textContent =
-    `${kindLabel()} در محله‌های ${CITY.name}`;
+    `محله‌های ${CITY.name} — ${kindLabel()}`;
   drawMarkets();
   drawKpis();
   drawHoods();
