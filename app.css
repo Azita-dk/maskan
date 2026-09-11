@@ -317,6 +317,7 @@ tbody tr.provhead td{font-size:13px;padding:9px 14px;
 
 /* ------------------------------------------------------------------ map */
 #map{height:420px;width:100%}
+#hoodMap{height:420px;width:100%}
 .legend{display:flex;align-items:center;gap:10px;padding:11px 16px;
   font-size:12px;color:var(--muted);border-top:1px solid var(--rule)}
 .legend .bar{flex:1;height:8px;border-radius:99px;
@@ -382,6 +383,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .grid4,.kpis{grid-template-columns:1fr 1fr}
   .trust{grid-template-columns:1fr}
   #map{height:300px}
+  #hoodMap{height:300px}
   .chart{height:240px}
   .chart.short{height:200px}
   .callout{inset-inline-start:8px;top:8px;padding:6px 9px}
