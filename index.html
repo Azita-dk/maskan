@@ -27,14 +27,10 @@
     <div class="panel">
       <header>
         <h3 id="hoodTitle">محله‌ها</h3>
-        <div class="tabs" id="hexTabs">
-          <button data-m="price" class="on">قیمت هر متر</button>
-          <button data-m="count">تراکم آگهی</button>
-        </div>
       </header>
       <div id="hoodMap"></div>
-      <div class="scalekey"><span id="hexLoLbl">ارزان‌ترین</span><span class="bar"></span>
-        <span id="hexHiLbl">گران‌ترین</span><span id="hexScaleNote"></span></div>
+      <div class="scalekey"><span>ارزان‌ترین</span><span class="bar"></span>
+        <span>گران‌ترین</span><span>— رنگ هر دایره بر پایه میانه قیمت آن محله است</span></div>
       <p class="foot" id="hoodFoot"></p>
     </div>
 
@@ -132,9 +128,135 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="app.js"></script>
 <script>
-let hoodBars = null;
+let hoodSort = 'price', hoodBars = null, allOpen = false;
 let trendChart = null, distChart = null, sizeChart = null, ageChart = null;
 let period = 'all';
+
+const LANDMARKS = {
+  'تهران': { c:'#D97706', svg:`<path d="M31 58V26l2-5h2l2 5v32z"/><path d="M25 22h18l-3 10H28z"/>
+    <ellipse cx="34" cy="18" rx="12" ry="6"/><path d="M31 5h6l-1 12h-4z"/>
+    <rect x="14" y="42" width="9" height="16" rx="1"/><rect x="45" y="38" width="9" height="20" rx="1"/>` },
+  'مشهد': { c:'#0C7A4F', svg:`<path d="M34 6c6 8 10 13 10 19a10 10 0 0 1-20 0c0-6 4-11 10-19z"/>
+    <rect x="22" y="34" width="24" height="24" rx="2"/><rect x="12" y="28" width="7" height="30" rx="3"/>
+    <rect x="49" y="28" width="7" height="30" rx="3"/><circle cx="15.5" cy="25" r="3.5"/>
+    <circle cx="52.5" cy="25" r="3.5"/><rect x="30" y="44" width="8" height="14" rx="4"/>` },
+  'اصفهان': { c:'#0369A1', svg:`<path d="M34 8c8 9 12 15 12 21a12 12 0 0 1-24 0c0-6 4-12 12-21z"/>
+    <rect x="20" y="38" width="28" height="20" rx="2"/><rect x="10" y="24" width="6" height="34" rx="3"/>
+    <rect x="52" y="24" width="6" height="34" rx="3"/><circle cx="13" cy="21" r="3"/>
+    <circle cx="55" cy="21" r="3"/><path d="M28 58V48a6 6 0 0 1 12 0v10z"/>` },
+  'شیراز': { c:'#7C3AED', svg:`<path d="M34 8l22 12H12z"/><rect x="16" y="22" width="36" height="5" rx="1"/>
+    <rect x="19" y="29" width="6" height="24" rx="1"/><rect x="31" y="29" width="6" height="24" rx="1"/>
+    <rect x="43" y="29" width="6" height="24" rx="1"/><rect x="12" y="53" width="44" height="5" rx="1"/>` },
+  'کرج': { c:'#0891B2', svg:`<rect x="12" y="26" width="18" height="32" rx="2"/>
+    <rect x="34" y="16" width="20" height="42" rx="2"/>` },
+  'تبریز': { c:'#0F766E', svg:`<path d="M34 10c7 8 11 14 11 20a11 11 0 0 1-22 0c0-6 4-12 11-20z"/>
+    <rect x="18" y="36" width="32" height="22" rx="2"/><rect x="24" y="44" width="8" height="14" rx="4"/>
+    <rect x="38" y="44" width="8" height="14" rx="4"/>` },
+};
+const HOUSE = { c:null, svg:`<path d="M34 10l24 18v30H10V28z"/>
+  <rect x="24" y="38" width="9" height="9" fill="#fff" opacity=".85"/>
+  <rect x="37" y="38" width="9" height="9" fill="#fff" opacity=".85"/>
+  <rect x="29" y="50" width="10" height="8" fill="#fff" opacity=".85"/>` };
+
+function landmark(name){
+  const L = LANDMARKS[name] || HOUSE;
+  const c = L.c || CSSVAR('--green');
+  return `<svg class="lm" viewBox="0 0 68 64" aria-hidden="true" style="color:${c}">
+            <g fill="currentColor">${L.svg}</g></svg>`;
+}
+
+/** The card figure: the stored city median, or the filtered one when filters
+ *  are on and this is the city whose listings we hold. */
+function cardMedian(c, filtered){
+  if (!filtered) {
+    const f = cityFigures(c);
+    return f.median ? FA1(f.median) : '—';
+  }
+  const v = activeListings().map(l => l.m).filter(x => x > 0);
+  return v.length ? FA1(round1(median(v))) : '—';
+}
+
+function drawCityCards(){
+  const box = document.getElementById('cityCards');
+  const all = citiesInProvince().sort((a, b) => (b.median || 0) - (a.median || 0));
+  // With a filter on, only the selected city has listings loaded, so only its
+  // card can honour the filter. Showing the other cards unchanged would put
+  // unfiltered figures next to filtered ones.
+  const filtered = activeFilterCount() > 0 || !!S.q;
+  const list = filtered ? all.filter(c => c.id === S.city)
+             : allOpen ? all : all.slice(0, 4);
+  box.innerHTML = '';
+  list.forEach(c => {
+    const b = document.createElement('button');
+    b.className = 'citycard';
+    if (c.id === S.city) b.style.borderColor = CSSVAR('--green');
+    b.innerHTML = `
+      <div class="top">
+        <div><h3>${esc(c.name)}</h3>
+          <div class="big">${cardMedian(c, filtered)}</div>
+          <div class="unit">میلیون تومان · هر متر مربع${
+            filtered ? ' (با فیلترها)' : ''}</div></div>
+        ${landmark(c.name)}
+      </div>
+      <div class="foot2">
+        <span><span class="k">تعداد آگهی</span><span class="v">${
+          FA(filtered ? activeListings().length : cityFigures(c).n)}</span></span>
+        <span><span class="k">محله‌ها</span><span class="v">${
+          FA(cityFigures(c).hoods || 0)}</span></span>
+      </div>`;
+    b.addEventListener('click', async () => {
+      S.city = c.id; S.hood = ''; S.q = '';
+      await loadCity(S.city);
+      fillCitySelect(); fillHoodSelect();
+      const qb = document.getElementById('q'); if (qb) qb.value = '';
+      commit();
+      document.getElementById('areaHead')
+        .scrollIntoView({ behavior:'smooth', block:'start' });
+    });
+    box.appendChild(b);
+  });
+  const btn = document.getElementById('allCities');
+  btn.classList.toggle('hide', filtered);
+  const n = citiesInProvince().length;
+  btn.textContent = allOpen ? 'نمایش کمتر ↑' : `مشاهده همه شهرها (${FA(n)}) →`;
+}
+
+document.getElementById('allCities')?.addEventListener('click', () => {
+  allOpen = !allOpen;
+  drawCityCards();
+});
+/* The overview cards (نمای کلی بازار مسکن) were removed at the user's
+ * request — drawCityCards/drawProvSummary are kept below in case they want
+ * it back later, they just aren't called from bootPage anymore and there
+ * is no #cityCards element in the page for them to render into. */
+
+/**
+ * A province summary, when one is chosen.
+ *
+ * Built from the city figures already downloaded — a listing-weighted median
+ * across the province's cities. Charting a whole province would mean fetching
+ * every city file, so the charts below stay with the selected city and this
+ * line says which city that is.
+ */
+function drawProvSummary(){
+  const box = document.getElementById('provSummary');
+  const head = document.getElementById('overviewHead');
+  if (!S.prov) {
+    box.textContent = '';
+    head.textContent = 'نمای کلی بازار مسکن';
+    return;
+  }
+  head.textContent = `بازار مسکن استان ${S.prov}`;
+  const sum = provinceSummary(S.prov);
+  if (!sum) { box.textContent = ''; return; }
+  box.innerHTML =
+    `میانه استان حدود <b>${FA1(sum.median)}</b> میلیون تومان بر متر مربع · ` +
+    `${FA(sum.cities)} شهر · ${FA(sum.listings)} آگهی · ` +
+    `گران‌ترین ${esc(sum.dearest.name)} (${FA1(sum.dearest.median)}) · ` +
+    `ارزان‌ترین ${esc(sum.cheapest.name)} (${FA1(sum.cheapest.median)}) — ` +
+    `این رقم از میانه شهرها برآورد شده، نه از تک‌تک آگهی‌ها. ` +
+    `نمودارهای پایین مربوط به شهر انتخاب‌شده است.`;
+}
 
 /**
  * The three markets side by side.
@@ -248,181 +370,110 @@ function hoodStats(){
     .filter(r => r.n >= 5);
 }
 
-let hoodMap = null, hexLayer = null, hexPts = [];
-let hexMode = 'price', hexLo = 0, hexHi = 0, hexFitKey = '';
+let hoodMap = null, hoodMapLayer = null;
 
-const HEX_R = 20;
-
-/* Which hexagon a projected point falls in — axial coordinates with cube
-   rounding, which lands every point in the cell it is genuinely nearest to.
-   The shortcut version of this (compare the two candidates in row/column
-   units) is off near the vertices because the row and column steps are not
-   the same length; tested over 40,000 points, this one is exact. */
-const HEX_S3 = Math.sqrt(3);
-function hexCell(x, y, r){
-  const q = (HEX_S3/3 * x - y/3) / r, s = (2/3 * y) / r;
-  const cs = -q - s;
-  let rq = Math.round(q), rr = Math.round(s);
-  const rs = Math.round(cs);
-  const dq = Math.abs(rq - q), dr = Math.abs(rr - s), ds = Math.abs(rs - cs);
-  if (dq > dr && dq > ds) rq = -rr - rs;
-  else if (dr > ds) rr = -rq - rs;
-  return { id: rq + ',' + rr,
-           cx: r * HEX_S3 * (rq + rr/2),
-           cy: r * 1.5 * rr };
-}
-
-function hexCorners(cx, cy, r, z){
-  const out = [];
-  for (let i = 0; i < 6; i++) {
-    const a = i * Math.PI / 3;
-    out.push(hoodMap.unproject([cx + r * Math.sin(a), cy - r * Math.cos(a)], z));
-  }
-  return out;
-}
-
-/* One cell is redrawn at every zoom so its size on screen stays constant.
-   Binning happens in projected pixels for the current zoom, which is what
-   makes the grid tighten as you zoom in instead of turning into six huge
-   blocks over the city. */
-function renderHex(){
-  if (!hoodMap || !hexLayer) return;
-  hexLayer.clearLayers();
-  if (!hexPts.length) return;
-
-  const z = hoodMap.getZoom();
-  const view = hoodMap.getBounds().pad(.12);
-  const cells = new Map();
-
-  for (const l of hexPts) {
-    if (!view.contains([l.y, l.x])) continue;
-    const p = hoodMap.project([l.y, l.x], z);
-    const k = hexCell(p.x, p.y, HEX_R);
-    let c = cells.get(k.id);
-    if (!c) { c = { cx:k.cx, cy:k.cy, v:[], hoods:{} }; cells.set(k.id, c); }
-    c.v.push(l.m);
-    if (l.h) c.hoods[l.h] = (c.hoods[l.h] || 0) + 1;
-  }
-  if (!cells.size) return;
-
-  const list = [...cells.values()].map(c => {
-    let top = '', best = 0;
-    for (const h in c.hoods) if (c.hoods[h] > best) { best = c.hoods[h]; top = h; }
-    return { cx:c.cx, cy:c.cy, n:c.v.length, med:round1(median(c.v)), hood:top };
-  });
-
-  /* Price keeps a scale fixed to the whole city, so a colour means the same
-     thing at every zoom and matches the legend. Density cannot: the number
-     of listings in one cell falls as you zoom in, so its scale is read off
-     what is currently on screen. */
-  let lo = hexLo, hi = hexHi;
-  if (hexMode === 'count') {
-    const ns = list.map(c => c.n).sort((a,b) => a-b);
-    lo = 1;
-    hi = Math.max(2, ns[Math.floor(ns.length * .92)]);
-  }
-
-  for (const c of list) {
-    const val = hexMode === 'count' ? c.n : c.med;
-    const on = !!S.hood && c.hood === S.hood;
-    // thin cells stay translucent — a cell holding one listing should not
-    // look as certain as one holding thirty
-    const op = Math.min(.86, .38 + .48 * Math.sqrt(Math.min(1, c.n / 10)));
-    const color = heat(val, lo, hi);
-    const poly = L.polygon(hexCorners(c.cx, c.cy, HEX_R, z), {
-      color: on ? CSSVAR('--ink') : color,
-      weight: on ? 2 : 1,
-      opacity: on ? .95 : op,
-      fillColor: color,
-      fillOpacity: op,
-    });
-    poly.bindTooltip(
-      `<b>${esc(c.hood || CITY.name)}</b><br>` +
-      `${FA1(c.med)} میلیون تومان بر متر<br>` +
-      `${FA(c.n)} آگهی`,
-      { className:'hexTip', direction:'top', sticky:true, opacity:1 });
-    if (c.hood) poly.on('click', () => {
-      S.hood = S.hood === c.hood ? '' : c.hood;
-      fillHoodSelect();
-      commit();
-    });
-    poly.addTo(hexLayer);
-  }
-}
-
-function setHexLabels(){
-  const price = hexMode === 'price';
-  document.getElementById('hexLoLbl').textContent = price ? 'ارزان‌ترین' : 'کم‌ترین آگهی';
-  document.getElementById('hexHiLbl').textContent = price ? 'گران‌ترین' : 'بیش‌ترین آگهی';
-  document.getElementById('hexScaleNote').textContent = price
-    ? '— رنگ هر خانه بر پایه میانه قیمت آگهی‌های همان نقطه است'
-    : '— رنگ هر خانه بر پایه تعداد آگهی‌های همان نقطه است';
+// Whether the map's background color at this price point is light or dark,
+// so label text can be the opposite and stay readable — perceived
+// luminance, not just "low values are dark": the yellow stop in the middle
+// of the scale is actually the lightest point, brighter than either the
+// green or the red ends.
+function heatIsLight(v, lo, hi){
+  if (!isFinite(v) || hi <= lo) return false;
+  const stops = [[12,122,79],[242,199,68],[217,119,6],[179,38,30]];
+  const x = Math.max(0, Math.min(1, (v-lo)/(hi-lo))) * (stops.length-1);
+  const i = Math.min(stops.length-2, Math.floor(x)), f = x - i;
+  const c = k => stops[i][k] + (stops[i+1][k]-stops[i][k])*f;
+  const lum = 0.299*c(0) + 0.587*c(1) + 0.114*c(2);
+  return lum > 150;
 }
 
 function drawHoods(){
-  // The map is built from the whole city even when one neighbourhood is
-  // selected — a single neighbourhood would collapse to a couple of cells.
-  // The selected one is outlined instead.
+  // When one neighbourhood is selected the map would collapse to a single
+  // dot, so it is drawn from the whole city and the selection highlighted.
   const keep = S.hood;
   S.hood = '';
-  const rows = hoodStats();
+  let rows = hoodStats();
   S.hood = keep;
 
-  hexPts = cityWideListings().filter(l => l.y && l.x && l.m > 0);
+  const withGeo = rows.filter(r => r.y && r.x);
 
   if (!hoodMap) {
-    hoodMap = L.map('hoodMap', { scrollWheelZoom:false, preferCanvas:true });
+    hoodMap = L.map('hoodMap', { scrollWheelZoom:false });
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       { maxZoom:18, attribution:'© OpenStreetMap' }).addTo(hoodMap);
-    hexLayer = L.layerGroup().addTo(hoodMap);
-    hoodMap.on('zoomend moveend', renderHex);
+    hoodMapLayer = L.layerGroup().addTo(hoodMap);
   }
-  hexLayer.clearLayers();
-  setHexLabels();
+  hoodMapLayer.clearLayers();
 
-  const foot = document.getElementById('hoodFoot');
-  if (!hexPts.length) {
-    foot.textContent = rows.length
-      ? `${FA(rows.length)} محله دارای آگهی در ${CITY.name}، ولی هنوز هیچ آگهی‌ای ` +
-        'مختصات ندارد — نقشه با تکمیل مختصات در پس‌زمینه پر می‌شود.'
-      : 'با این فیلترها آگهی‌ای برای نقشه نمانده است.';
+  if (!rows.length) {
+    document.getElementById('hoodFoot').textContent =
+      'با این فیلترها محله‌ای با آگهی کافی نمانده است.';
+    hoodMap.setView([32.4, 53.7], 5);
+    drawHoodBars([]);
+    return;
+  }
+  if (!withGeo.length) {
+    document.getElementById('hoodFoot').textContent =
+      `${FA(rows.length)} محله دارای آگهی در ${CITY.name}، ولی هنوز هیچ‌کدام ` +
+      'مختصات ندارند — نقشه با تکمیل مختصات در پس‌زمینه پر می‌شود.';
     hoodMap.setView([32.4, 53.7], 5);
     drawHoodBars(rows);
     return;
   }
 
-  const vals = hexPts.map(l => l.m).sort((a,b) => a-b);
-  hexLo = vals[Math.floor(vals.length * .05)];
-  hexHi = vals[Math.floor(vals.length * .95)];
-  if (!(hexHi > hexLo)) { hexLo = vals[0]; hexHi = vals[vals.length-1]; }
+  const meds = withGeo.map(r => r.med);
+  const lo = Math.min(...meds), hi = Math.max(...meds);
+  const nMax = Math.max(...withGeo.map(r => r.n));
 
-  // Refit only when the city or the market changes; otherwise a filter
-  // change would throw away the zoom the reader had chosen.
-  const key = CITY.name + '|' + S.kind;
-  if (key !== hexFitKey) {
-    hexFitKey = key;
-    hoodMap.fitBounds(L.latLngBounds(hexPts.map(l => [l.y, l.x])).pad(.06),
-                      { maxZoom: 14 });
-  }
-  renderHex();
+  withGeo.forEach(r => {
+    const on = r.hood === S.hood;
+    // radius carries how much data backs the dot — a lot of listings makes
+    // a bigger circle, not just a brighter one
+    const radius = 8 + Math.sqrt(r.n / nMax) * 18;
+    const color = heat(r.med, lo, hi);
+    const mk = L.circleMarker([r.y, r.x], {
+      radius, weight: on ? 3 : 1,
+      color: on ? CSSVAR('--ink') : '#fff', opacity:.9,
+      fillColor: color, fillOpacity: on ? .95 : .8 });
+    mk.bindPopup(`<div style="min-width:170px">
+      <b>${esc(r.hood)}</b><br>
+      ${FA1(r.med)} میلیون تومان بر متر مربع<br>
+      <span style="color:#5A6472">${FA(r.n)} آگهی${
+        confLevel(r.n).cls === 'hi' ? '' : ' — ' + confLevel(r.n).label}</span>
+      </div>`);
+    mk.on('click', () => {
+      S.hood = S.hood === r.hood ? '' : r.hood;
+      fillHoodSelect();
+      commit();
+    });
+    mk.addTo(hoodMapLayer);
 
-  const geoHoods = rows.filter(r => r.y && r.x).length;
-  foot.textContent =
-    `${FA(hexPts.length)} آگهی با مختصات در ${CITY.name} روی نقشه` +
-    (rows.length ? ` · ${FA(geoHoods)} محله از ${FA(rows.length)} محله دارای آگهی` : '') +
-    ' · هر چه بیشتر زوم کنید خانه‌ها ریزتر و دقیق‌تر می‌شوند · روی هر خانه بزنید' +
-    ' تا همه صفحه‌ها به آن محله محدود شوند.';
+    // The price sits directly on the map rather than hidden behind a click,
+    // the way the reference image the user liked shows a number on every
+    // district. Text darkness flips against light backgrounds so it stays
+    // readable on the pale end of the price scale.
+    if (radius >= 13) {
+      const light = heatIsLight(r.med, lo, hi);
+      const label = L.divIcon({
+        className: 'hood-label',
+        html: `<span style="color:${light ? '#1a1a1a' : '#fff'}">${FA1(r.med)}</span>`,
+        iconSize: [0, 0],
+      });
+      L.marker([r.y, r.x], { icon: label, interactive: false }).addTo(hoodMapLayer);
+    }
+  });
+
+  const bounds = withGeo.map(r => [r.y, r.x]);
+  hoodMap.fitBounds(L.latLngBounds(bounds).pad(.15), { maxZoom: 14 });
+
+  const missing = rows.length - withGeo.length;
+  document.getElementById('hoodFoot').textContent =
+    `${FA(withGeo.length)} محله روی نقشه از ${FA(rows.length)} محله دارای آگهی در ${CITY.name}` +
+    (missing ? ` — ${FA(missing)} محله هنوز مختصات ندارند` : '') +
+    ' · اندازه دایره بر پایه تعداد آگهی، رنگ بر پایه قیمت است · روی هر محله بزنید تا همه صفحه‌ها به آن محدود شوند.';
 
   drawHoodBars(rows);
 }
-
-document.getElementById('hexTabs').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  hexMode = b.dataset.m;
-  document.querySelectorAll('#hexTabs button').forEach(x => x.classList.toggle('on', x === b));
-  setHexLabels();
-  renderHex();
-});
 
 function drawHoodBars(rows){
   hoodBars && hoodBars.destroy();
@@ -801,7 +852,7 @@ bootPage('index.html', () => {
     (S.hood ? `${S.hood}، ${CITY.name}` : `${CITY.name} و محله‌هایش`)
     + ` — ${kindLabel()}`;
   document.getElementById('hoodTitle').textContent =
-    `نقشه حرارتی ${kindLabel()} در ${CITY.name}`;
+    `${kindLabel()} در محله‌های ${CITY.name}`;
   drawMarkets();
   drawKpis();
   drawHoods();
