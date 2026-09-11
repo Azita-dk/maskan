@@ -28,17 +28,10 @@
     <div class="panel">
       <header>
         <h3 id="hoodTitle">محله‌ها</h3>
-        <div class="tabs" id="hoodTabs">
-          <button data-sort="price" class="on">گران‌ترین</button>
-          <button data-sort="cheap">ارزان‌ترین</button>
-          <button data-sort="count">بیشترین آگهی</button>
-        </div>
       </header>
-      <div class="hhead"><span></span><span>محله</span><span></span>
-        <span>میلیون/متر</span><span>آگهی</span></div>
-      <div class="hoodscroll" id="hoodRows"><div class="loading">در حال بارگذاری…</div></div>
+      <div id="hoodTree"><div class="loading">در حال بارگذاری…</div></div>
       <div class="scalekey"><span>ارزان‌ترین</span><span class="bar"></span>
-        <span>گران‌ترین</span><span>— رنگ نوار بر پایه قیمت هر متر مربع است</span></div>
+        <span>گران‌ترین</span><span>— بزرگی هر خانه بر پایه تعداد آگهی و رنگ آن بر پایه قیمت هر متر مربع است</span></div>
       <p class="foot" id="hoodFoot"></p>
     </div>
 
@@ -136,7 +129,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="app.js"></script>
 <script>
-let hoodSort = 'price', hoodBars = null, allOpen = false;
+let hoodBars = null, allOpen = false;
 let trendChart = null, distChart = null, sizeChart = null, ageChart = null;
 let period = 'all';
 
@@ -378,44 +371,123 @@ function hoodStats(){
     .filter(r => r.n >= 5);
 }
 
+/* Squarified treemap (Bruls, Huizing & van Wijk).
+ *
+ * Slicing the box into plain strips is far less code, but it turns every
+ * small neighbourhood into a one-pixel sliver. Squarifying keeps each cell
+ * as close to a square as the data allows, which is what makes the small
+ * ones large enough to still be clickable and often labelled. */
+function squarify(items, box){
+  const out = [];
+  const area = box.w * box.h;
+  const total = items.reduce((s, d) => s + d.v, 0);
+  if (!total || area <= 0) return out;
+  const work = items.map(d => ({ d, a: d.v / total * area })).filter(r => r.a > 0);
+  const rect = { x:box.x, y:box.y, w:box.w, h:box.h };
+
+  const worst = (row, side) => {
+    const s = row.reduce((a, b) => a + b.a, 0);
+    let mx = -Infinity, mn = Infinity;
+    for (const r of row) { if (r.a > mx) mx = r.a; if (r.a < mn) mn = r.a; }
+    const s2 = s * s, side2 = side * side;
+    return Math.max(side2 * mx / s2, s2 / (side2 * mn));
+  };
+
+  const flush = row => {
+    const s = row.reduce((a, b) => a + b.a, 0);
+    if (rect.w <= rect.h) {
+      const rh = s / rect.w;
+      let cx = rect.x;
+      for (const r of row) {
+        const rw = r.a / rh;
+        out.push({ d:r.d, x:cx, y:rect.y, w:rw, h:rh });
+        cx += rw;
+      }
+      rect.y += rh; rect.h -= rh;
+    } else {
+      const rw = s / rect.h;
+      let cy = rect.y;
+      for (const r of row) {
+        const rh = r.a / rw;
+        out.push({ d:r.d, x:rect.x, y:cy, w:rw, h:rh });
+        cy += rh;
+      }
+      rect.x += rw; rect.w -= rw;
+    }
+  };
+
+  let row = [];
+  for (const r of work) {
+    const side = Math.min(rect.w, rect.h);
+    if (row.length && worst(row.concat(r), side) > worst(row, side)) {
+      flush(row); row = [];
+    }
+    row.push(r);
+  }
+  if (row.length) flush(row);
+  return out;
+}
+
+/* Whether the fill at this price is light or dark, so the label can be the
+   opposite and stay readable. Perceived luminance, not "high price is dark":
+   the yellow in the middle of the scale is the lightest point on it, lighter
+   than either the green or the red end. */
+function heatIsLight(v, lo, hi){
+  if (!isFinite(v) || hi <= lo) return false;
+  const stops = [[12,122,79],[242,199,68],[217,119,6],[179,38,30]];
+  const x = Math.max(0, Math.min(1, (v-lo)/(hi-lo))) * (stops.length-1);
+  const i = Math.min(stops.length-2, Math.floor(x)), f = x - i;
+  const c = k => stops[i][k] + (stops[i+1][k]-stops[i][k])*f;
+  return 0.299*c(0) + 0.587*c(1) + 0.114*c(2) > 150;
+}
+
 function drawHoods(){
-  // The list is built from the whole city even when one neighbourhood is
-  // selected — narrowing it to the selection would leave a list of one.
-  // The selected row is highlighted instead.
+  // Built from the whole city even when one neighbourhood is selected —
+  // otherwise the treemap would be a single rectangle. The selected one is
+  // outlined instead.
   const keep = S.hood;
   S.hood = '';
-  let rows = hoodStats();
+  const rows = hoodStats();
   S.hood = keep;
 
-  const box = document.getElementById('hoodRows');
+  const box = document.getElementById('hoodTree');
   const foot = document.getElementById('hoodFoot');
 
   if (!rows.length) {
     box.innerHTML = '<div class="loading">با این فیلترها محله‌ای با آگهی کافی نمانده است.</div>';
+    box.style.height = '';
     foot.textContent = '';
     drawHoodBars([]);
     return;
   }
 
-  if (hoodSort === 'price')      rows.sort((a,b) => b.med - a.med);
-  else if (hoodSort === 'cheap') rows.sort((a,b) => a.med - b.med);
-  else                           rows.sort((a,b) => b.n - a.n);
+  const W = box.clientWidth || 640;
+  const H = W < 560 ? 440 : 520;
+  box.style.height = H + 'px';
 
   const meds = rows.map(r => r.med);
-  const top = Math.max(...meds), lo = Math.min(...meds), hi = top;
+  const lo = Math.min(...meds), hi = Math.max(...meds);
 
-  box.innerHTML = rows.map((r, i) => `
-    <div class="hrow${r.hood === S.hood ? ' on' : ''}" data-hood="${esc(r.hood)}"
-         title="${esc(r.hood)} — ${FA(r.n)} آگهی — ${confLevel(r.n).label}">
-      <span class="hnum">${FA(i+1)}</span>
-      <span class="hname"><span class="hnametext">${esc(r.hood)}</span>${
-        confLevel(r.n).cls === 'hi' ? '' : confBadge(r.n, true)}</span>
-      <span class="htrack"><span class="hfill" style="width:${
-        Math.max(3, r.med / top * 100).toFixed(1)}%;background:${
-        heat(r.med, lo, hi)}"></span></span>
-      <span class="hval" style="color:${heat(r.med, lo, hi)}">${FA1(r.med)}</span>
-      <span class="hcount">${FA(r.n)}</span>
-    </div>`).join('');
+  // Biggest first is what the algorithm needs; it also puts the busiest
+  // neighbourhoods in the top corner, which is where a reader starts.
+  const sorted = [...rows].sort((a, b) => b.n - a.n);
+  const cells = squarify(sorted.map(r => ({ v:r.n, r })), { x:0, y:0, w:W, h:H });
+
+  box.innerHTML = cells.map(c => {
+    const r = c.d.r;
+    const color = heat(r.med, lo, hi);
+    const ink = heatIsLight(r.med, lo, hi) ? '#1a1a1a' : '#fff';
+    const name = c.w >= 52 && c.h >= 24;
+    const val  = c.w >= 52 && c.h >= 40;
+    return `<div class="tcell${r.hood === S.hood ? ' on' : ''}" data-hood="${esc(r.hood)}"
+      title="${esc(r.hood)} — ${FA1(r.med)} میلیون/متر — ${FA(r.n)} آگهی — ${confLevel(r.n).label}"
+      style="right:${(c.x / W * 100).toFixed(3)}%;top:${c.y.toFixed(1)}px;
+             width:${(c.w / W * 100).toFixed(3)}%;height:${c.h.toFixed(1)}px;
+             background:${color};color:${ink}">
+      ${name ? `<span class="tname">${esc(r.hood)}</span>` : ''}
+      ${val ? `<span class="tval">${FA1(r.med)}</span>` : ''}
+    </div>`;
+  }).join('');
 
   box.querySelectorAll('[data-hood]').forEach(el =>
     el.addEventListener('click', () => {
@@ -424,17 +496,22 @@ function drawHoods(){
       commit();
     }));
 
-  foot.textContent = `${FA(rows.length)} محله در ${CITY.name} ` +
-    '· روی هر محله بزنید تا همه صفحه‌ها به آن محدود شوند.';
+  const unlabelled = cells.filter(c => c.w < 52 || c.h < 24).length;
+  foot.textContent =
+    `${FA(rows.length)} محله در ${CITY.name} · بزرگی هر خانه بر پایه تعداد آگهی آن است` +
+    (unlabelled ? ` · نام ${FA(unlabelled)} محله کوچک جا نشده — نشانگر را روی آن‌ها ببرید` : '') +
+    ' · روی هر محله بزنید تا همه صفحه‌ها به آن محدود شوند.';
 
   drawHoodBars(rows);
 }
 
-document.getElementById('hoodTabs').addEventListener('click', e => {
-  const b = e.target.closest('button'); if (!b) return;
-  hoodSort = b.dataset.sort;
-  document.querySelectorAll('#hoodTabs button').forEach(x => x.classList.toggle('on', x === b));
-  drawHoods();
+/* The layout is computed from the panel's measured width, so it has to be
+   recomputed when that width changes — otherwise the cells keep the aspect
+   ratios of the old window. Debounced because resize fires continuously. */
+let hoodResize = null;
+window.addEventListener('resize', () => {
+  clearTimeout(hoodResize);
+  hoodResize = setTimeout(() => { if (CITY && CITY.listings) drawHoods(); }, 180);
 });
 
 function drawHoodBars(rows){

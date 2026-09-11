@@ -315,18 +315,42 @@ tbody tr.provhead td{font-size:13px;padding:9px 14px;
   line-height:1.3;margin-top:3px}
 .kpi .u{font-size:11.5px;color:var(--muted)}
 
+/* -------------------------------------------------------------- treemap */
+/* Cells are absolutely positioned inside a measured box. Horizontal
+   position and width are percentages so the layout survives a font-size
+   change or a scrollbar appearing; the vertical ones stay in px because the
+   box has a fixed height. `right` rather than `left`: the page is RTL, and
+   the treemap should start where the reader's eye starts. */
+#hoodTree{position:relative;width:100%;overflow:hidden}
+.tcell{position:absolute;box-sizing:border-box;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;
+  gap:1px;padding:2px 4px;overflow:hidden;cursor:pointer;text-align:center;
+  border:1px solid var(--card);border-radius:3px;line-height:1.25;
+  transition:filter .12s}
+.tcell:hover{filter:brightness(1.12)}
+.tcell.on{outline:2px solid var(--ink);outline-offset:-2px;z-index:3}
+.tname{font-size:12px;font-weight:700;max-width:100%;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.tval{font-size:11px;opacity:.88;font-variant-numeric:tabular-nums}
+@media (max-width:640px){
+  .tname{font-size:11px}
+  .tval{font-size:10px}
+}
+
 /* ------------------------------------------------------------------ map */
 #map{height:420px;width:100%}
 #hoodMap{height:420px;width:100%}
-/* The price number that sits on each neighbourhood dot. Leaflet wraps a
-   divIcon in its own marker box with a default size/shadow; those are
-   switched off here so only the number itself shows, centred on the dot
-   it belongs to rather than offset to one side of it. */
-.hood-label{background:none!important;border:none!important;box-shadow:none!important}
-.hood-label span{display:block;transform:translate(-50%,-50%);
-  font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;
-  white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.35);
-  pointer-events:none}
+/* Tooltip on the price heat map. Leaflet's default is a white callout with
+   an arrow; both are switched off so the readout is one dark chip that does
+   not fight the colours underneath it. */
+.hexTip{font-family:inherit!important;font-size:12.5px;line-height:1.55;
+  direction:rtl;text-align:right;padding:7px 10px;border:0!important;
+  border-radius:9px;background:rgba(16,22,30,.93);color:#fff;
+  box-shadow:0 3px 10px rgba(0,0,0,.3);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.hexTip b{font-weight:800}
+.hexTip::before{display:none!important}
+#hoodMap .leaflet-interactive{cursor:pointer}
 .legend{display:flex;align-items:center;gap:10px;padding:11px 16px;
   font-size:12px;color:var(--muted);border-top:1px solid var(--rule)}
 .legend .bar{flex:1;height:8px;border-radius:99px;
