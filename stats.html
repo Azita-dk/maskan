@@ -22,6 +22,13 @@
   <div class="kpis" id="kpis"></div>
 
   <div class="panel">
+    <header><h3 id="hoodBarsTitle">مقایسه محله‌ها</h3></header>
+    <div class="chartbox"><div class="chart short"><canvas id="hoodBars"></canvas></div></div>
+    <p class="foot">میانه قیمت هر متر مربع در پرآگهی‌ترین محله‌های این شهر.
+      روی هر ستون بزنید تا همه صفحه‌ها به آن محله محدود شود.</p>
+  </div>
+
+  <div class="panel">
     <header><h3 id="trendTitle">روند قیمت</h3>
       <div class="tabs" id="trendTabs"></div></header>
     <div class="chartbox"><div class="chart">
@@ -61,14 +68,17 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="app.js"></script>
 <script>
-let trendChart=null, distChart=null, sizeChart=null, ageChart=null;
+let trendChart=null, distChart=null, sizeChart=null, ageChart=null, hoodBars=null;
 let period = 'all';
 
 function drawKpis(){
   const rows = activeListings();
   const vals = rows.map(l => l.m).filter(v => v > 0);
   const med = vals.length ? round1(median(vals)) : null;
-  const hist = (CITY.ours || []).filter(r => r.v > 0);
+  // build.js writes `ours` keyed by kind, so this is an object, not an
+  // array — calling .filter on it threw and took the whole page down with
+  // it, since drawKpis is the first thing bootPage runs.
+  const hist = historySeries();
   let change = '—', cls = '';
   if (hist.length > 1) {
     const a = hist[0], b = hist[hist.length-1];
@@ -300,8 +310,62 @@ function drawBreakdown(){
   ageChart  = paint('byAge',  ages,  ageChart);
 }
 
+/* Moved here from the home page. It needs the same per-neighbourhood
+   medians the home page builds, but hoodStats() lives over there, so the
+   rows are recomputed from the listings the same way cities.html does.
+   The five-listing floor matches the neighbourhood lists elsewhere. */
+function hoodRowsForBars(){
+  const keep = S.hood; S.hood = '';
+  const rows0 = activeListings(); S.hood = keep;
+  const g = {};
+  for (const l of rows0) if (l.h && l.m > 0) (g[l.h] ||= []).push(l.m);
+  return Object.entries(g)
+    .map(([hood, v]) => ({ hood, n: v.length, med: round1(median(v)) }))
+    .filter(r => r.n >= 5);
+}
+
+function drawHoodBars(){
+  const rows = hoodRowsForBars();
+  hoodBars && hoodBars.destroy();
+  const panel = document.getElementById('hoodBars').closest('.panel');
+  if (!rows.length) { panel.classList.add('hide'); return; }
+  panel.classList.remove('hide');
+  document.getElementById('hoodBarsTitle').textContent =
+    `مقایسه محله‌های ${CITY.name} — ${kindLabel()}`;
+  const top = [...rows].sort((a,b) => b.n - a.n).slice(0, 12)
+                       .sort((a,b) => b.med - a.med);
+  const meds = top.map(r => r.med);
+  const lo = Math.min(...meds), hi = Math.max(...meds);
+  hoodBars = new Chart(document.getElementById('hoodBars'), {
+    type:'bar',
+    data:{ labels: top.map(r => r.hood),
+      datasets:[{ data: meds, borderWidth:0, barPercentage:.8,
+        backgroundColor: top.map(r =>
+          r.hood === S.hood ? CSSVAR('--green') : heat(r.med, lo, hi)) }] },
+    options:{ maintainAspectRatio:false,
+      onClick: (e, hit) => {
+        if (!hit.length) return;
+        const h = top[hit[0].index].hood;
+        S.hood = S.hood === h ? '' : h;
+        fillHoodSelect(); commit();
+      },
+      plugins:{ legend:{display:false},
+        tooltip:{ rtl:true, displayColors:false,
+          bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
+          callbacks:{ label: c => FA1(meds[c.dataIndex]) + ' میلیون/متر — ' +
+                                  FA(top[c.dataIndex].n) + ' آگهی' } } },
+      scales:{ x:{ grid:{display:false},
+                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                          maxRotation:0} },
+               y:{ position:'right', grid:{color:CSSVAR('--rule')},
+                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                          callback:v=>FA(v)} } } }
+  });
+}
+
 bootPage('stats.html', () => {
   drawKpis();
+  drawHoodBars();
   drawTrendTabs();
   drawTrend();
   drawDist();

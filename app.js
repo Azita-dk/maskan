@@ -918,8 +918,16 @@ async function bootPage(currentFile, render){
   drawSummary();
   render();
 
+  /* APP_VERSION is typed by hand and goes stale the moment anyone forgets
+     to bump it — it read 7 September for days after the data had moved on.
+     A reader takes a date in the footer to mean "how fresh is this", which
+     is DB.generated: the moment the build worker last rebuilt the figures,
+     every ten minutes. The hardcoded version stays as the fallback for when
+     stats.json has not loaded. */
   const ver = document.getElementById('ver');
-  if (ver) ver.textContent = `نسخه ${faDate(APP_VERSION.split(' ')[0])}`;
+  if (ver) ver.textContent = (DB && DB.generated)
+    ? `آخرین به‌روزرسانی ${faDate(DB.generated.slice(0, 10))}`
+    : `نسخه ${faDate(APP_VERSION.split(' ')[0])}`;
 
   window.addEventListener('mk:theme', () => render());
   window.addEventListener('popstate', async () => {

@@ -76,7 +76,10 @@ bootPage('about.html', () => {
 
   const totalAds = DB.cities.reduce((s, c) => s + c.n, 0);
   const totalHoods = DB.cities.reduce((s, c) => s + (c.hoods || 0), 0);
-  const hist = (CITY.ours || []).filter(r => r.v > 0);
+  // `ours` is keyed by kind, not an array — see the same fix in stats.html
+  const ours = CITY.ours || {};
+  const series = Array.isArray(ours) ? ours : (ours[S.kind] || ours.apartment || []);
+  const hist = series.filter(r => r.v > 0);
   const days = hist.length > 1
     ? Math.round((new Date(hist[hist.length-1].d) - new Date(hist[0].d))/864e5) : 0;
 

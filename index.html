@@ -41,11 +41,6 @@
     </div>
 
     <div class="panel">
-      <header><h3>مقایسه محله‌ها</h3></header>
-      <div class="chartbox"><div class="chart short"><canvas id="hoodBars"></canvas></div></div>
-      <p class="foot">میانه قیمت هر متر مربع در پرآگهی‌ترین محله‌های این شهر.
-        روی هر ستون بزنید تا همه صفحه‌ها به آن محله محدود شود.</p>
-    </div>
   </section>
 
   <section>
@@ -134,7 +129,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="app.js"></script>
 <script>
-let hoodBars = null, allOpen = false;
+let allOpen = false;
 let trendChart = null, distChart = null, sizeChart = null, ageChart = null;
 let period = 'all';
 
@@ -406,7 +401,6 @@ function drawHoods(){
   if (!rows.length) {
     box.innerHTML = '<div class="loading">با این فیلترها محله‌ای با آگهی کافی نمانده است.</div>';
     foot.textContent = '';
-    drawHoodBars([]);
     return;
   }
 
@@ -442,7 +436,6 @@ function drawHoods(){
       hoodSort === 'count' ? 'پرآگهی‌ترین' : 'گران‌ترین') +
     ' · روی هر محله بزنید تا همه صفحه‌ها به آن محدود شوند.';
 
-  drawHoodBars(rows);
 }
 
 document.getElementById('hoodTabs').addEventListener('click', e => {
@@ -451,40 +444,6 @@ document.getElementById('hoodTabs').addEventListener('click', e => {
   document.querySelectorAll('#hoodTabs button').forEach(x => x.classList.toggle('on', x === b));
   drawHoods();
 });
-
-function drawHoodBars(rows){
-  hoodBars && hoodBars.destroy();
-  if (!rows.length) return;
-  const top = [...rows].sort((a,b) => b.n - a.n).slice(0, 12)
-                       .sort((a,b) => b.med - a.med);
-  const meds = top.map(r => r.med);
-  const lo = Math.min(...meds), hi = Math.max(...meds);
-  hoodBars = new Chart(document.getElementById('hoodBars'), {
-    type:'bar',
-    data:{ labels: top.map(r => r.hood),
-      datasets:[{ data: meds, borderWidth:0, barPercentage:.8,
-        backgroundColor: top.map(r =>
-          r.hood === S.hood ? CSSVAR('--green') : heat(r.med, lo, hi)) }] },
-    options:{ maintainAspectRatio:false,
-      onClick: (e, hit) => {
-        if (!hit.length) return;
-        const h = top[hit[0].index].hood;
-        S.hood = S.hood === h ? '' : h;
-        fillHoodSelect(); commit();
-      },
-      plugins:{ legend:{display:false},
-        tooltip:{ rtl:true, displayColors:false,
-          bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
-          callbacks:{ label: c => FA1(meds[c.dataIndex]) + ' میلیون/متر — ' +
-                                  FA(top[c.dataIndex].n) + ' آگهی' } } },
-      scales:{ x:{ grid:{display:false},
-                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
-                          maxRotation:0} },
-               y:{ position:'right', grid:{color:CSSVAR('--rule')},
-                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
-                          callback:v=>FA(v)} } } }
-  });
-}
 
 /* History is stored per kind. `ours` and `hood_hist` are objects keyed by
    apartment / villa / land, never one merged series — joining them would put
