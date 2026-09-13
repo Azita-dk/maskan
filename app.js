@@ -965,7 +965,28 @@ async function loadCity(id){
  * Everything a page needs before it can draw, in the right order.
  * A page calls this and then its own render; nothing else.
  */
+/* A refresh starts clean.
+ *
+ * The filters live in the query string, which is what lets a link carry a
+ * selection and what keeps it while moving between pages. A reload is a
+ * different intention: someone pressing refresh wants the page as it comes,
+ * not the state they were in. The Navigation Timing type tells the two
+ * apart, so links and in-site navigation keep working — only an actual
+ * reload wipes the query and falls back to the defaults. */
+function resetOnReload(){
+  let isReload = false;
+  try {
+    const nav = performance.getEntriesByType &&
+                performance.getEntriesByType('navigation')[0];
+    if (nav) isReload = nav.type === 'reload';
+    else if (performance.navigation) isReload = performance.navigation.type === 1;
+  } catch (e) { return; }            // unsupported: leave the URL alone
+  if (!isReload || !location.search) return;
+  history.replaceState(null, '', location.pathname);
+}
+
 async function bootPage(currentFile, render){
+  resetOnReload();
   readState();
   renderNav(currentFile);
   try {
