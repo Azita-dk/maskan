@@ -74,7 +74,8 @@ const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلی
 /* How far Divar's published point may sit from the real property. Their
    listings show an approximate area for the seller's privacy; 300 m is the
    figure the footnote under the map has always quoted. */
-const LOCATION_FUZZ_M = 350;
+const LOCATION_FUZZ_M = 400;
+const FUZZ_COLOR = '#D97706';
 let adsSort = 'new', shown = 60, solo = null;
 let map = null, layer = null, keepView = false;
 
@@ -174,9 +175,11 @@ function drawMap(){
   if (solo) {
     for (const l of (draw.length ? draw : pts)) {
       if (l.t !== solo) continue;
+      // one fixed orange, not the price colour: this ring means "the area",
+      // and reusing the scale made it read as another price reading
       soloCircle = L.circle([l.y, l.x], { radius: LOCATION_FUZZ_M,
-        color: heat(l.m, lo, hi), weight: 2, opacity: .65,
-        fillColor: heat(l.m, lo, hi), fillOpacity: .07,
+        color: FUZZ_COLOR, weight: 2, opacity: .8,
+        fillColor: FUZZ_COLOR, fillOpacity: .08,
         dashArray: '6 6' }).addTo(layer)
         .bindPopup(`<div style="min-width:180px">
           <b>${esc(l.n || l.h || '')}</b><br>
