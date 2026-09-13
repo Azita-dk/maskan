@@ -454,8 +454,16 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .menu a{padding:11px 0;border-bottom:1px solid var(--rule)}
   .menu a.on{border-bottom-color:var(--rule)}
   .burger{display:grid}
-  .filters{display:none;grid-template-columns:1fr 1fr;gap:12px 10px}
-  .filters.open{display:grid}
+  /* Where someone is looking is not an advanced filter.
+     Everything used to hide behind the فیلترها button on a phone, استان,
+     شهر and محله included — the three a reader needs before anything else
+     on the page means anything. They now stay out; only متراژ, اتاق and
+     سن بنا fold away. Most of the traffic here is a phone, so this is the
+     layout that matters. */
+  .filters{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px}
+  .filters label:nth-child(n+4){display:none}
+  .filters.open label:nth-child(n+4){display:block}
+  .filters label:nth-child(3){grid-column:1 / -1}
   .filterbtn{display:block}
   .grid4,.kpis{grid-template-columns:1fr 1fr}
   .trust{grid-template-columns:1fr}

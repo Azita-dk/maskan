@@ -594,7 +594,7 @@ function renderSearchBar(host){
 
       <div class="kindtabs" id="kindTabs"></div>
 
-      <button class="filterbtn" id="filterBtn">فیلترها</button>
+      <button class="filterbtn" id="filterBtn">فیلترهای بیشتر</button>
 
       <div class="filters" id="filters">
         <label><span>استان</span><select id="fProv"></select></label>
@@ -933,7 +933,10 @@ function drawSummary(){
   });
 
   const btn = document.getElementById('filterBtn');
-  if (btn) btn.innerHTML = fc ? `فیلترها <span class="n">${FA(fc)}</span>` : 'فیلترها';
+  // the label says what is behind the button now that the location filters
+  // are always visible on a phone
+  if (btn) btn.innerHTML = fc
+    ? `فیلترهای بیشتر <span class="n">${FA(fc)}</span>` : 'فیلترهای بیشتر';
 }
 
 /* Every page registers what to redraw; the search bar calls it. */
