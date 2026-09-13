@@ -563,6 +563,24 @@ function refreshNavLinks(){
 }
 
 /* ------------------------------------------------------- the search bar */
+/* Clearing the search means the state, the box in the filter bar and the box
+   on the map — they are three views of one value, and leaving any of them
+   behind shows a filter that is no longer applied, or applies one the reader
+   cannot see. */
+function clearQuery(){
+  S.q = '';
+  const q = document.getElementById('q');
+  if (q) q.value = '';
+  const mq = document.getElementById('mq');
+  if (mq) mq.value = '';
+  for (const id of ['qClear', 'mqClear']) {
+    const b = document.getElementById(id);
+    if (b) b.classList.add('hide');
+  }
+  const sugg = document.getElementById('sugg');
+  if (sugg) sugg.classList.add('hide');
+}
+
 function renderSearchBar(host){
   host.innerHTML = `
     <div class="searchbar">
@@ -625,11 +643,18 @@ function renderSearchBar(host){
       S.hood = '';
       await loadCity(S.city);
     }
+    /* The text search goes with the province, as it already does with the
+       city. A neighbourhood name is only meaningful inside one city: searching
+       سعیدیه in Hamadan and then switching to Tehran carried the word across
+       and returned nothing, which reads as "Tehran has no listings" rather
+       than "that filter no longer applies". */
+    clearQuery();
     fillCitySelect(); fillHoodSelect(); commit();
   });
 
   document.getElementById('fCity').addEventListener('change', async e => {
-    S.city = e.target.value; S.hood = ''; S.q = '';
+    S.city = e.target.value; S.hood = '';
+    clearQuery();
     await loadCity(S.city);
     fillHoodSelect();
     commit();
