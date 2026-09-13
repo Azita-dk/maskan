@@ -21,14 +21,6 @@
   <div id="searchHost"></div>
 
   <div class="panel">
-    <header><h3 id="mapTitle">نقشه قیمت</h3>
-      <button class="tabs" id="mapReset" style="display:none"></button></header>
-    <div id="map"></div>
-    <div class="legend"><span>کمترین قیمت</span><span class="bar"></span><span>بیشترین قیمت</span></div>
-    <p class="foot" id="mapNote"></p>
-  </div>
-
-  <div class="panel">
     <header><h3 id="adsTitle">آگهی‌ها</h3>
       <div class="tabs" id="adsTabs">
         <button data-sort="new" class="on">تازه‌ترین</button>
@@ -50,6 +42,21 @@
     <button class="more hide" id="adsMore"></button>
     <p class="foot">آگهی‌ها متعلق به دیوار، شیپور و کیلید است و با کلیک روی هر
       ردیف در همان سایت باز می‌شود. این سایت آگهی منتشر نمی‌کند.</p>
+  </div>
+
+  <div class="panel">
+    <header><h3 id="mapTitle">نقشه قیمت</h3>
+      <button class="tabs" id="mapReset" style="display:none"></button></header>
+    <div class="mapwrap">
+      <div id="map"></div>
+      <div class="mapsearch">
+        <input id="mq" type="search" autocomplete="off"
+               placeholder="جست‌وجوی محله، امکانات یا متن آگهی…">
+        <button id="mqClear" class="hide" aria-label="پاک کردن">✕</button>
+      </div>
+    </div>
+    <div class="legend"><span>کمترین قیمت</span><span class="bar"></span><span>بیشترین قیمت</span></div>
+    <p class="foot" id="mapNote"></p>
   </div>
 
 </main>
@@ -179,7 +186,36 @@ function drawMap(){
   map.fitBounds(L.latLngBounds(b).pad(.08), { maxZoom: solo ? 16 : 15 });
 }
 
-bootPage('ads.html', () => { shown = 60; drawAds(); drawMap(); });
+/* The search on the map is not a second search — it writes to the same S.q
+   the filter bar at the top uses, so the table, the map and every other page
+   stay in step. It exists because the box at the top of the page is far from
+   the map, and someone looking at the map wants to narrow it there. */
+const mq = document.getElementById('mq');
+let mqTimer = null;
+mq.addEventListener('input', () => {
+  document.getElementById('mqClear').classList.toggle('hide', !mq.value);
+  clearTimeout(mqTimer);
+  mqTimer = setTimeout(() => {
+    if (mq.value.trim() === S.q) return;
+    S.q = mq.value.trim(); solo = null; shown = 60; commit();
+  }, 280);
+});
+mq.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  clearTimeout(mqTimer);
+  S.q = mq.value.trim(); solo = null; shown = 60; commit();
+});
+document.getElementById('mqClear').addEventListener('click', () => {
+  mq.value = ''; S.q = ''; solo = null; shown = 60; commit(); mq.focus();
+});
+
+bootPage('ads.html', () => {
+  // commit() re-runs this, so keep the box in step with the filter — but
+  // never overwrite what someone is in the middle of typing.
+  if (document.activeElement !== mq) mq.value = S.q || '';
+  document.getElementById('mqClear').classList.toggle('hide', !mq.value);
+  shown = 60; drawAds(); drawMap();
+});
 </script>
 </body>
 </html>
