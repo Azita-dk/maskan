@@ -808,12 +808,31 @@ function provinceSummary(prov){
 function fillHoodSelect(){
   const sel = document.getElementById('fHood');
   if (!sel) return;
-  const rows = ((CITY && CITY.rows) || [])
-    .filter(r => (r.k || 'apartment') === S.kind && r.n >= 10)
+  /* Built from the listings, not from CITY.rows.
+     rows carries no property kind — build.js pushes the neighbourhoods of
+     every kind into one array — so a villa neighbourhood appeared in the
+     apartment list, and choosing it filtered to nothing. Counting the
+     listings of the kind in view fixes that and guarantees the option
+     matches: the same l.h string the filter compares against. */
+  const byHood = new Map();
+  for (const l of ((CITY && CITY.listings) || [])) {
+    if (!ofKind(l) || !l.h) continue;
+    if (!byHood.has(l.h)) byHood.set(l.h, []);
+    if (l.m > 0) byHood.get(l.h).push(l.m);
+  }
+  /* The price is the point of the list. A name on its own makes the reader
+     choose one, look at the figure, go back and choose another; with the
+     median beside it the comparison is the list itself. Median rather than
+     mean, as everywhere else on the site — one palace should not move a
+     neighbourhood. */
+  const rows = [...byHood.entries()]
+    .filter(([, v]) => v.length >= 10)
+    .map(([hood, v]) => ({ hood, n: v.length, med: round1(median(v)) }))
     .sort((a, b) => byFa(a.hood, b.hood));
   sel.innerHTML = '<option value="">همه محله‌ها</option>' +
-    rows.map(r => `<option value="${esc(r.hood)}">${esc(r.hood)}</option>`).join('');
-  // a neighbourhood from a different city cannot survive here
+    rows.map(r => `<option value="${esc(r.hood)}">${esc(r.hood)} — ${
+      FA1(r.med)} میلیون (${FA(r.n)} آگهی)</option>`).join('');
+  // a neighbourhood from another city, or another market, cannot survive here
   if (S.hood && !rows.some(r => r.hood === S.hood)) S.hood = '';
   sel.value = S.hood;
 }
