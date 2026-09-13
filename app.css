@@ -74,7 +74,7 @@ button{font:inherit;font-family:inherit;cursor:pointer}
 /* --------------------------------------------- the search, on every page */
 .searchbar{background:var(--card);border:1px solid var(--rule);border-radius:12px;
   box-shadow:var(--shadow);padding:14px;margin:18px 0}
-.search{position:relative}
+.search{position:relative;margin-top:12px}
 .search input{width:100%;height:50px;border-radius:10px;
   border:1px solid var(--rule);background:var(--paper);color:var(--ink);
   font:inherit;font-size:15.5px;
@@ -116,7 +116,7 @@ button{font:inherit;font-family:inherit;cursor:pointer}
 
 /* Three markets, always visible. A dropdown would hide the fact that the
    other two exist; these say so, and show how much data each holds. */
-.kindtabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.kindtabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .kindtabs button{border:1px solid var(--rule);background:var(--card);
   color:var(--ink);border-radius:10px;padding:9px 6px;font-size:14px;
   display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.35}

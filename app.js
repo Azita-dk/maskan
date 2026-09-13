@@ -584,6 +584,8 @@ function clearQuery(){
 function renderSearchBar(host){
   host.innerHTML = `
     <div class="searchbar">
+      <div class="kindtabs" id="kindTabs"></div>
+
       <div class="search">
         <span class="go">${ICONS.search}</span>
         <input id="q" type="search" autocomplete="off"
@@ -591,8 +593,6 @@ function renderSearchBar(host){
         <button class="clear hide" id="qClear" aria-label="پاک کردن">×</button>
         <div class="sugg hide" id="sugg"></div>
       </div>
-
-      <div class="kindtabs" id="kindTabs"></div>
 
       <button class="filterbtn" id="filterBtn">فیلترهای بیشتر</button>
 
