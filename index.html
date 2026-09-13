@@ -72,7 +72,9 @@
         <div><div class="chartlbl">میانه هر متر مربع بر پایه سن بنا</div>
           <div class="chart short"><canvas id="byAge"></canvas></div></div>
       </div></div>
-      <p class="foot">ستون‌های کم‌رنگ کمتر از ۲۰ آگهی دارند.</p>
+      <p class="foot">ستون‌های کم‌رنگ کمتر از ۲۰ آگهی دارند و تعداد آگهی زیر هر
+        ستون نوشته شده است. این نمودار فقط می‌گوید در همین انتخاب قیمت هر متر در
+        هر بازه چقدر بوده است، نه اینکه چرا.</p>
     </div>
   </section>
 
@@ -665,7 +667,9 @@ function drawBreakdown(){
     const lo = Math.min(...meds), hi = Math.max(...meds);
     return new Chart(document.getElementById(id), {
       type:'bar',
-      data:{ labels: rows.map(r => r.label),
+      // the sample size goes on the axis, not only in the tooltip: a band of
+      // six listings and one of six hundred otherwise look identical
+      data:{ labels: rows.map(r => [r.label, FA(r.n) + ' آگهی']),
         datasets:[{ data:meds, borderWidth:0, barPercentage:.78,
           backgroundColor: rows.map(r =>
             r.n < 20 ? CSSVAR('--rule') : heat(r.med, lo, hi)) }] },
