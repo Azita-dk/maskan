@@ -638,9 +638,14 @@ function renderSearchBar(host){
     S.prov = e.target.value;
     // a city outside the chosen province cannot stay selected
     const inProv = DB.cities.filter(c => !S.prov || provinceOf(c.name) === S.prov);
+    /* The neighbourhood goes whenever the province does, not only when the
+       city happens to change with it. It was cleared inside the branch below,
+       so choosing a province whose first city was already selected left the
+       old neighbourhood in the state and in the URL — the page then filtered
+       by a neighbourhood the dropdown no longer showed. */
+    S.hood = '';
     if (inProv.length && !inProv.some(c => c.id === S.city)) {
       S.city = inProv.sort((a,b) => b.n - a.n)[0].id;
-      S.hood = '';
       await loadCity(S.city);
     }
     /* The text search goes with the province, as it already does with the
@@ -732,6 +737,10 @@ function fillKindSelect(){
     b.addEventListener('click', () => {
       if (b.disabled || b.dataset.k === S.kind) return;
       S.kind = b.dataset.k;
+    // neighbourhoods are listed per kind, so one chosen under آپارتمان may
+    // not exist under خانه و ویلا; fillHoodSelect would drop it silently and
+    // the URL would keep it
+    S.hood = '';
       // rooms and building age describe a building, not a plot
       if (S.kind === 'land') { S.rooms = 'all'; S.age = '999'; }
       for (const [id, key] of [['fRooms','rooms'],['fAge','age']]) {

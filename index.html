@@ -82,7 +82,14 @@
   <div class="panel">
     <header><h3 id="mapTitle">نقشه قیمت</h3>
       <button class="tabs" id="mapReset" style="display:none"></button></header>
-    <div id="map"></div>
+    <div class="mapwrap">
+      <div id="map"></div>
+      <div class="mapsearch">
+        <input id="mq" type="search" autocomplete="off"
+               placeholder="جست‌وجوی محله، امکانات یا متن آگهی…">
+        <button id="mqClear" class="hide" aria-label="پاک کردن">✕</button>
+      </div>
+    </div>
     <div class="legend"><span>کمترین قیمت</span><span class="bar"></span><span>بیشترین قیمت</span></div>
     <p class="foot" id="mapNote"></p>
   </div>
@@ -783,7 +790,32 @@ function drawNext(){
     </a>`).join('');
 }
 
+/* The same search the ads page has over its map. Both write to S.q — the
+   one value the filter bar, the table and every other page already read —
+   so the two boxes and the bar stay in step instead of being three searches. */
+const mq = document.getElementById('mq');
+let mqTimer = null;
+mq.addEventListener('input', () => {
+  document.getElementById('mqClear').classList.toggle('hide', !mq.value);
+  clearTimeout(mqTimer);
+  mqTimer = setTimeout(() => {
+    if (mq.value.trim() === S.q) return;
+    S.q = mq.value.trim(); commit();
+  }, 280);
+});
+mq.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  clearTimeout(mqTimer);
+  S.q = mq.value.trim(); commit();
+});
+document.getElementById('mqClear').addEventListener('click', () => {
+  clearQuery(); commit(); mq.focus();
+});
+
 bootPage('index.html', () => {
+  // never overwrite what someone is part-way through typing
+  if (document.activeElement !== mq) mq.value = S.q || '';
+  document.getElementById('mqClear').classList.toggle('hide', !mq.value);
   document.getElementById('areaHead').textContent =
     (S.hood ? `${S.hood}، ${CITY.name}` : `${CITY.name} و محله‌هایش`)
     + ` — ${kindLabel()}`;
