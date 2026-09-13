@@ -71,6 +71,10 @@
 <script src="app.js"></script>
 <script>
 const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };
+/* How far Divar's published point may sit from the real property. Their
+   listings show an approximate area for the seller's privacy; 300 m is the
+   figure the footnote under the map has always quoted. */
+const LOCATION_FUZZ_M = 300;
 let adsSort = 'new', shown = 60, solo = null;
 let map = null, layer = null, keepView = false;
 
@@ -158,9 +162,29 @@ function drawMap(){
   const vals = pts.map(l => l.m).sort((a,b) => a-b);
   const lo = vals[Math.floor(vals.length*.05)], hi = vals[Math.floor(vals.length*.95)];
 
+  /* One listing selected: an area, not a point.
+   *
+   * Divar publishes a deliberately approximate location — the footnote under
+   * this map has always said so — and a sharp dot claims a precision the
+   * data does not have. L.circle takes its radius in metres rather than
+   * pixels, so this stays 300 m of real ground at every zoom: it grows as
+   * you zoom in, which is the honest behaviour. Browsing still shows small
+   * dots, because a hundred overlapping circles show nothing at all. */
+  if (solo) {
+    for (const l of (draw.length ? draw : pts)) {
+      if (l.t !== solo) continue;
+      L.circle([l.y, l.x], { radius: LOCATION_FUZZ_M,
+        color: heat(l.m, lo, hi), weight: 2, opacity: .9,
+        fillColor: heat(l.m, lo, hi), fillOpacity: .18,
+        dashArray: '5 5' }).addTo(layer)
+        .bindTooltip('موقعیت تقریبی — جایی در این محدوده',
+                     { direction:'top', className:'hexTip' });
+    }
+  }
+
   (draw.length ? draw : pts).slice(0, 1500).forEach(l => {
     const mk = L.circleMarker([l.y, l.x], {
-      radius: solo ? 10 : 6, weight: solo ? 3 : 1,
+      radius: solo ? 7 : 6, weight: solo ? 3 : 1,
       color: solo ? CSSVAR('--ink') : '#fff', opacity:.9,
       fillColor: heat(l.m, lo, hi), fillOpacity:.85 });
     mk.bindPopup(`<div style="min-width:180px">
@@ -177,7 +201,8 @@ function drawMap(){
   });
 
   note.textContent = solo
-    ? 'همان آگهی‌ای که انتخاب کردید — برای دیدن بقیه دکمه بالای جدول را بزنید.'
+    ? 'دایره، محدوده تقریبی همین آگهی است — دیوار موقعیت دقیق را منتشر نمی‌کند. ' +
+      'برای دیدن بقیه دکمه بالای جدول را بزنید.'
     : `${FA(pts.length)} آگهی روی نقشه از ${FA(activeListings().length)} آگهی این انتخاب. ` +
       'موقعیت‌ها تقریبی است و ممکن است تا چند صد متر با محل واقعی فاصله داشته باشد.';
 
