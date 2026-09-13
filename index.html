@@ -411,6 +411,34 @@ function drawHoods(){
     return;
   }
 
+  /* With a neighbourhood chosen the grid narrows to it, so the panel shows
+     the same selection as everything else on the page rather than contradicting
+     it. The way back out has to stay visible, hence the button in the footer —
+     otherwise the only escape is the dropdown at the top. */
+  const picked = S.hood ? rows.filter(r => r.hood === S.hood) : rows;
+  if (S.hood && picked.length) {
+    const r = picked[0];
+    const color = heat(r.med, Math.min(...rows.map(x => x.med)),
+                              Math.max(...rows.map(x => x.med)));
+    const ink = heatIsLight(r.med, Math.min(...rows.map(x => x.med)),
+                                   Math.max(...rows.map(x => x.med))) ? '#1a1a1a' : '#fff';
+    box.innerHTML = `<div class="gcell on" data-hood="${esc(r.hood)}"
+      style="background:${color};color:${ink}">
+      <div class="grow"><span class="gname">${esc(r.hood)}</span></div>
+      <div class="grow"><span class="gval">${FA1(r.med)}</span>
+        <span class="gcount">${FA(r.n)} آگهی</span></div>
+    </div>`;
+    box.querySelector('[data-hood]').addEventListener('click', () => {
+      S.hood = ''; fillHoodSelect(); commit();
+    });
+    foot.innerHTML = `تنها محله انتخاب‌شده نشان داده می‌شود — ` +
+      `<button class="reset" id="allHoods">نمایش همه ${FA(rows.length)} محله</button>`;
+    document.getElementById('allHoods').addEventListener('click', () => {
+      S.hood = ''; fillHoodSelect(); commit();
+    });
+    return;
+  }
+
   if (hoodSort === 'price')      rows.sort((a, b) => b.med - a.med);
   else if (hoodSort === 'cheap') rows.sort((a, b) => a.med - b.med);
   else                           rows.sort((a, b) => b.n - a.n);
