@@ -131,7 +131,11 @@ button{font:inherit;font-family:inherit;cursor:pointer}
   color:#fff;font-weight:700}
 .kindtabs button.on .c{color:rgba(255,255,255,.8)}
 .kindtabs button:disabled{opacity:.45;cursor:not-allowed}
-@media (max-width:380px){ .kindtabs button{font-size:13px;padding:8px 4px} }
+@media (max-width:380px){
+  .kindtabs button{font-size:12.5px;padding:8px 3px}
+  .kindtabs button .c{font-size:11px}
+  .kindtabs button .c2{font-size:9.5px}
+}
 
 .filterbtn{display:none;width:100%;height:44px;border:1px solid var(--rule);
   border-radius:10px;background:var(--card);color:var(--ink);margin-top:12px}
@@ -342,11 +346,12 @@ tbody tr.provhead td{font-size:13px;padding:9px 14px;
 .grank{font-size:11px;opacity:.72;font-variant-numeric:tabular-nums;flex:none}
 .gval{font-size:15.5px;font-weight:800;font-variant-numeric:tabular-nums}
 .gcount{font-size:11px;opacity:.85;flex:none}
-@media (max-width:640px){
-  #hoodGrid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr));
-    gap:7px;padding:12px;max-height:420px}
-  .gname{font-size:12px}
-  .gval{font-size:14px}
+@media (max-width:720px){
+  #hoodGrid{grid-template-columns:repeat(auto-fill,minmax(136px,1fr));
+    gap:7px;padding:12px;max-height:60vh}
+  .gcell{min-height:62px;padding:9px 10px}
+  .gname{font-size:12.5px}
+  .gval{font-size:14.5px}
 }
 
 /* ------------------------------------------------- search over the map */
@@ -369,10 +374,11 @@ tbody tr.provhead td{font-size:13px;padding:9px 14px;
   box-shadow:0 2px 10px rgba(0,0,0,.14)}
 /* the zoom control is pushed below the search rather than fighting it */
 .mapwrap .leaflet-top.leaflet-left{margin-top:52px}
-@media (max-width:640px){
+@media (max-width:720px){
   .mapsearch{top:8px;right:8px;left:8px}
-  .mapsearch input{font-size:13px;padding:8px 10px}
-  .mapwrap .leaflet-top.leaflet-left{margin-top:48px}
+  /* 16px keeps iOS from zooming the page when the field is focused */
+  .mapsearch input{font-size:16px;padding:10px 12px}
+  .mapwrap .leaflet-top.leaflet-left{margin-top:52px}
 }
 
 /* ------------------------------------------------------------------ map */
@@ -448,13 +454,16 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .menu a{padding:11px 0;border-bottom:1px solid var(--rule)}
   .menu a.on{border-bottom-color:var(--rule)}
   .burger{display:grid}
-  .filters{display:none;grid-template-columns:1fr 1fr}
+  .filters{display:none;grid-template-columns:1fr 1fr;gap:12px 10px}
   .filters.open{display:grid}
   .filterbtn{display:block}
   .grid4,.kpis{grid-template-columns:1fr 1fr}
   .trust{grid-template-columns:1fr}
-  #map{height:300px}
-  #hoodMap{height:300px}
+  /* The search box sits over the top of the map, so 300px left very little
+     map. Touch targets go to 40px+ as well: 5px of padding is a 24px button,
+     which is below what a thumb reliably hits. */
+  #map{height:360px}
+  #hoodMap{height:340px}
   .chart{height:240px}
   .chart.short{height:200px}
   .callout{inset-inline-start:8px;top:8px;padding:6px 9px}
@@ -462,10 +471,21 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .callout .d{font-size:10.5px}
   .panel > header{padding:12px 14px;gap:8px}
   .panel h3{font-size:15px}
-  .tabs button{padding:5px 9px;font-size:12px}
+  .tabs button{padding:9px 12px;font-size:12.5px;min-height:38px}
   .shead{margin:20px 0 12px}
   .shead h2{font-size:18px}
   .statrow{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:720px){
+  /* 16px again for iOS, and a taller control so the whole row is tappable
+     rather than just the arrow. */
+  .filters select{height:44px;font-size:16px}
+  .filters span{font-size:12px}
+  .filterbtn{min-height:40px}
+  .kindtabs{gap:6px}
+  .kindtabs button{padding:10px 4px;min-height:56px}
+  .kindtabs button .c2{font-size:10px}
+  .reset,.more{min-height:38px}
 }
 @media (max-width:480px){
   .grid4,.kpis{grid-template-columns:1fr}
