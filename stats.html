@@ -42,7 +42,9 @@
     <div class="chartbox"><div class="chart short"><canvas id="dist"></canvas></div></div>
     <div class="statrow" id="distStats"></div>
     <p class="foot">چند آگهی در هر بازه قیمتی قرار می‌گیرد. منحنی، توزیع نرمالِ
-      هم‌میانگین است تا کجی توزیع دیده شود.</p>
+      هم‌میانگین است تا کجی توزیع دیده شود. دو درصد ارزان‌ترین و دو درصد
+      گران‌ترین آگهی‌ها در این نمودار نمی‌آیند تا یک آگهی پرت شکل توزیع را
+      به هم نریزد؛ بنابراین صدک ۹۸ از گران‌ترین آگهی جدول پایین‌تر است.</p>
   </div>
 
   <div class="panel">
@@ -258,8 +260,13 @@ function drawDist(){
   });
 
   document.getElementById('distStats').innerHTML = [
-    ['کمترین', q(.02)], ['چارک اول', q(.25)], ['میانه', med],
-    ['چارک سوم', q(.75)], ['بیشترین', q(.98)],
+    // Not کمترین and بیشترین: the chart trims the outer 2% at each end so a
+    // single absurd listing cannot stretch the distribution, so these are the
+    // 2nd and 98th percentiles. Labelling them as the extremes made the page
+    // contradict the ads table, which shows the real maximum — Hamadan read
+    // 300 here and 419.9 there, and both were right.
+    ['صدک ۲', q(.02)], ['چارک اول', q(.25)], ['میانه', med],
+    ['چارک سوم', q(.75)], ['صدک ۹۸', q(.98)],
   ].map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${FA1(round1(v))}</div></div>`).join('');
 }
 

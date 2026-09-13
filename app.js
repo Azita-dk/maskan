@@ -682,12 +682,26 @@ function fillCitySelect(){
 function fillKindSelect(){
   const box = document.getElementById('kindTabs');
   if (!box) return;
+  /* The big number is the country, the small one is the city in view.
+     The city count alone made a tab look empty when a market simply has not
+     been collected in that city yet — خانه و ویلا reads as "there are no
+     villas" rather than "none here, thousands elsewhere". stats.json already
+     carries byKind for every city, so the national figure is a sum, not a
+     new fetch. A tab is only disabled when the whole country has none. */
+  const national = (kindId) => (DB && DB.cities || [])
+    .reduce((sum, c) => sum + (((c.byKind || {})[kindId] || {}).n || 0), 0);
+
   box.innerHTML = KINDS.map(k => {
-    const n = ((CITY && CITY.listings) || [])
+    const here = ((CITY && CITY.listings) || [])
       .filter(l => (l.k || 'apartment') === k.id).length;
+    const all = national(k.id);
     return `<button data-k="${k.id}"${k.id === S.kind ? ' class="on"' : ''}
-      ${n ? '' : ' disabled title="برای این شهر هنوز جمع‌آوری نشده"'}>
-      ${k.label}<span class="c">${n ? FA(n) : '—'}</span></button>`;
+      ${all ? '' : ' disabled title="این بازار هنوز جمع‌آوری نشده"'}
+      title="${all ? FA(all) + ' آگهی در کل کشور، ' + FA(here) + ' در ' +
+              esc((CITY && CITY.name) || '') : ''}">
+      ${k.label}<span class="c">${all ? FA(all) : '—'}</span>
+      <span class="c2">${all ? (here ? FA(here) + ' در این شهر'
+                                     : 'در این شهر نیست') : ''}</span></button>`;
   }).join('');
   box.querySelectorAll('button').forEach(b =>
     b.addEventListener('click', () => {
