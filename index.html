@@ -787,19 +787,29 @@ function drawMap(){
    * pixels, so this stays 300 m of real ground at every zoom: it grows as
    * you zoom in, which is the honest behaviour. Browsing still shows small
    * dots, because a hundred overlapping circles show nothing at all. */
+  let soloCircle = null;
   if (solo) {
     for (const l of (draw.length ? draw : pts)) {
       if (l.t !== solo) continue;
-      L.circle([l.y, l.x], { radius: LOCATION_FUZZ_M,
+      soloCircle = L.circle([l.y, l.x], { radius: LOCATION_FUZZ_M,
         color: heat(l.m, lo, hi), weight: 2, opacity: .65,
         fillColor: heat(l.m, lo, hi), fillOpacity: .07,
         dashArray: '6 6' }).addTo(layer)
-        .bindTooltip('موقعیت تقریبی — جایی در این محدوده',
-                     { direction:'top', className:'hexTip' });
+        .bindPopup(`<div style="min-width:180px">
+          <b>${esc(l.n || l.h || '')}</b><br>
+          <span style="color:#5A6472">${esc(l.h || '')}</span><br>
+          ${FA1(l.m)} میلیون تومان بر متر مربع${l.a ? ' · ' + FA(l.a) + ' متر' : ''}
+          ${l.p ? '<br>قیمت کل: ' + FA1(l.p/1000) + ' میلیارد تومان' : ''}
+          <br><span style="color:#5A6472;font-size:12px">موقعیت تقریبی — جایی در این محدوده</span>
+          ${l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener"
+            style="color:${CSSVAR('--green')};font-weight:700">دیدن آگهی ↗</a>` : ''}</div>`);
     }
   }
 
-  (draw.length ? draw : pts).slice(0, 1500).forEach(l => {
+  /* With one listing selected the circle is the whole answer — a dot in the
+     middle of it points at a spot Divar never published, which is the thing
+     the circle exists to avoid claiming. */
+  (solo ? [] : pts).slice(0, 1500).forEach(l => {
     const mk = L.circleMarker([l.y, l.x], {
       radius: solo ? 7 : 6, weight: solo ? 3 : 1,
       color: solo ? CSSVAR('--ink') : '#fff', opacity:.9,
@@ -824,8 +834,14 @@ function drawMap(){
       'موقعیت‌ها تقریبی است و ممکن است تا چند صد متر با محل واقعی فاصله داشته باشد.';
 
   if (keepView) { keepView = false; return; }
+  // frame the circle, not the point inside it — at zoom 16 a 600 m circle is
+  // wider than the map and the reader sees an arc with no context
+  if (soloCircle) {
+    map.fitBounds(soloCircle.getBounds().pad(.25), { maxZoom: 16 });
+    return;
+  }
   const b = (draw.length ? draw : pts).slice(0, 1500).map(l => [l.y, l.x]);
-  map.fitBounds(L.latLngBounds(b).pad(.08), { maxZoom: solo ? 16 : 15 });
+  map.fitBounds(L.latLngBounds(b).pad(.08), { maxZoom: 15 });
 }
 
 function drawNext(){
@@ -846,8 +862,14 @@ function drawNext(){
 /* The same search the ads page has over its map. Both write to S.q — the
    one value the filter bar, the table and every other page already read —
    so the two boxes and the bar stay in step instead of being three searches. */
+/* Guarded: if this element is missing — an older copy of the page, a
+   half-finished deploy — an unguarded addEventListener throws here, at the
+   top of the script, and takes bootPage down with it. The whole page then
+   renders nothing at all, filter bar included, and the cause looks like
+   "the filters disappeared" rather than "one element is absent". */
 const mq = document.getElementById('mq');
 let mqTimer = null;
+if (mq) {
 mq.addEventListener('input', () => {
   document.getElementById('mqClear').classList.toggle('hide', !mq.value);
   clearTimeout(mqTimer);
@@ -861,14 +883,17 @@ mq.addEventListener('keydown', e => {
   clearTimeout(mqTimer);
   S.q = mq.value.trim(); commit();
 });
-document.getElementById('mqClear').addEventListener('click', () => {
+const mqc = document.getElementById('mqClear');
+if (mqc) mqc.addEventListener('click', () => {
   clearQuery(); commit(); mq.focus();
 });
 
+}
+
 bootPage('index.html', () => {
   // never overwrite what someone is part-way through typing
-  if (document.activeElement !== mq) mq.value = S.q || '';
-  document.getElementById('mqClear').classList.toggle('hide', !mq.value);
+  if (mq && document.activeElement !== mq) mq.value = S.q || '';
+  if (mq) document.getElementById('mqClear').classList.toggle('hide', !mq.value);
   document.getElementById('areaHead').textContent =
     (S.hood ? `${S.hood}، ${CITY.name}` : `${CITY.name} و محله‌هایش`)
     + ` — ${kindLabel()}`;
