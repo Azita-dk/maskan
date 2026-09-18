@@ -1,0 +1,30 @@
+name = "maskan-enrich"
+main = "enrich.js"
+compatibility_date = "2026-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "maskan"
+database_id = "eeb8ef9c-6572-4107-9a3e-f105c6556449"
+
+[[kv_namespaces]]
+binding = "SITE"
+id = "435ef92702274deea775331b1dceffb0"
+
+[observability]
+enabled = true
+
+# One worker. Three shards existed only to get three 10 ms CPU budgets on
+# the free plan; on paid one worker has 30 s, and sharding costs about three
+# times the D1 reads because each shard scans rows belonging to the others.
+#
+# PER_RUN — listings enriched per invocation.
+# FREE PLAN VALUE: "15", with SHARDS = "3" and two more workers
+# (maskan-enrich-b SHARD "1", maskan-enrich-c SHARD "2").
+[vars]
+SHARDS = "1"
+SHARD = "0"
+PER_RUN = "300"
+
+[triggers]
+crons = ["* * * * *"]

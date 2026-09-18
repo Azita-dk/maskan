@@ -1,0 +1,24 @@
+name = "maskan-scrape"
+main = "scrape.js"
+compatibility_date = "2026-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "maskan"
+database_id = "eeb8ef9c-6572-4107-9a3e-f105c6556449"
+
+[[kv_namespaces]]
+binding = "SITE"
+id = "435ef92702274deea775331b1dceffb0"
+
+[observability]
+enabled = true
+
+# PAGES_PER_RUN — pages of Divar results fetched per invocation.
+# FREE PLAN VALUE: "40"   (50 outbound subrequests per invocation)
+# PAID: 1000 subrequests, so a city can finish in one run instead of five.
+[vars]
+PAGES_PER_RUN = "300"
+
+[triggers]
+crons = ["0 * * * *"]

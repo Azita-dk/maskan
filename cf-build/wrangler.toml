@@ -1,0 +1,25 @@
+name = "maskan-build"
+main = "build.js"
+compatibility_date = "2026-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "maskan"
+database_id = "eeb8ef9c-6572-4107-9a3e-f105c6556449"
+
+[[kv_namespaces]]
+binding = "SITE"
+id = "435ef92702274deea775331b1dceffb0"
+
+[observability]
+enabled = true
+
+# SLICE — cities rebuilt per invocation.
+# FREE PLAN VALUE: "8"    (10 ms CPU; all 48 at once used to fail)
+# PAID: 30 s CPU, so the whole country rebuilds in one tick and the site
+# is never more than ten minutes behind.
+[vars]
+SLICE = "48"
+
+[triggers]
+crons = ["*/10 * * * *"]

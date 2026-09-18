@@ -1,0 +1,522 @@
+/* One stylesheet for every page. Five copies of this would drift apart
+   within a week; one cannot. */
+
+:root{
+  --paper:#EFF2F5;
+  --card:#FFFFFF;
+  --ink:#0F1419;
+  --muted:#5A6472;
+  --rule:#DBE0E6;
+
+  --green:#0C7A4F;       /* primary — text, links, values */
+  --green-mid:#12A06B;   /* lines and fills, never text */
+  --green-pale:#E4F4EC;
+
+  --rise:#B3261E;        /* a price rise is bad news for a buyer */
+  --fall:#0C7A4F;
+  --amber:#8A5A00;
+  --shadow:0 1px 2px rgba(15,20,25,.04), 0 6px 20px rgba(15,20,25,.06);
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme=light]){
+    --paper:#0E1417; --card:#161D21; --ink:#E7EDEA; --muted:#97A4A1;
+    --rule:#26312F; --green:#4BC48D; --green-mid:#2FA872; --green-pale:#122A20;
+    --rise:#E4867F; --fall:#4BC48D; --amber:#E0B463;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme=dark]{
+  --paper:#0E1417; --card:#161D21; --ink:#E7EDEA; --muted:#97A4A1;
+  --rule:#26312F; --green:#4BC48D; --green-mid:#2FA872; --green-pale:#122A20;
+  --rise:#E4867F; --fall:#4BC48D; --amber:#E0B463;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.3);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);
+  font-family:Vazirmatn,system-ui,sans-serif;font-size:15px;line-height:1.75;
+  -webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+button{font:inherit;font-family:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.hide{display:none!important}
+.muted{color:var(--muted)}
+.up{color:var(--rise)} .down{color:var(--fall)}
+
+/* ---------------------------------------------------------------- nav */
+.nav{background:var(--card);border-bottom:1px solid var(--rule);
+  position:sticky;top:0;z-index:600}
+.nav .wrap{display:flex;align-items:center;gap:22px;height:64px}
+.brand{display:flex;align-items:center;gap:10px;margin-inline-end:auto}
+.brand .mark{width:36px;height:36px;flex:0 0 auto}
+.brand b{font-size:17px;font-weight:800;display:block;line-height:1.25}
+.brand small{font-size:11px;color:var(--muted);display:block;line-height:1.2}
+.menu{display:flex;gap:20px;font-size:14px}
+.menu a{padding:21px 0;border-bottom:2px solid transparent;color:var(--muted)}
+.menu a.on{color:var(--green);border-bottom-color:var(--green);font-weight:700}
+.menu a:hover{color:var(--ink)}
+.iconbtn{width:38px;height:38px;border-radius:10px;border:1px solid var(--rule);
+  background:var(--card);color:var(--muted);display:grid;place-items:center}
+.iconbtn:hover{border-color:var(--green);color:var(--green)}
+.iconbtn svg{width:20px;height:20px}
+.burger{display:none}
+
+/* ------------------------------------------------------- page heading */
+.phead{padding:30px 0 4px}
+.phead h1{font-size:27px;font-weight:800;margin:0 0 4px;letter-spacing:-.4px}
+.phead p{margin:0;color:var(--muted);font-size:14px}
+
+/* --------------------------------------------- the search, on every page */
+.searchbar{background:var(--card);border:1px solid var(--rule);border-radius:12px;
+  box-shadow:var(--shadow);padding:14px;margin:18px 0}
+.search{position:relative;margin-top:12px}
+.search input{width:100%;height:50px;border-radius:10px;
+  border:1px solid var(--rule);background:var(--paper);color:var(--ink);
+  font:inherit;font-size:15.5px;
+  /* logical properties, so the icon and the text cannot collide in RTL */
+  padding-inline-start:48px;padding-inline-end:16px}
+.search input:focus{border-color:var(--green);outline:0;background:var(--card);
+  box-shadow:0 0 0 3px var(--green-pale)}
+.search .go{position:absolute;inset-inline-start:6px;top:6px;
+  width:38px;height:38px;border-radius:8px;border:0;background:transparent;
+  color:var(--muted);display:grid;place-items:center;pointer-events:none}
+.search .go svg{width:20px;height:20px}
+.search .clear{position:absolute;inset-inline-end:8px;top:11px;width:28px;height:28px;
+  border-radius:50%;border:0;background:var(--rule);color:var(--ink);
+  display:grid;place-items:center;font-size:15px;line-height:1}
+
+.sugg{position:absolute;top:56px;inset-inline:0;background:var(--card);
+  border:1px solid var(--rule);border-radius:10px;box-shadow:var(--shadow);
+  overflow:hidden;max-height:330px;overflow-y:auto;z-index:80}
+.sugg .row{display:flex;justify-content:space-between;gap:12px;
+  padding:10px 15px;cursor:pointer;font-size:14px}
+.sugg .row:hover,.sugg .row.on{background:var(--green-pale)}
+.sugg .row .meta{color:var(--muted);font-size:12.5px}
+.sugg .head{padding:7px 15px;font-size:12px;color:var(--muted);
+  background:var(--paper);border-block:1px solid var(--rule)}
+
+.filters{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:12px}
+.filters label{display:block}
+.filters span{display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px}
+.filters select{width:100%;height:38px;padding:0 8px;font:inherit;font-size:14px;
+  background:var(--card);border:1px solid var(--rule);border-radius:8px;color:var(--ink)}
+.filters select:focus{border-color:var(--green);outline:0}
+
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+.chips button{border:1px solid var(--rule);background:var(--card);color:var(--muted);
+  border-radius:99px;padding:5px 13px;font-size:13.5px}
+.chips button:hover{border-color:var(--green);color:var(--ink)}
+.chips button.on{background:var(--green);border-color:var(--green);color:#fff;font-weight:700}
+.chips button .c{opacity:.7;font-size:11.5px;margin-inline-start:5px}
+
+/* Three markets, always visible. A dropdown would hide the fact that the
+   other two exist; these say so, and show how much data each holds. */
+.kindtabs{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kindtabs button{border:1px solid var(--rule);background:var(--card);
+  color:var(--ink);border-radius:10px;padding:9px 6px;font-size:14px;
+  display:flex;flex-direction:column;align-items:center;gap:2px;line-height:1.35}
+/* Second line: the count for the city in view, under the national one. */
+.kindtabs button .c2{font-size:10.5px;color:var(--muted);opacity:.8;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.kindtabs button.on .c2{color:inherit;opacity:.75}
+.kindtabs button .c{font-size:11.5px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.kindtabs button:hover:not(:disabled){border-color:var(--green)}
+.kindtabs button.on{background:var(--green);border-color:var(--green);
+  color:#fff;font-weight:700}
+.kindtabs button.on .c{color:rgba(255,255,255,.8)}
+.kindtabs button:disabled{opacity:.45;cursor:not-allowed}
+@media (max-width:380px){
+  .kindtabs button{font-size:12.5px;padding:8px 3px}
+  .kindtabs button .c{font-size:11px}
+  .kindtabs button .c2{font-size:9.5px}
+}
+
+.filterbtn{display:none;width:100%;height:44px;border:1px solid var(--rule);
+  border-radius:10px;background:var(--card);color:var(--ink);margin-top:12px}
+.filterbtn .n{color:var(--green);font-weight:800}
+
+.summary{display:flex;gap:14px;flex-wrap:wrap;align-items:center;
+  margin-top:12px;padding-top:12px;border-top:1px solid var(--rule);
+  font-size:13px;color:var(--muted)}
+.summary b{color:var(--ink)}
+.summary .reset{border:1px solid var(--rule);background:transparent;
+  color:var(--muted);border-radius:8px;padding:4px 11px;font-size:12.5px}
+.summary .reset:hover{border-color:var(--green);color:var(--green)}
+
+/* ------------------------------------------------------------- panels */
+section{padding:8px 0 0}
+.shead{display:flex;align-items:baseline;justify-content:space-between;
+  gap:16px;margin:26px 0 14px}
+.shead h2{font-size:20px;font-weight:800;margin:0}
+.shead a,.shead button{font-size:13.5px;color:var(--green);font-weight:700;
+  background:none;border:0;padding:0}
+
+.panel{background:var(--card);border:1px solid var(--rule);border-radius:12px;
+  box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px}
+.panel > header{display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:14px 16px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+.panel h3{margin:0;font-size:16px;font-weight:800}
+.panel .note{padding:12px 16px 0;margin:0;font-size:12.5px;color:var(--muted)}
+.panel .foot{padding:12px 16px;font-size:12.5px;color:var(--muted);margin:0}
+
+.tabs{display:flex;gap:6px;flex-wrap:wrap}
+.tabs button{border:1px solid var(--rule);background:transparent;color:var(--muted);
+  border-radius:8px;padding:5px 11px;font-size:12.5px}
+.tabs button.on{background:var(--green);border-color:var(--green);color:#fff;font-weight:700}
+
+/* ------------------------------------------------------------ city cards */
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.citycard{background:var(--card);border:1px solid var(--rule);border-radius:12px;
+  padding:16px;box-shadow:var(--shadow);text-align:start;display:block;width:100%}
+.citycard:hover{border-color:var(--green)}
+.citycard .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.citycard h3{margin:0;font-size:15.5px;font-weight:800}
+.citycard .big{font-size:29px;font-weight:800;line-height:1.25;
+  font-variant-numeric:tabular-nums;margin-top:5px}
+.citycard .unit{font-size:12px;color:var(--muted)}
+.citycard .foot2{display:flex;justify-content:space-between;gap:10px;
+  margin-top:13px;padding-top:12px;border-top:1px solid var(--rule)}
+.citycard .k{font-size:11.5px;color:var(--muted);display:block}
+.citycard .v{font-size:14.5px;font-weight:800;font-variant-numeric:tabular-nums}
+.lm{width:52px;height:50px;flex:0 0 auto;opacity:.92}
+
+/* ---------------------------------------------------- neighbourhood bars */
+.hoodscroll{max-height:460px;overflow-y:auto}
+.hrow,.hhead{display:flex;align-items:center;gap:10px;padding:9px 16px;
+  border-bottom:1px solid var(--rule);cursor:pointer}
+.hhead{cursor:default;font-size:11.5px;color:var(--muted);
+  position:sticky;top:0;background:var(--card);z-index:2}
+.hrow:hover{background:var(--green-pale)}
+.hrow.on{background:var(--green-pale);box-shadow:inset 3px 0 0 var(--green)}
+.hnum,.hhead span:nth-child(1){flex:0 0 26px;color:var(--muted);
+  font-size:12px;text-align:center}
+.hname,.hhead span:nth-child(2){flex:0 1 170px;min-width:72px;
+  display:flex;align-items:center;gap:6px;overflow:hidden}
+.hnametext{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.htrack,.hhead span:nth-child(3){position:relative;flex:1 1 auto;min-width:56px;
+  height:13px;border-radius:99px;background:var(--paper);overflow:hidden;
+  border:1px solid var(--rule)}
+.hhead span:nth-child(3){height:auto;background:none}
+/* The width is the price relative to the dearest area; the colour is the
+   same green-to-red scale the map and the charts use.
+   position:absolute is load-bearing, not decoration: .hfill is a <span>, and
+   width and height are ignored on an inline element. Without it the fill is
+   drawn at zero size and every bar looks like an empty grey track. */
+.hfill{position:absolute;inset-block:0;inset-inline-start:0;
+  border-radius:99px;background:var(--green-mid)}
+.scalekey{display:flex;align-items:center;gap:9px;padding:11px 16px;
+  border-top:1px solid var(--rule);font-size:12px;color:var(--muted)}
+.scalekey .bar{flex:0 0 130px;height:8px;border-radius:99px;
+  background:linear-gradient(to left,#0C7A4F,#F2C744,#D97706,#B3261E)}
+.hval,.hhead span:nth-child(4){flex:0 0 82px;font-size:13.5px;font-weight:700;
+  font-variant-numeric:tabular-nums;text-align:start}
+.hcount,.hhead span:nth-child(5){flex:0 0 52px;color:var(--muted);
+  font-size:12px;text-align:start}
+.conf{display:inline-flex;align-items:center;gap:5px;padding:1px 7px;
+  border-radius:99px;font-size:11px;font-weight:700;white-space:nowrap;
+  border:1px solid transparent;flex:0 0 auto}
+.conf i{width:6px;height:6px;border-radius:50%;background:currentColor;flex:0 0 auto}
+.conf.mid{color:var(--amber);background:#FBF3E2;border-color:#F0E3C7}
+.conf.lo{color:var(--rise);background:#FBEAE8;border-color:#F4D6D2}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme=light]) .conf.mid{background:#2A2313;border-color:#4A3E1C}
+  :root:not([data-theme=light]) .conf.lo{background:#2E1A18;border-color:#57302C}
+}
+
+/* --------------------------------------------------------------- tables */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:start;font-weight:700;color:var(--muted);font-size:11.5px;
+  padding:10px 14px;border-bottom:1px solid var(--rule);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--rule);
+  font-variant-numeric:tabular-nums}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--green-pale)}
+tbody tr:last-child td{border-bottom:0}
+.rank{color:var(--muted);width:28px}
+tbody tr.provhead{cursor:default;background:var(--paper)}
+tbody tr.provhead:hover{background:var(--paper)}
+tbody tr.provhead td{font-size:13px;padding:9px 14px;
+  border-bottom:1px solid var(--rule)}
+.loading{padding:34px;text-align:center;color:var(--muted);font-size:14px}
+
+/* ---------------------------------------------------- tables on a phone */
+/* Seven columns need about 700px and a phone gives 300, so below 720px the
+   listings and city tables stop being tables. Each row becomes a card with
+   its label beside each value, taken from the header via data-l. Rotating
+   the phone should never be the way to read a page. */
+@media (max-width:720px){
+  table.cards, table.cards thead, table.cards tbody,
+  table.cards tr, table.cards th, table.cards td{display:block}
+  table.cards thead{position:absolute;width:1px;height:1px;overflow:hidden;
+    clip:rect(0 0 0 0);white-space:nowrap}
+  table.cards tr{border-bottom:1px solid var(--rule);padding:12px 14px}
+  table.cards tr:last-child{border-bottom:0}
+  table.cards td{border:0;padding:3px 0;display:flex;justify-content:space-between;
+    align-items:baseline;gap:14px;font-size:13.5px}
+  table.cards td::before{content:attr(data-l);color:var(--muted);font-size:12px;
+    flex:0 0 auto}
+  /* the first cell is the title: full width, no label, and it leads */
+  table.cards td:first-child{display:block;font-weight:700;font-size:14.5px;
+    margin-bottom:5px;line-height:1.6}
+  table.cards td:first-child::before{content:none}
+  table.cards td:empty{display:none}
+  table.cards .rank{display:none}
+}
+
+.more{display:block;width:100%;text-align:center;padding:12px;font-size:13.5px;
+  color:var(--green);font-weight:700;border:0;border-top:1px solid var(--rule);
+  background:transparent}
+.more:hover{background:var(--green-pale)}
+
+/* --------------------------------------------------------------- charts */
+.chartbox{padding:14px 16px}
+.chart{height:280px;position:relative}
+.chart.short{height:220px}
+.twochart{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.chartlbl{font-size:12.5px;color:var(--muted);margin-bottom:7px;font-weight:700}
+.callout{position:absolute;inset-inline-start:12px;top:12px;background:var(--green-pale);
+  border:1px solid var(--green);border-radius:10px;padding:8px 12px;pointer-events:none}
+.callout .n{font-size:18px;font-weight:800;color:var(--green);
+  font-variant-numeric:tabular-nums;line-height:1.3}
+.callout .d{font-size:11.5px;color:var(--muted)}
+.statrow{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;
+  background:var(--rule);border-top:1px solid var(--rule)}
+.statrow div{background:var(--card);padding:9px 6px;text-align:center}
+.statrow .k{font-size:11.5px;color:var(--muted)}
+.statrow .v{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
+
+/* ---------------------------------------------------- the three markets */
+.markets{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+.market{background:var(--card);border:1px solid var(--rule);border-radius:12px;
+  box-shadow:var(--shadow);padding:15px;text-align:start;display:flex;
+  flex-direction:column;gap:2px;position:relative;overflow:hidden}
+.market::before{content:'';position:absolute;inset-block:0;inset-inline-start:0;
+  width:4px;background:var(--rule)}
+.market.on::before{background:var(--green)}
+.market:hover:not(:disabled){border-color:var(--green)}
+.market .lbl{font-size:13px;color:var(--muted)}
+.market.on .lbl{color:var(--green);font-weight:700}
+.market .num{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;
+  line-height:1.25}
+.market .sub{font-size:11.5px;color:var(--muted)}
+.market:disabled{opacity:.55;cursor:not-allowed}
+.market.empty .num{color:var(--muted)}
+@media (max-width:720px){
+  .markets{grid-template-columns:1fr;gap:10px}
+  .market{flex-direction:row;align-items:baseline;gap:10px;padding:12px 14px}
+  .market .num{font-size:22px;margin-inline-start:auto}
+  .market .sub{flex:0 0 100%;font-size:11px}
+}
+
+/* ------------------------------------------------------------ kpi cards */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--rule);border-radius:12px;
+  padding:15px;box-shadow:var(--shadow)}
+.kpi .k{font-size:12px;color:var(--muted)}
+.kpi .v{font-size:27px;font-weight:800;font-variant-numeric:tabular-nums;
+  line-height:1.3;margin-top:3px}
+.kpi .u{font-size:11.5px;color:var(--muted)}
+
+/* An expired listing keeps its numbers but loses its link: it is faded, not
+   clickable, and says so in the source column. */
+tr.expired{opacity:.55;cursor:default}
+tr.expired:hover{background:transparent}
+
+/* ------------------------------------------------- neighbourhood grid */
+/* One tile per neighbourhood, in rank order. Reading right to left, top to
+   bottom, is the ranking — so the dearest is the first tile and the cheapest
+   the last, whichever way the tabs sort it.
+   auto-fill rather than a fixed column count: the tile keeps a readable
+   width and the browser decides how many fit, which is four or five on a
+   laptop and two on a phone without a media query for each step.
+   The box scrolls rather than growing, because a city with three hundred
+   neighbourhoods would otherwise push everything below it off the page. */
+#hoodGrid{display:grid;gap:8px;padding:14px 16px;
+  grid-template-columns:repeat(auto-fill,minmax(148px,1fr));
+  max-height:470px;overflow-y:auto}
+.gcell{border-radius:9px;padding:8px 10px;cursor:pointer;min-height:56px;
+  display:flex;flex-direction:column;justify-content:center;gap:3px;
+  transition:filter .12s}
+.gcell:hover{filter:brightness(1.12)}
+.gcell.on{outline:2px solid var(--ink);outline-offset:-2px}
+.grow{display:flex;align-items:baseline;justify-content:space-between;gap:6px}
+.gname{font-size:13px;font-weight:700;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.grank{font-size:11px;opacity:.72;font-variant-numeric:tabular-nums;flex:none}
+.gval{font-size:15.5px;font-weight:800;font-variant-numeric:tabular-nums}
+.gcount{font-size:11px;opacity:.85;flex:none}
+@media (max-width:720px){
+  #hoodGrid{grid-template-columns:repeat(auto-fill,minmax(136px,1fr));
+    gap:7px;padding:12px;max-height:60vh}
+  .gcell{min-height:62px;padding:9px 10px}
+  .gname{font-size:12.5px}
+  .gval{font-size:14.5px}
+}
+
+/* ------------------------------------------------- search over the map */
+/* Leaflet's zoom buttons sit at the top left and its panes run to z-index
+   1000, so the box has to clear the stack and keep off that corner. This is
+   an RTL page: the search starts at the right, and the left inset leaves the
+   zoom control its space rather than covering it. */
+.mapwrap{position:relative}
+.mapsearch{position:absolute;top:10px;right:10px;left:58px;z-index:1001;
+  display:flex;gap:6px;align-items:center;pointer-events:none}
+.mapsearch input{pointer-events:auto;flex:1;min-width:0;
+  border:1px solid var(--rule);border-radius:10px;padding:9px 12px;
+  font-family:inherit;font-size:13.5px;color:var(--ink);
+  background:var(--card);box-shadow:0 2px 10px rgba(0,0,0,.14)}
+.mapsearch input:focus{outline:2px solid var(--green);outline-offset:-2px}
+.mapsearch input::-webkit-search-cancel-button{display:none}
+.mapsearch button{pointer-events:auto;flex:none;border:1px solid var(--rule);
+  background:var(--card);color:var(--muted);border-radius:10px;
+  padding:8px 11px;font-size:13px;cursor:pointer;
+  box-shadow:0 2px 10px rgba(0,0,0,.14)}
+/* the zoom control is pushed below the search rather than fighting it */
+.mapwrap .leaflet-top.leaflet-left{margin-top:52px}
+@media (max-width:720px){
+  .mapsearch{top:8px;right:8px;left:8px}
+  /* 16px keeps iOS from zooming the page when the field is focused */
+  .mapsearch input{font-size:16px;padding:10px 12px}
+  .mapwrap .leaflet-top.leaflet-left{margin-top:52px}
+}
+
+/* ------------------------------------------------------------------ map */
+#map{height:420px;width:100%}
+#hoodMap{height:420px;width:100%}
+/* Tooltip on the price heat map. Leaflet's default is a white callout with
+   an arrow; both are switched off so the readout is one dark chip that does
+   not fight the colours underneath it. */
+.hexTip{font-family:inherit!important;font-size:12.5px;line-height:1.55;
+  direction:rtl;text-align:right;padding:7px 10px;border:0!important;
+  border-radius:9px;background:rgba(16,22,30,.93);color:#fff;
+  box-shadow:0 3px 10px rgba(0,0,0,.3);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
+.hexTip b{font-weight:800}
+.hexTip::before{display:none!important}
+#hoodMap .leaflet-interactive{cursor:pointer}
+.legend{display:flex;align-items:center;gap:10px;padding:11px 16px;
+  font-size:12px;color:var(--muted);border-top:1px solid var(--rule)}
+.legend .bar{flex:1;height:8px;border-radius:99px;
+  background:linear-gradient(to left,#0C7A4F,#F2C744,#D97706,#B3261E)}
+
+/* ------------------------------------------------------------ valuation */
+.value{background:var(--card);border:1px solid var(--rule);border-radius:12px;
+  box-shadow:var(--shadow);padding:18px}
+.vgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.vgrid label{display:block}
+.vgrid span{display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px}
+.vgrid select,.vgrid input{width:100%;height:40px;padding:0 10px;font:inherit;
+  font-size:14.5px;background:var(--paper);border:1px solid var(--rule);
+  border-radius:8px;color:var(--ink)}
+.vgo{width:100%;margin-top:14px;height:44px;border:0;border-radius:9px;
+  background:var(--green);color:#fff;font-weight:800;font-size:15px}
+.vout{margin-top:14px;background:var(--green-pale);border:1px solid var(--green);
+  border-radius:10px;padding:14px}
+.vout .num{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;
+  color:var(--green)}
+.vout .note{font-size:12.5px;color:var(--muted);margin-top:4px}
+
+/* ---------------------------------------------------------- method/trust */
+.method{display:grid;grid-template-columns:1fr 1fr;gap:18px 24px;padding:18px}
+.method b{display:block;font-size:14px;margin-bottom:4px}
+.method p{font-size:13.5px;color:var(--muted);line-height:1.85;margin:0}
+.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.trust div{background:var(--card);border:1px solid var(--rule);border-radius:12px;
+  padding:18px;box-shadow:var(--shadow)}
+.trust .ic,.citycard .ic{width:46px;height:46px;border-radius:13px;
+  background:linear-gradient(145deg,var(--green-mid),var(--green));
+  color:#fff;display:grid;place-items:center;margin-bottom:13px;
+  box-shadow:0 3px 10px -3px var(--green)}
+.trust .ic svg,.citycard .ic svg{width:24px;height:24px}
+.trust b{display:block;font-size:14.5px;margin-bottom:3px}
+.trust span{font-size:12.5px;color:var(--muted);line-height:1.7}
+
+footer{border-top:1px solid var(--rule);background:var(--card);
+  padding:20px 0;font-size:12.5px;color:var(--muted);margin-top:40px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+
+/* --------------------------------------------------------------- mobile */
+@media (max-width:900px){
+  .grid4{grid-template-columns:repeat(2,1fr)}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .twochart{grid-template-columns:1fr}
+  .trust{grid-template-columns:repeat(2,1fr)}
+  .method{grid-template-columns:1fr}
+  .filters{grid-template-columns:repeat(3,1fr)}
+  .vgrid{grid-template-columns:repeat(2,1fr)}
+}
+@media (max-width:720px){
+  .menu{position:absolute;top:64px;inset-inline:0;background:var(--card);
+    border-bottom:1px solid var(--rule);flex-direction:column;gap:0;
+    padding:4px 20px 10px;display:none;box-shadow:var(--shadow)}
+  .menu.open{display:flex}
+  .menu a{padding:11px 0;border-bottom:1px solid var(--rule)}
+  .menu a.on{border-bottom-color:var(--rule)}
+  .burger{display:grid}
+  /* Where someone is looking is not an advanced filter.
+     Everything used to hide behind the فیلترها button on a phone, استان,
+     شهر and محله included — the three a reader needs before anything else
+     on the page means anything. They now stay out; only متراژ, اتاق and
+     سن بنا fold away. Most of the traffic here is a phone, so this is the
+     layout that matters. */
+  .filters{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px}
+  .filters label:nth-child(n+4){display:none}
+  .filters.open label:nth-child(n+4){display:block}
+  .filters label:nth-child(3){grid-column:1 / -1}
+  .filterbtn{display:block}
+  .grid4,.kpis{grid-template-columns:1fr 1fr}
+  .trust{grid-template-columns:1fr}
+  /* The search box sits over the top of the map, so 300px left very little
+     map. Touch targets go to 40px+ as well: 5px of padding is a 24px button,
+     which is below what a thumb reliably hits. */
+  #map{height:360px}
+  #hoodMap{height:340px}
+  .chart{height:240px}
+  .chart.short{height:200px}
+  .callout{inset-inline-start:8px;top:8px;padding:6px 9px}
+  .callout .n{font-size:15px}
+  .callout .d{font-size:10.5px}
+  .panel > header{padding:12px 14px;gap:8px}
+  .panel h3{font-size:15px}
+  .tabs button{padding:9px 12px;font-size:12.5px;min-height:38px}
+  .shead{margin:20px 0 12px}
+  .shead h2{font-size:18px}
+  .statrow{grid-template-columns:repeat(3,1fr)}
+}
+@media (max-width:720px){
+  /* 16px again for iOS, and a taller control so the whole row is tappable
+     rather than just the arrow. */
+  .filters select{height:44px;font-size:16px}
+  .filters span{font-size:12px}
+  .filterbtn{min-height:40px}
+  .kindtabs{gap:6px}
+  .kindtabs button{padding:10px 4px;min-height:56px}
+  .kindtabs button .c2{font-size:10px}
+  .reset,.more{min-height:38px}
+}
+@media (max-width:480px){
+  .grid4,.kpis{grid-template-columns:1fr}
+  .vgrid{grid-template-columns:1fr}
+  .phead h1{font-size:22px}
+  .hnum,.hhead span:nth-child(1),.htrack,.hhead span:nth-child(3){display:none}
+  .hname,.hhead span:nth-child(2){flex:1 1 auto;min-width:60px}
+  .hrow,.hhead{padding:9px 12px;gap:8px}
+}
+/* On a 320px screen the value and count columns leave 72px for the name,
+   which is not enough for a neighbourhood, so they give some back. */
+@media (max-width:380px){
+  .hval,.hhead span:nth-child(4){flex:0 0 70px;font-size:13px}
+  .hcount,.hhead span:nth-child(5){flex:0 0 42px}
+  .wrap{padding:0 14px}
+  .scalekey{padding:10px 12px;font-size:11px}
+  .scalekey .bar{flex:0 0 80px}
+}
+/* Nothing should ever need the phone turned sideways; if a stray element
+   does overflow, the page clips rather than scrolling horizontally. */
+@media (max-width:720px){ body{overflow-x:hidden} }
