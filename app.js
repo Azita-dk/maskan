@@ -774,7 +774,9 @@ function fillKindSelect(){
           fillProvSelect(); fillCitySelect();
         }
       }
-      fillKindSelect(); fillHoodSelect(); commit();
+      // the city list counts the market being viewed, so it has to be
+      // redrawn when the market changes — not only when the city does
+      fillCitySelect(); fillKindSelect(); fillHoodSelect(); commit();
     }));
 
   const land = S.kind === 'land';
