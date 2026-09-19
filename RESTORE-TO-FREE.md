@@ -8,6 +8,9 @@ Four numbers. Change them, redeploy that folder, done.
 | cf-enrich | PER_RUN | 300 | **15** |
 | cf-enrich | SHARDS | 1 | **3** |
 | cf-build | SLICE | 48 | **8** |
+| cf-build | crons | */5 * * * * | **\*/10 * * * *** |
+| cf-scrape | crons | */2 * * * * | **0 * * * *** |
+| cf-scrape | PAUSE_MS | 250 | **400** |
 
 Each is in that folder's `wrangler.toml`, under `[vars]`. The free value is
 written in the comment above it too.

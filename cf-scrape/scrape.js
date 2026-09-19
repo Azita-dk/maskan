@@ -27,7 +27,28 @@ const HEADERS = {
 // for more. 40 leaves room under the 50-subrequest ceiling for the writes.
 const PAGES_PER_RUN_DEFAULT = 40;
 const MAX_PAGES_PER_CITY = 215;
-const PAUSE_MS = 400;
+const PAUSE_MS_DEFAULT = 400;
+
+/* Price bands, in toman.
+ *
+ * Divar stops paging at ~215 pages, so one search reaches about 5,600
+ * listings however long it runs — Tehran alone has 177,125 apartments, and
+ * the database sat at 12% of the city because of it. Each search gets its
+ * own allowance, so asking twelve narrower questions reaches roughly twelve
+ * times as far.
+ *
+ * Narrow where the listings are. Most of the market is under 20bn, so the
+ * bands are tight there and widen above it; the top band is open-ended
+ * because the handful of 200bn listings do not need their own slice.
+ * If one band still hits 215 pages in a city, that band needs splitting —
+ * the run log says which. */
+const BANDS = [
+  [0, 1e9], [1e9, 2e9], [2e9, 3e9], [3e9, 4e9],
+  [4e9, 6e9], [6e9, 8e9], [8e9, 12e9], [12e9, 18e9],
+  [18e9, 30e9], [30e9, 50e9], [50e9, 100e9], [100e9, null],
+];
+const bandId = (i) => `b${i}`;
+const bandOf = (id) => BANDS[Number(String(id).slice(1))] || [null, null];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -325,10 +346,23 @@ function findAreaText(strings, title) {
   return "";
 }
 
-async function fetchPage(cityId, category, pagination) {
+/* Divar stops paging at about 215 pages, so one search can never reach more
+   than ~5,600 listings — Tehran has 177,125 apartments. The way past it is
+   to ask narrower questions, because each search gets its own allowance: all
+   apartments under 2bn, then 2–4bn, and so on. This adds that price filter.
+   The field name is the part that cannot be checked from outside, so
+   /probe-band proves it before anything depends on it. */
+async function fetchPage(cityId, category, pagination, band) {
+  const data = { category: { str: { value: category } } };
+  if (band && (band.min != null || band.max != null)) {
+    data.price = { number_range: {
+      ...(band.min != null ? { minimum: String(band.min) } : {}),
+      ...(band.max != null ? { maximum: String(band.max) } : {}),
+    } };
+  }
   const body = {
     city_ids: [String(cityId)],
-    search_data: { form_data: { data: { category: { str: { value: category } } } } },
+    search_data: { form_data: { data } },
   };
   if (pagination) body.pagination_data = pagination;
 
@@ -407,7 +441,7 @@ async function pickCity(db) {
     : "kind = 'land'";
 
   const row = await db.prepare(`
-    SELECT city, kind, city_id, page, pagination, done_today
+    SELECT city, kind, band, city_id, page, pagination, done_today
     FROM scrape_state
     WHERE source = 'divar'
       AND COALESCE(done_today, '') <> date('now')
@@ -438,7 +472,8 @@ export async function scrapeChunk(env, log = []) {
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  let { city, kind, city_id, page, pagination } = state;
+  let { city, kind, band, city_id, page, pagination } = state;
+  const [bandMin, bandMax] = bandOf(band);
   kind = kind || "apartment";
   const kindDef = KIND_BY_ID[kind] || KINDS[0];
   let category = kindDef.category;
@@ -451,8 +486,11 @@ export async function scrapeChunk(env, log = []) {
   if (page >= MAX_PAGES_PER_CITY) {
     await db.prepare(
       "UPDATE scrape_state SET page=0, pagination=NULL, done_today=?, last_run=? " +
-      "WHERE source='divar' AND city=? AND kind=?").bind(today, new Date().toISOString(), city, kind).run();
-    log.push(`${city}: reached the page limit, marked done`);
+      "WHERE source='divar' AND city=? AND kind=? AND band=?")
+      .bind(today, new Date().toISOString(), city, kind, band).run();
+    // a band that fills all 215 pages is too wide for this city and is
+    // hiding listings beyond the ceiling — it wants splitting
+    log.push(`${city} / ${kind} / ${band}: hit the page limit — band too wide`);
     return { log };
   }
 
@@ -507,17 +545,18 @@ export async function scrapeChunk(env, log = []) {
   const stmts = [];
 
   const PAGES_PER_RUN = Number(env.PAGES_PER_RUN) || PAGES_PER_RUN_DEFAULT;
+  const PAUSE_MS = Number(env.PAUSE_MS) || PAUSE_MS_DEFAULT;
   for (let i = 0; i < PAGES_PER_RUN; i++) {
     let payload;
     try {
-      payload = await fetchPage(city_id, category, pag);
+      payload = await fetchPage(city_id, category, pag, { min: bandMin, max: bandMax });
     } catch (e) {
       // the first parent answered 520 once; try the next before giving up
       if (viaParent && pages === 0 && kindDef.parents.indexOf(category) <
           kindDef.parents.length - 1) {
         category = kindDef.parents[kindDef.parents.indexOf(category) + 1];
         log.push(`parent fell back to ${category}`);
-        try { payload = await fetchPage(city_id, category, pag); }
+        try { payload = await fetchPage(city_id, category, pag, { min: bandMin, max: bandMax }); }
         catch (e2) { log.push(`${city} page 1: ${e2.message}`); break; }
       } else {
       log.push(`${city} page ${page + pages + 1}: ${e.message}`);
@@ -698,9 +737,10 @@ export async function scrapeChunk(env, log = []) {
   const newPage = page + pages;
   await db.prepare(`
     UPDATE scrape_state SET page=?, pagination=?, last_run=?, done_today=?
-    WHERE source='divar' AND city=? AND kind=?`)
+    WHERE source='divar' AND city=? AND kind=? AND band=?`)
     .bind(ended ? 0 : newPage, ended ? null : JSON.stringify(pag),
-          new Date().toISOString(), ended ? today : state.done_today, city, kind)
+          new Date().toISOString(), ended ? today : state.done_today,
+          city, kind, band)
     .run();
 
   const seen = saved + unchanged;
@@ -713,7 +753,7 @@ export async function scrapeChunk(env, log = []) {
       `${skippedNoArea} had no area and ${skippedNoPrice} no price ` +
       `(${Math.round((skippedNoArea + skippedNoPrice) / examined * 100)}% never stored)`);
   }
-  log.push(`${city} / ${kind}: ${pages} pages, ${saved} written, ` +
+  log.push(`${city} / ${kind} / ${band}: ${pages} pages, ${saved} written, ` +
     `${unchanged} unchanged (${seen ? Math.round(unchanged / seen * 100) : 0}% skipped)` +
            (ended ? " — city finished" : ` — at page ${newPage}`));
   return { log, city, pages, saved, unchanged };
@@ -747,15 +787,17 @@ export async function seedCities(env) {
     "ایلام","مرودشت","شهرکرد","خوی","مراغه","سقز","رفسنجان","لاهیجان","یاسوج"];
 
   const stmts = [];
-  // one row per city per kind, so each category keeps its own place in the
-  // list and a slow one cannot stall the others
+  // one row per city, kind and price band — each band is a separate search
+  // with its own 215-page allowance, which is the whole point of them
   for (const name of priority) {
     const id = found.get(name);
     if (!id) continue;
     for (const k of KINDS) {
-      stmts.push(env.DB.prepare(
-        "INSERT OR IGNORE INTO scrape_state (source, city, kind, city_id, page) " +
-        "VALUES ('divar',?,?,?,0)").bind(name, k.id, id));
+      for (let b = 0; b < BANDS.length; b++) {
+        stmts.push(env.DB.prepare(
+          "INSERT OR IGNORE INTO scrape_state (source, city, kind, band, city_id, page) " +
+          "VALUES ('divar',?,?,?,?,0)").bind(name, k.id, bandId(b), id));
+      }
     }
   }
   if (stmts.length) await env.DB.batch(stmts);
@@ -833,6 +875,48 @@ async function route(url, env) {
        Waiting for the scheduler to reach land took days per attempt; this
        answers in one request. Read-only — it fetches from Divar and writes
        nothing, except the winning name to KV so the scraper picks it up. */
+    /* Does the price filter actually filter?
+       A band that is silently ignored returns the whole city, every band
+       returns the same listings, and the extra work buys nothing. This asks
+       for one narrow band and reports what came back, so the answer is
+       measured rather than assumed. */
+    if (url.pathname === "/probe-band") {
+      const kind = url.searchParams.get("kind") || "apartment";
+      const cityName = url.searchParams.get("city") || "تهران";
+      const min = Number(url.searchParams.get("min") || 1e9);
+      const max = Number(url.searchParams.get("max") || 2e9);
+      const def = KIND_BY_ID[kind];
+      const st = await env.DB.prepare(
+        `SELECT city_id FROM scrape_state WHERE city = ? AND kind = ? LIMIT 1`)
+        .bind(cityName, kind).first();
+      if (!def || !st?.city_id) return json({ error: "unknown kind or city" }, 404);
+      const cat = (await env.SITE?.get(`cat:${kind}`).catch(() => null)) || def.category;
+      const prices = (payload) => extractPosts(payload).map((p) => {
+        const strings = [];
+        const walk = (n, d) => {
+          if (!n || typeof n !== "object" || d > 5) return;
+          for (const k in n) {
+            const v = n[k];
+            if (typeof v === "string") strings.push(v);
+            else if (v && typeof v === "object") walk(v, d + 1);
+          }
+        };
+        walk(p, 0);
+        return parsePrice(strings.find((x) => /تومان/.test(x)) || "");
+      }).filter((x) => x);
+      try {
+        const all = prices(await fetchPage(st.city_id, cat, null));
+        const some = prices(await fetchPage(st.city_id, cat, null, { min, max }));
+        const inBand = some.filter((p) => p >= min && p <= max).length;
+        return json({ kind, city: cityName, band: { min, max },
+          unfiltered: { n: all.length, min: Math.min(...all), max: Math.max(...all) },
+          filtered: { n: some.length, min: Math.min(...some), max: Math.max(...some),
+                      inBand },
+          works: some.length > 0 && inBand === some.length &&
+                 JSON.stringify(all) !== JSON.stringify(some) });
+      } catch (e) { return json({ error: String(e.message).slice(0, 300) }, 500); }
+    }
+
     if (url.pathname === "/probe") {
       const kind = url.searchParams.get("kind") || "land";
       const cityName = url.searchParams.get("city") || "تهران";
@@ -936,7 +1020,9 @@ async function route(url, env) {
       routes: ["/seed — load the city list, run once",
                "/run  — scrape one chunk now",
                "/status — what is in the database",
-               "/probe?kind=land — find the category name Divar accepts"],
+               "/probe?kind=land — find the category name Divar accepts",
+               "/probe-band?kind=apartment&min=1000000000&max=2000000000 — " +
+               "does the price filter work"],
     });
 }
 

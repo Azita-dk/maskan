@@ -21,5 +21,11 @@ enabled = true
 [vars]
 SLICE = "48"
 
+# FREE PLAN VALUE: ["*/10 * * * *"] — ten minutes, when a tick only managed
+# 8 cities and a full pass took six of them.
+#
+# The build is what the site reads, so this interval is how stale the site
+# can be. At SLICE = 48 one tick rebuilds the whole country, so five minutes
+# halves the lag. It re-reads every listing each time, which is the cost.
 [triggers]
-crons = ["*/10 * * * *"]
+crons = ["*/5 * * * *"]

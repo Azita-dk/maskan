@@ -17,8 +17,31 @@ enabled = true
 # PAGES_PER_RUN — pages of Divar results fetched per invocation.
 # FREE PLAN VALUE: "40"   (50 outbound subrequests per invocation)
 # PAID: 1000 subrequests, so a city can finish in one run instead of five.
+# PAUSE_MS — wait between page requests to Divar.
+# FREE PLAN VALUE: "400" (or leave unset; the code default is 400)
+# 250 ms cuts a full 215-page city from 86 s of waiting to 54 s, which is
+# what lets a run finish inside a two-minute cron. The limit here is Divar,
+# not Cloudflare: this is an unofficial API and being rate-limited or
+# blocked would cost far more than the speed is worth. Raise it back toward
+# 400 at the first sign of HTTP 429 or 403 in Observability.
 [vars]
 PAGES_PER_RUN = "300"
+PAUSE_MS = "250"
 
+# FREE PLAN VALUE: ["0 * * * *"] — hourly, because 100,000 D1 writes a day
+# could not support more. On paid that ceiling is 50 million.
+#
+# Every five minutes is 288 runs a day instead of 24. PAGES_PER_RUN of 300
+# is above the 215-page ceiling Divar imposes per city, so one run now
+# finishes a whole city and kind — 288 completed sweeps a day against 144
+# city-and-kind combinations, so the country is covered about twice daily
+# instead of once a week.
+#
+# Every two minutes: 720 runs a day against 144 city-and-kind combinations,
+# so the whole country is swept about five times a day.
+#
+# Not every minute. A full city is 215 pages, which is 54 s of pausing at
+# 250 ms plus the fetches themselves — too close to a one-minute tick, and
+# overlapping runs would fight over the same scrape_state row.
 [triggers]
-crons = ["0 * * * *"]
+crons = ["*/2 * * * *"]

@@ -21,7 +21,22 @@ const HISTORY_DAYS = 180;         // how much per-neighbourhood history to ship
 const MAD_CUTOFF = 3.5;
 const CITY_BAND = [0.25, 4.0];    // relative to the city's own median
 
-/* A Divar listing runs about 28 days, and the database keeps it afterwards.
+/* Gone from Divar, or simply posted a while ago?
+ *
+ * This filtered on posted_at older than 28 days, which was wrong: posted_at
+ * is when the advert went up, not when it comes down. A flat posted forty
+ * days ago and renewed by its seller is still for sale, and the filter threw
+ * it out. It only showed once price-band scraping started reaching listings
+ * beyond Divar's 215-page ceiling — 30,882 Tehran apartments in the database
+ * and 19,809 surviving to the site.
+ *
+ * scraped_at answers the right question. The scraper sees whatever is on
+ * Divar now, so a listing it has not seen recently is one that is no longer
+ * there. The window is generous because a city is only swept every few days;
+ * tighten it if sweeps become more frequent.
+ *
+ * The old note, kept because the lifetime is still what posted_at is derived
+ * from: a Divar listing runs about 28 days, and the database keeps it after.
  *
  * An expired listing is an asking price from a market that has moved on, and
  * leaving it in pulled every median toward the past — 11.4% of apartments
@@ -35,6 +50,7 @@ const CITY_BAND = [0.25, 4.0];    // relative to the city's own median
  * Note this changes what the daily snapshots measure from today onward, so
  * the trend line has a small step in it where the basis changed. */
 const LISTING_LIFETIME_DAYS = 28;
+const STALE_DAYS = 10;
 
 /**
  * A matching key for place names — never for display.
@@ -181,8 +197,8 @@ export async function build(env, log = [], from = 0, self = null) {
            features, dedupe_key, COALESCE(kind,'apartment') AS kind
     FROM listings
     WHERE price_m2 IS NOT NULL AND price_m2 > 0
-      AND (posted_at IS NULL
-           OR posted_at >= date('now', '-${LISTING_LIFETIME_DAYS} day'))
+      AND (scraped_at IS NULL
+           OR scraped_at >= date('now', '-${STALE_DAYS} day'))
       AND city IN (${sliceCities.map(() => "?").join(",")})`)
     .bind(...sliceCities).all();
 
