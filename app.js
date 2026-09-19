@@ -1039,7 +1039,15 @@ async function bootPage(currentFile, render){
       '<div class="loading">داده‌ها بارگذاری نشد. اتصال را بررسی کنید و صفحه را دوباره باز کنید.</div>';
     return;
   }
-  if (!S.city || !DB.cities.some(c => c.id === S.city)) S.city = DB.cities[0].id;
+  /* Tehran by default, not whichever city happens to be first in the file.
+     The order there follows how the build worker grouped its work, so a
+     first visit could land in قم. Tehran is the market most people arrive
+     looking for; the largest city is the fallback if it is ever absent. */
+  if (!S.city || !DB.cities.some(c => c.id === S.city)) {
+    const tehran = DB.cities.find(c => c.name === 'تهران');
+    S.city = (tehran || [...DB.cities].sort((a, b) => (b.n || 0) - (a.n || 0))[0]
+              || DB.cities[0]).id;
+  }
   try { await loadCity(S.city); } catch (e) {}
 
   const host = document.getElementById('searchHost');
