@@ -698,12 +698,21 @@ function renderSearchBar(host){
 function fillCitySelect(){
   const sel = document.getElementById('fCity');
   if (!sel || !DB) return;
+  /* The count is for the market being viewed. c.n is always the apartment
+     figure, so with زمین و کلنگی selected Tabriz read "4,525 آگهی" beside a
+     page showing its 1,233 plots. Cities with none of this market are left
+     out rather than listed as empty. */
+  const countOf = (c) => ((c.byKind || {})[S.kind] || {}).n
+                         ?? (S.kind === 'apartment' ? c.n : 0);
   const groups = {};
-  for (const c of citiesInProvince()) (groups[provinceOf(c.name)] ||= []).push(c);
+  for (const c of citiesInProvince()) {
+    if (!countOf(c) && c.id !== S.city) continue;
+    (groups[provinceOf(c.name)] ||= []).push(c);
+  }
   sel.innerHTML = Object.keys(groups).sort(byFa).map(prov => {
     const rows = groups[prov].sort((a, b) => byFa(a.name, b.name));
     return `<optgroup label="استان ${esc(prov)}">` + rows.map(c =>
-      `<option value="${c.id}">${esc(c.name)} (${FA(c.n)} آگهی)</option>`).join('')
+      `<option value="${c.id}">${esc(c.name)} (${FA(countOf(c))} آگهی)</option>`).join('')
       + '</optgroup>';
   }).join('');
   sel.value = S.city;
@@ -734,7 +743,7 @@ function fillKindSelect(){
                                      : 'در این شهر نیست') : ''}</span></button>`;
   }).join('');
   box.querySelectorAll('button').forEach(b =>
-    b.addEventListener('click', () => {
+    b.addEventListener('click', async () => {
       if (b.disabled || b.dataset.k === S.kind) return;
       S.kind = b.dataset.k;
     // neighbourhoods are listed per kind, so one chosen under آپارتمان may
@@ -746,6 +755,24 @@ function fillKindSelect(){
       for (const [id, key] of [['fRooms','rooms'],['fAge','age']]) {
         const el = document.getElementById(id);
         if (el) el.value = S[key];
+      }
+
+      /* Go where the market exists.
+         Each market is collected city by city, so زمین و کلنگی can have
+         hundreds of listings nationally and none in the city being viewed.
+         Choosing the tab then emptied the page while its own figure said
+         919. Move to the city that has the most of it instead, and say so. */
+      const hasHere = (((DB.cities.find(c => c.id === S.city) || {}).byKind
+                        || {})[S.kind] || {}).n || 0;
+      if (!hasHere) {
+        const best = DB.cities
+          .filter(c => ((c.byKind || {})[S.kind] || {}).n > 0)
+          .sort((x, y) => (y.byKind[S.kind].n || 0) - (x.byKind[S.kind].n || 0))[0];
+        if (best) {
+          S.city = best.id; S.hood = ''; S.prov = '';
+          await loadCity(S.city);
+          fillProvSelect(); fillCitySelect();
+        }
       }
       fillKindSelect(); fillHoodSelect(); commit();
     }));

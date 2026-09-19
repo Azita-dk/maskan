@@ -21,36 +21,21 @@ const HISTORY_DAYS = 180;         // how much per-neighbourhood history to ship
 const MAD_CUTOFF = 3.5;
 const CITY_BAND = [0.25, 4.0];    // relative to the city's own median
 
-/* Gone from Divar, or simply posted a while ago?
+/* No expiry filter here, deliberately.
  *
- * This filtered on posted_at older than 28 days, which was wrong: posted_at
- * is when the advert went up, not when it comes down. A flat posted forty
- * days ago and renewed by its seller is still for sale, and the filter threw
- * it out. It only showed once price-band scraping started reaching listings
- * beyond Divar's 215-page ceiling — 30,882 Tehran apartments in the database
- * and 19,809 surviving to the site.
+ * Two attempts at one failed, both mine. Filtering on posted_at older than
+ * 28 days removed listings that were renewed and still for sale. Filtering
+ * on scraped_at was worse: the scraper skips listings whose price has not
+ * changed, so scraped_at only moves when a price moves — the filter removed
+ * every listing with a stable price, which is most of them.
  *
- * scraped_at answers the right question. The scraper sees whatever is on
- * Divar now, so a listing it has not seen recently is one that is no longer
- * there. The window is generous because a city is only swept every few days;
- * tighten it if sweeps become more frequent.
+ * Telling a gone listing from an unchanged one needs the scraper to record
+ * that it saw each listing, and it does not, because that would be a write
+ * per listing per sweep. Until it does, everything in the table counts.
  *
- * The old note, kept because the lifetime is still what posted_at is derived
- * from: a Divar listing runs about 28 days, and the database keeps it after.
- *
- * An expired listing is an asking price from a market that has moved on, and
- * leaving it in pulled every median toward the past — 11.4% of apartments
- * were already expired, and that share grows as the database ages. The site
- * says its figures come from current listings, so now they do.
- *
- * posted_at NULL is kept rather than dropped: it means enrichment has not
- * reached that listing yet, not that it is old, and discarding those would
- * quietly remove everything scraped in the last few hours.
- *
- * Note this changes what the daily snapshots measure from today onward, so
- * the trend line has a small step in it where the basis changed. */
+ * The site still marks expired listings in the ads table and drops their
+ * links — that runs in the browser from posted_at and costs nothing. */
 const LISTING_LIFETIME_DAYS = 28;
-const STALE_DAYS = 10;
 
 /**
  * A matching key for place names — never for display.
@@ -197,8 +182,6 @@ export async function build(env, log = [], from = 0, self = null) {
            features, dedupe_key, COALESCE(kind,'apartment') AS kind
     FROM listings
     WHERE price_m2 IS NOT NULL AND price_m2 > 0
-      AND (scraped_at IS NULL
-           OR scraped_at >= date('now', '-${STALE_DAYS} day'))
       AND city IN (${sliceCities.map(() => "?").join(",")})`)
     .bind(...sliceCities).all();
 
@@ -720,17 +703,21 @@ function isLimitError(e) {
 
 export default {
   async scheduled(event, env, ctx) {
-    /* Runs every ten minutes and does one slice if there is work to do.
-     * Six ticks finish a fifty-city build, an hour after midnight, and the
-     * rest of the day it finds nothing pending and stops immediately. */
+    /* Runs every five minutes and rebuilds continuously.
+     *
+     * It used to stop for the day once a pass finished: six ticks after
+     * midnight and nothing until tomorrow. That fitted a scraper that ran
+     * hourly. The scraper now runs every two minutes, so a build that stops
+     * at 00:30 leaves the site a day behind — which is exactly what it did,
+     * showing 19,809 Tehran apartments while the database held 30,882. A
+     * finished pass now starts another. */
     ctx.waitUntil((async () => {
       const today = new Date().toISOString().slice(0, 10);
       let from = 0;
       try {
         const p = await env.SITE.get("build:index", { type: "json" });
         if (p && p.day === today) {
-          if (p.next === null) return;        // already finished today
-          from = p.next || 0;
+          from = p.next === null ? 0 : (p.next || 0);
         }
       } catch (e) { /* start from the beginning */ }
       try {

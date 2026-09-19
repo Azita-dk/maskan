@@ -42,6 +42,53 @@ const PAUSE_MS_DEFAULT = 400;
  * because the handful of 200bn listings do not need their own slice.
  * If one band still hits 215 pages in a city, that band needs splitting —
  * the run log says which. */
+/* Titles that name a different town.
+ *
+ * A بنگاه posts from its own address, so Divar files the listing where the
+ * agency is, not where the property is. One agency in عظیمیه had اندیشه and
+ * شهرجدیدهشتگرد flats filed under کرج — five of eight rows on one screen —
+ * and every one of them was pulling عظیمیه's median toward a different town.
+ *
+ * The title is the honest source: sellers write the real location there. So
+ * when a title names another known town, the listing moves to it and its
+ * neighbourhood is cleared, because the neighbourhood was the agency's too.
+ *
+ * Only names of five characters or more are matched. Persian titles run
+ * words together — "فروش64متراندیشه" has no space before اندیشه — so the
+ * match cannot require a word boundary, and without one a short name like قم
+ * or آمل would fire inside کامل, شامل, بابلسر and a hundred other words.
+ * Five characters is long enough that a false match is unlikely. */
+/* The cities scraped, in population order — also the list a title is checked
+ * against when a listing looks mislocated.
+ *
+ * The new towns around Tehran and Karaj are here because that is exactly
+ * where the agency-address problem showed up: اندیشه and هشتگرد flats filed
+ * under کرج. They are real towns with their own markets, so they are worth
+ * scraping in their own right as well. */
+const CITY_NAMES = ["تهران","مشهد","اصفهان","کرج","شیراز","تبریز","قم","اهواز",
+  "کرمانشاه","ارومیه","رشت","زاهدان","همدان","کرمان","یزد","اردبیل",
+  "بندرعباس","اراک","اسلامشهر","زنجان","سنندج","قزوین","خرم آباد","گرگان",
+  "ساری","شهریار","قدس","کاشان","دزفول","بابل","ملارد","سبزوار","آمل",
+  "نیشابور","بجنورد","ورامین","پاکدشت","بوشهر","بیرجند","سیرجان","بروجرد",
+  "ایلام","مرودشت","شهرکرد","خوی","مراغه","سقز","رفسنجان","لاهیجان","یاسوج",
+  "اندیشه","هشتگرد","فردیس","پردیس","پرند","نظرآباد","محمدشهر","صالحیه",
+  "قرچک","بومهن","رودهن","شهرجدیدهشتگرد"];
+
+const RELOCATE_MIN_LEN = 5;
+let RELOCATE = null;
+function relocateTarget(title, currentCity) {
+  if (!title) return null;
+  if (!RELOCATE) {
+    RELOCATE = CITY_NAMES.filter((n) => n.replace(/\s/g, "").length >= RELOCATE_MIN_LEN);
+  }
+  const t = normalizeText(title);
+  for (const name of RELOCATE) {
+    if (name === currentCity) continue;
+    if (t.includes(normalizeText(name))) return name;
+  }
+  return null;
+}
+
 const BANDS = [
   [0, 1e9], [1e9, 2e9], [2e9, 3e9], [3e9, 4e9],
   [4e9, 6e9], [6e9, 8e9], [8e9, 12e9], [12e9, 18e9],
@@ -463,6 +510,7 @@ export async function scrapeChunk(env, log = []) {
   let loggedRejectSample = 0;          // land yields nothing; see the note at the reject point
   let loggedAreaSample = 0;            // confirm villa/land pick the right area
   let loggedNewSlug = false, otherKind = 0;
+  let relocated = 0, loggedRelocate = false;
   let skippedNoArea = 0, skippedNoPrice = 0, examined = 0;
   const state = await pickCity(db);
   if (!state) {
@@ -710,7 +758,21 @@ export async function scrapeChunk(env, log = []) {
         unchanged++; continue;
       }
 
-      const key = await dedupeKey(cityFa, hood, area, price);
+      /* The title wins over the agency's address. A relocated listing loses
+         its neighbourhood as well — that came from the same wrong place. */
+      let rowCity = cityFa, rowHood = hood;
+      const elsewhere = relocateTarget(title, cityFa);
+      if (elsewhere) {
+        rowCity = elsewhere;
+        rowHood = "";
+        relocated++;
+        if (!loggedRelocate) {
+          loggedRelocate = true;
+          console.log(`relocated by title: ${cityFa} -> ${elsewhere} | ${title}`);
+        }
+      }
+
+      const key = await dedupeKey(rowCity, rowHood, area, price);
       const rawText = [title, priceText, areaText].filter(Boolean).join(" | ").slice(0, 300);
 
       stmts.push(db.prepare(`
@@ -721,7 +783,7 @@ export async function scrapeChunk(env, log = []) {
           price_toman=excluded.price_toman, area_m2=excluded.area_m2,
           price_m2=excluded.price_m2, scraped_at=excluded.scraped_at,
           kind=excluded.kind`)
-        .bind(token, cityFa, hood, title.slice(0, 120),
+        .bind(token, rowCity, rowHood, title.slice(0, 120),
               `https://divar.ir/v/${token}`, price, area,
               Math.round(price / area), rawText, key, today, kind));
       saved++;
@@ -744,6 +806,10 @@ export async function scrapeChunk(env, log = []) {
     .run();
 
   const seen = saved + unchanged;
+  if (relocated) {
+    log.push(`${city} / ${kind}: ${relocated} listings moved to the town ` +
+             `named in their title (agency address, not the property's)`);
+  }
   if (viaParent) {
     log.push(`${city} / ${kind}: read via ${category}, ` +
              `${otherKind} posts belonged to another kind and were skipped`);
@@ -779,12 +845,7 @@ export async function seedCities(env) {
 
   // The biggest markets first, so an interrupted day still covers what
   // matters. Everything else is added behind them.
-  const priority = ["تهران","مشهد","اصفهان","کرج","شیراز","تبریز","قم","اهواز",
-    "کرمانشاه","ارومیه","رشت","زاهدان","همدان","کرمان","یزد","اردبیل",
-    "بندرعباس","اراک","اسلامشهر","زنجان","سنندج","قزوین","خرم آباد","گرگان",
-    "ساری","شهریار","قدس","کاشان","دزفول","بابل","ملارد","سبزوار","آمل",
-    "نیشابور","بجنورد","ورامین","پاکدشت","بوشهر","بیرجند","سیرجان","بروجرد",
-    "ایلام","مرودشت","شهرکرد","خوی","مراغه","سقز","رفسنجان","لاهیجان","یاسوج"];
+  const priority = CITY_NAMES;
 
   const stmts = [];
   // one row per city, kind and price band — each band is a separate search

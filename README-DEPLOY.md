@@ -34,6 +34,21 @@ keep the one you already have, because I do not have a copy of it.
 - https://maskan-enrich.azita-maskan.workers.dev/status
 - https://maskan-scrape.azita-maskan.workers.dev/status
 
+## Do this once, after deploying cf-scrape
+
+New towns were added to the city list — اندیشه, هشتگرد, فردیس, پردیس, پرند,
+نظرآباد and others. They were missing, which is why flats whose titles said
+اندیشه sat under کرج: an agency posts from its own address and Divar files
+the listing there. The scraper now moves a listing to the town named in its
+title and clears the neighbourhood, which came from the same wrong place.
+
+Open this once to register them:
+
+    https://maskan-scrape.azita-maskan.workers.dev/seed
+
+Existing listings correct themselves as they are re-scraped, over a day or
+two. The run log shows "relocated by title" with a count.
+
 ## Price bands — one-off, do this once
 
 Divar stops paging at ~215 pages, so one search reaches about 5,600 listings
