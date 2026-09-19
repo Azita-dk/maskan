@@ -26,6 +26,8 @@
         <button data-sort="new" class="on">تازه‌ترین</button>
         <button data-sort="cheap">ارزان‌ترین هر متر</button>
         <button data-sort="dear">گران‌ترین هر متر</button>
+        <button data-sort="cheapTotal">ارزان‌ترین قیمت کل</button>
+        <button data-sort="dearTotal">گران‌ترین قیمت کل</button>
       </div></header>
     <div id="soloBar" class="hide" style="padding:11px 16px;border-bottom:1px solid var(--rule);
       display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13.5px">
@@ -79,6 +81,18 @@ const FUZZ_COLOR = '#D97706';
 let adsSort = 'new', shown = 60, solo = null;
 let map = null, layer = null, keepView = false;
 
+/* A Divar listing runs about 28 days. Its expiry is not stored, but posted_at
+   was derived by subtracting that lifetime from Divar's own unavailable_after,
+   so adding it back recovers the date. Expired rows stay in the figures — they
+   were real asking prices on the day they were posted — but they stop
+   pretending to be somewhere you can click through to. */
+const LISTING_LIFETIME_DAYS = 28;
+const isExpired = (l) => {
+  if (!l.d) return false;
+  const gone = new Date(l.d).getTime() + LISTING_LIFETIME_DAYS * 864e5;
+  return isFinite(gone) && gone < Date.now();
+};
+
 function rows(){
   let r = activeListings();
   if (solo) {
@@ -86,9 +100,22 @@ function rows(){
     if (one.length) return one;
     solo = null;                       // a filter excluded it; fall back
   }
-  if (adsSort === 'new')        r = [...r].sort((a,b) => (b.d||'').localeCompare(a.d||''));
-  else if (adsSort === 'cheap') r = [...r].sort((a,b) => a.m - b.m);
-  else                          r = [...r].sort((a,b) => b.m - a.m);
+  // price-per-metre and total price answer different questions: the first is
+  // what a neighbourhood costs, the second is what you can afford. Listings
+  // with no total go last either way rather than sorting as zero.
+  const byTotal = (dir) => (a, b) => {
+    const x = a.p > 0 ? a.p : null, y = b.p > 0 ? b.p : null;
+    if (x === null && y === null) return 0;
+    if (x === null) return 1;
+    if (y === null) return -1;
+    return dir * (x - y);
+  };
+  if (adsSort === 'new')             r = [...r].sort((a,b) => (b.d||'').localeCompare(a.d||''));
+  else if (adsSort === 'cheap')      r = [...r].sort((a,b) => a.m - b.m);
+  else if (adsSort === 'dear')       r = [...r].sort((a,b) => b.m - a.m);
+  else if (adsSort === 'cheapTotal') r = [...r].sort(byTotal(1));
+  else if (adsSort === 'dearTotal')  r = [...r].sort(byTotal(-1));
+  else                               r = [...r].sort((a,b) => b.m - a.m);
   return r;
 }
 
@@ -105,16 +132,21 @@ function drawAds(){
     return;
   }
   const list = solo ? all : all.slice(0, shown);
-  body.innerHTML = list.map(l => `
-    <tr${l.u ? ` data-url="${esc(l.u)}"` : ''} data-token="${esc(l.t)}">
+  body.innerHTML = list.map(l => {
+    const dead = isExpired(l);
+    return `
+    <tr${l.u && !dead ? ` data-url="${esc(l.u)}"` : ''} data-token="${esc(l.t)}"${
+      dead ? ' class="expired" title="این آگهی دیگر در دیوار موجود نیست"' : ''}>
       <td data-l="عنوان">${esc(l.n || '—')}</td>
       <td data-l="محله">${esc(l.h || '')}</td>
       <td data-l="متراژ">${l.a ? FA(l.a) + ' متر' : '—'}</td>
       <td data-l="قیمت کل">${l.p ? FA1(l.p/1000) + ' میلیارد' : '—'}</td>
       <td data-l="هر متر">${FA1(l.m)} میلیون</td>
       <td data-l="تاریخ">${l.d ? faShortDate(l.d) : '—'}</td>
-      <td data-l="منبع">${esc(SOURCE_NAME[l.s] || l.s || '')}${l.u ? ' ↗' : ''}</td>
-    </tr>`).join('');
+      <td data-l="منبع">${dead ? 'منقضی شده'
+        : esc(SOURCE_NAME[l.s] || l.s || '') + (l.u ? ' ↗' : '')}</td>
+    </tr>`;
+  }).join('');
 
   body.querySelectorAll('tr[data-token]').forEach(tr =>
     tr.addEventListener('click', () => {
@@ -205,9 +237,11 @@ function drawMap(){
       <span style="color:#5A6472">${esc(l.h || '')}</span><br>
       ${FA1(l.m)} میلیون تومان بر متر مربع${l.a ? ' · ' + FA(l.a) + ' متر' : ''}
       ${l.p ? '<br>قیمت کل: ' + FA1(l.p/1000) + ' میلیارد تومان' : ''}
-      ${l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener"
+      ${isExpired(l)
+        ? '<br><span style="color:#8a8a8a;font-size:12px">این آگهی دیگر در دیوار موجود نیست</span>'
+        : (l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener"
         style="color:${CSSVAR('--green')};font-weight:700">دیدن آگهی در ${
-        SOURCE_NAME[l.s] || l.s} ↗</a>` : ''}</div>`);
+        SOURCE_NAME[l.s] || l.s} ↗</a>` : '')}</div>`);
     mk.on('click', () => { solo = l.t; keepView = true; drawAds(); drawMap();
       document.getElementById('adsTitle').scrollIntoView({behavior:'smooth', block:'center'}); });
     mk.addTo(layer);
