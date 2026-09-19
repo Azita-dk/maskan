@@ -585,6 +585,7 @@ function renderSearchBar(host){
   host.innerHTML = `
     <div class="searchbar">
       <div class="kindtabs" id="kindTabs"></div>
+      <p class="note hide" id="kindNote"></p>
 
       <div class="search">
         <span class="go">${ICONS.search}</span>
@@ -702,6 +703,9 @@ function fillCitySelect(){
      figure, so with زمین و کلنگی selected Tabriz read "4,525 آگهی" beside a
      page showing its 1,233 plots. Cities with none of this market are left
      out rather than listed as empty. */
+  const kn = document.getElementById('kindNote');
+  if (kn && (((DB.cities.find(c => c.id === S.city) || {}).byKind
+              || {})[S.kind] || {}).n) kn.classList.add('hide');
   const countOf = (c) => ((c.byKind || {})[S.kind] || {}).n
                          ?? (S.kind === 'apartment' ? c.n : 0);
   const groups = {};
@@ -762,6 +766,9 @@ function fillKindSelect(){
          hundreds of listings nationally and none in the city being viewed.
          Choosing the tab then emptied the page while its own figure said
          919. Move to the city that has the most of it instead, and say so. */
+      /* Only move for a market this city genuinely lacks, and say nothing
+         if there is nowhere to move to. Jumping from تهران to قم because
+         Tehran has no plots is startling if it happens silently. */
       const hasHere = (((DB.cities.find(c => c.id === S.city) || {}).byKind
                         || {})[S.kind] || {}).n || 0;
       if (!hasHere) {
@@ -769,9 +776,16 @@ function fillKindSelect(){
           .filter(c => ((c.byKind || {})[S.kind] || {}).n > 0)
           .sort((x, y) => (y.byKind[S.kind].n || 0) - (x.byKind[S.kind].n || 0))[0];
         if (best) {
+          const from = (DB.cities.find(c => c.id === S.city) || {}).name || '';
           S.city = best.id; S.hood = ''; S.prov = '';
           await loadCity(S.city);
           fillProvSelect(); fillCitySelect();
+          const note = document.getElementById('kindNote');
+          if (note) {
+            note.textContent = `${kindLabel()} هنوز در ${from} جمع‌آوری نشده — ` +
+              `${best.name} نشان داده می‌شود.`;
+            note.classList.remove('hide');
+          }
         }
       }
       // the city list counts the market being viewed, so it has to be
