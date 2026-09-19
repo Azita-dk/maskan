@@ -761,33 +761,34 @@ function fillKindSelect(){
         if (el) el.value = S[key];
       }
 
-      /* Go where the market exists.
-         Each market is collected city by city, so زمین و کلنگی can have
-         hundreds of listings nationally and none in the city being viewed.
-         Choosing the tab then emptied the page while its own figure said
-         919. Move to the city that has the most of it instead, and say so. */
-      /* Only move for a market this city genuinely lacks, and say nothing
-         if there is nowhere to move to. Jumping from تهران to قم because
-         Tehran has no plots is startling if it happens silently. */
-      const hasHere = (((DB.cities.find(c => c.id === S.city) || {}).byKind
-                        || {})[S.kind] || {}).n || 0;
-      if (!hasHere) {
-        const best = DB.cities
-          .filter(c => ((c.byKind || {})[S.kind] || {}).n > 0)
-          .sort((x, y) => (y.byKind[S.kind].n || 0) - (x.byKind[S.kind].n || 0))[0];
-        if (best) {
-          const from = (DB.cities.find(c => c.id === S.city) || {}).name || '';
-          S.city = best.id; S.hood = ''; S.prov = '';
-          await loadCity(S.city);
-          fillProvSelect(); fillCitySelect();
-          const note = document.getElementById('kindNote');
-          if (note) {
-            note.textContent = `${kindLabel()} هنوز در ${from} جمع‌آوری نشده — ` +
-              `${best.name} نشان داده می‌شود.`;
-            note.classList.remove('hide');
-          }
+      /* Stay where the reader is.
+         This used to jump to whichever city had most of the chosen market —
+         click زمین و کلنگی in تهران and land in قم. Being moved to another
+         city for pressing a tab is disorienting, and the empty tab is honest:
+         that market has not been collected here yet. Say so instead. */
+      const here = DB.cities.find(c => c.id === S.city);
+      const hasHere = (((here || {}).byKind || {})[S.kind] || {}).n || 0;
+      const note = document.getElementById('kindNote');
+      if (note) {
+        if (hasHere) note.classList.add('hide');
+        else {
+          const best = DB.cities
+            .filter(c => ((c.byKind || {})[S.kind] || {}).n > 0)
+            .sort((x, y) => y.byKind[S.kind].n - x.byKind[S.kind].n)[0];
+          note.innerHTML = `${esc(kindLabel())} هنوز در ${esc((here || {}).name || '')}` +
+            ` جمع‌آوری نشده است.` +
+            (best ? ` <button class="reset" id="goBest">دیدن در ${esc(best.name)}` +
+                    ` (${FA(best.byKind[S.kind].n)} آگهی)</button>` : '');
+          note.classList.remove('hide');
+          const go = document.getElementById('goBest');
+          if (go) go.addEventListener('click', async () => {
+            S.city = best.id; S.hood = ''; S.prov = '';
+            await loadCity(S.city);
+            fillProvSelect(); fillCitySelect(); fillHoodSelect(); commit();
+          });
         }
       }
+
       // the city list counts the market being viewed, so it has to be
       // redrawn when the market changes — not only when the city does
       fillCitySelect(); fillKindSelect(); fillHoodSelect(); commit();
