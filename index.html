@@ -22,7 +22,7 @@
       <a href="cities.html" data-page="cities.html">همه محله‌ها ↓</a>
     </div>
 
-    <div class="markets" id="markets"></div>
+    <div class="kpis" id="kpis"></div>
 
     <div class="panel">
       <header>
@@ -267,45 +267,6 @@ function drawProvSummary(){
  * Shown together because the comparison between them is worth seeing, and
  * because a reader should know the other two exist.
  */
-/* The three market cards are the headline figures for whatever is being
-   looked at: the whole city, or the neighbourhood that has been picked, with
-   the filters applied. They took over from a separate row of numbers that
-   repeated the same median and count underneath them.
-
-   The name on each card says which it is, so nobody reads a city figure as
-   a neighbourhood's or the other way round. */
-function drawMarkets(){
-  const scope = S.hood ? S.hood : `کل ${CITY.name}`;
-  const filtered = activeFilterCount() > 0 || !!S.q;
-  // every listing in view except the kind, which is what the cards split by
-  const all = (CITY.listings || []).filter(l =>
-    passes(l) && (!S.hood || l.h === S.hood));
-  const box = document.getElementById('markets');
-  box.innerHTML = KINDS.map(k => {
-    const rows = all.filter(l => (l.k || 'apartment') === k.id);
-    const vals = rows.map(l => l.m).filter(v => v > 0);
-    const med = vals.length ? round1(median(vals)) : null;
-    const on = k.id === S.kind;
-    return `<button class="market${on ? ' on' : ''}${med === null ? ' empty' : ''}"
-        data-k="${k.id}"${med === null ? ' disabled' : ''}>
-        <span class="lbl">${k.label}<span class="scope">${esc(scope)}${
-          filtered ? ' · با فیلتر' : ''}</span></span>
-        <span class="num">${med === null ? '—' : FA1(med)}</span>
-        <span class="sub">${med === null
-          ? (S.hood || filtered ? 'در این انتخاب آگهی نیست' : 'هنوز جمع‌آوری نشده')
-          : 'میانه، میلیون تومان بر متر · ' + FA(rows.length) + ' آگهی'}</span>
-      </button>`;
-  }).join('');
-
-  box.querySelectorAll('button').forEach(b =>
-    b.addEventListener('click', () => {
-      if (b.disabled || b.dataset.k === S.kind) return;
-      S.kind = b.dataset.k;
-      if (S.kind === 'land') { S.rooms = 'all'; S.age = '999'; }
-      fillKindSelect(); fillHoodSelect(); commit();
-    }));
-}
-
 /**
  * Change over whatever history exists, labelled with the real span.
  *
@@ -335,6 +296,33 @@ function changeKpi(){
     cls: pct >= 0 ? 'up' : 'down',
     sub: `از ${faDate(a.d)}`,
   };
+}
+
+/* The headline figures for whatever is being looked at — the whole city,
+   or the neighbourhood that has been picked, with the filters applied. The
+   name is on the row so nobody reads a city figure as a neighbourhood's or
+   the other way round. */
+function drawKpis(){
+  const rows = activeListings();
+  const vals = rows.map(l => l.m).filter(v => v > 0);
+  const med = vals.length ? round1(median(vals)) : null;
+  const chg = changeKpi();
+  const scope = S.hood ? S.hood : `کل ${CITY.name}`;
+  const filtered = activeFilterCount() > 0 || !!S.q;
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="k">میانه هر متر مربع
+        <span class="scope">${esc(scope)}${filtered ? ' · با فیلتر' : ''}</span></div>
+      <div class="v">${med === null ? '—' : FA1(med)}</div>
+      <div class="u">میلیون تومان</div></div>
+    <div class="kpi"><div class="k">تعداد آگهی</div>
+      <div class="v">${FA(rows.length)}</div>
+      <div class="u">در ${esc(scope)}</div></div>
+    <div class="kpi"><div class="k">${chg.label}</div>
+      <div class="v ${chg.cls}">${chg.text}</div>
+      <div class="u">${chg.sub}</div></div>
+    <div class="kpi"><div class="k">اعتبار این رقم</div>
+      <div class="v" style="font-size:18px;padding-top:6px">${confBadge(rows.length)}</div>
+      <div class="u">بر پایه تعداد آگهی</div></div>`;
 }
 
 function hoodStats(){
@@ -869,7 +857,7 @@ bootPage('index.html', () => {
     + ` — ${kindLabel()}`;
   document.getElementById('hoodTitle').textContent =
     `محله‌های ${CITY.name} — ${kindLabel()}`;
-  drawMarkets();
+  drawKpis();
   drawHoods();
   document.getElementById('statsHead').textContent =
     `آمار ${kindLabel()} در ${S.hood || CITY.name}`;
