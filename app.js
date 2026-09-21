@@ -638,6 +638,15 @@ function renderSearchBar(host){
         <label><span>استان</span><select id="fProv"></select></label>
         <label><span>شهر</span><select id="fCity"></select></label>
         <label><span>محله</span><select id="fHood"></select></label>
+        <label><span>اتاق خواب</span><select id="fRooms">
+          <option value="all">همه</option><option value="1">۱ خوابه</option>
+          <option value="2">۲ خوابه</option><option value="3">۳ خوابه</option>
+          <option value="4">۴ خوابه و بیشتر</option></select></label>
+        <label><span>سن بنا</span><select id="fAge">
+          <option value="999">همه</option><option value="0">نوساز</option>
+          <option value="5">تا ۵ سال</option><option value="10">تا ۱۰ سال</option>
+          <option value="20">تا ۲۰ سال</option><option value="21">بالای ۲۰ سال</option>
+          </select></label>
         <div class="range"><span>متراژ <small>(متر)</small></span>
           <div class="pair">
             <input id="fMin" type="text" inputmode="numeric" placeholder="از">
@@ -653,15 +662,6 @@ function renderSearchBar(host){
             <input id="fMmin" type="text" inputmode="decimal" placeholder="از">
             <input id="fMmax" type="text" inputmode="decimal" placeholder="تا">
           </div></div>
-        <label><span>اتاق خواب</span><select id="fRooms">
-          <option value="all">همه</option><option value="1">۱ خوابه</option>
-          <option value="2">۲ خوابه</option><option value="3">۳ خوابه</option>
-          <option value="4">۴ خوابه و بیشتر</option></select></label>
-        <label><span>سن بنا</span><select id="fAge">
-          <option value="999">همه</option><option value="0">نوساز</option>
-          <option value="5">تا ۵ سال</option><option value="10">تا ۱۰ سال</option>
-          <option value="20">تا ۲۰ سال</option><option value="21">بالای ۲۰ سال</option>
-          </select></label>
       </div>
 
       <div class="chips" id="chips"></div>
