@@ -65,18 +65,6 @@
         نرمالِ هم‌میانگین است تا کجی توزیع دیده شود.</p>
     </div>
 
-    <div class="panel">
-      <header><h3>قیمت بر پایه متراژ و سن بنا</h3></header>
-      <div class="chartbox"><div class="twochart">
-        <div><div class="chartlbl">میانه هر متر مربع بر پایه متراژ</div>
-          <div class="chart short"><canvas id="bySize"></canvas></div></div>
-        <div><div class="chartlbl">میانه هر متر مربع بر پایه سن بنا</div>
-          <div class="chart short"><canvas id="byAge"></canvas></div></div>
-      </div></div>
-      <p class="foot">ستون‌های کم‌رنگ کمتر از ۲۰ آگهی دارند و تعداد آگهی زیر هر
-        ستون نوشته شده است. این نمودار فقط می‌گوید در همین انتخاب قیمت هر متر در
-        هر بازه چقدر بوده است، نه اینکه چرا.</p>
-    </div>
   </section>
 
   <section>
@@ -142,7 +130,7 @@
 <script src="app.js"></script>
 <script>
 let allOpen = false;
-let trendChart = null, distChart = null, sizeChart = null, ageChart = null;
+let trendChart = null, distChart = null;
 let period = 'all';
 
 const LANDMARKS = {
@@ -280,6 +268,9 @@ function drawProvSummary(){
  * Shown together because the comparison between them is worth seeing, and
  * because a reader should know the other two exist.
  */
+/* These three cards are the whole city, always — no neighbourhood, no
+   filters — so they read "کل تهران". Without it, a reader who had picked
+   a neighbourhood would take the figure as that neighbourhood's. */
 function drawMarkets(){
   const all = (CITY.listings || []);
   const box = document.getElementById('markets');
@@ -290,7 +281,7 @@ function drawMarkets(){
     const on = k.id === S.kind;
     return `<button class="market${on ? ' on' : ''}${med === null ? ' empty' : ''}"
         data-k="${k.id}"${med === null ? ' disabled' : ''}>
-        <span class="lbl">${k.label}</span>
+        <span class="lbl">${k.label}<span class="scope">کل ${esc(CITY.name)}</span></span>
         <span class="num">${med === null ? '—' : FA1(med)}</span>
         <span class="sub">${med === null
           ? 'هنوز جمع‌آوری نشده'
@@ -644,87 +635,6 @@ function drawDist(){
   ].map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${FA1(round1(v))}</div></div>`).join('');
 }
 
-function drawBreakdown(){
-  // lo/hi are what a click on the bar sets as the filter
-  const SIZE = [
-    { label:'زیر ۵۰', t:a => a < 50, lo:0, hi:49 },
-    { label:'۵۰ تا ۷۵', t:a => a>=50&&a<75, lo:50, hi:74 },
-    { label:'۷۵ تا ۱۰۰', t:a => a>=75&&a<100, lo:75, hi:99 },
-    { label:'۱۰۰ تا ۱۵۰', t:a => a>=100&&a<150, lo:100, hi:149 },
-    { label:'۱۵۰ تا ۲۰۰', t:a => a>=150&&a<200, lo:150, hi:199 },
-    { label:'بالای ۲۰۰', t:a => a>=200, lo:200, hi:9999 } ];
-  const AGE = [
-    { label:'نوساز', t:g => g <= 1, lo:0, hi:1 },
-    { label:'۲ تا ۵', t:g => g>1&&g<=5, lo:2, hi:5 },
-    { label:'۶ تا ۱۰', t:g => g>5&&g<=10, lo:6, hi:10 },
-    { label:'۱۱ تا ۲۰', t:g => g>10&&g<=20, lo:11, hi:20 },
-    { label:'بالای ۲۰', t:g => g>20, lo:21, hi:null } ];
-
-  const bucket = (rows, bands, pick) => bands.map(b => {
-    const v = rows.filter(l => pick(l) != null && b.t(pick(l))).map(l => l.m).filter(x => x>0);
-    return { label:b.label, n:v.length, med: v.length ? round1(median(v)) : null,
-             lo:b.lo, hi:b.hi };
-  }).filter(x => x.n > 0);
-
-  /* Clicking a bar filters the page to it; clicking it again clears it.
-     These bars were only pictures before, so pressing one did nothing while
-     it looked like it should. */
-  const sizeOn = r => S.min === String(r.lo) && S.max === String(r.hi);
-  const ageOn  = r => S.agelo === String(r.lo) &&
-                      S.agehi === (r.hi == null ? '' : String(r.hi));
-  const pickSize = r => {
-    const on = sizeOn(r);
-    S.min = on ? DEFAULTS.min : String(r.lo);
-    S.max = on ? DEFAULTS.max : String(r.hi);
-    commit();
-  };
-  const pickAge = r => {
-    const on = ageOn(r);
-    S.agelo = on ? '' : String(r.lo);
-    S.agehi = on ? '' : (r.hi == null ? '' : String(r.hi));
-    S.age = DEFAULTS.age;
-    commit();
-  };
-
-  const sizes = bucket(activeListings('area'), SIZE, l => l.a);
-  const ages  = bucket(activeListings('age'),  AGE,  l => l.g);
-
-  const paint = (id, rows, prev, pick, isOn) => {
-    prev && prev.destroy();
-    if (!rows.length) return null;
-    const meds = rows.map(r => r.med);
-    const lo = Math.min(...meds), hi = Math.max(...meds);
-    return new Chart(document.getElementById(id), {
-      type:'bar',
-      // the sample size goes on the axis, not only in the tooltip: a band of
-      // six listings and one of six hundred otherwise look identical
-      data:{ labels: rows.map(r => [r.label, FA(r.n) + ' آگهی']),
-        datasets:[{ data:meds, barPercentage:.78,
-          backgroundColor: rows.map(r =>
-            r.n < 20 ? CSSVAR('--rule') : heat(r.med, lo, hi)),
-          borderColor: CSSVAR('--ink'),
-          borderWidth: rows.map(r => (isOn && isOn(r)) ? 3 : 0) }] },
-      options:{ maintainAspectRatio:false,
-        onClick: (e, els) => { if (els.length && pick) pick(rows[els[0].index]); },
-        onHover: (e, els) => {
-          e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
-        plugins:{ legend:{display:false},
-          tooltip:{ rtl:true, displayColors:false,
-            bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
-            callbacks:{ label: c => FA1(meds[c.dataIndex]) + ' م/متر — ' +
-                                    FA(rows[c.dataIndex].n) + ' آگهی' } } },
-        scales:{ x:{ grid:{display:false},
-                     ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
-                            maxRotation:0} },
-                 y:{ position:'right', grid:{color:CSSVAR('--rule')},
-                     ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
-                            callback:v=>FA(v)} } } }
-    });
-  };
-  sizeChart = paint('bySize', sizes, sizeChart, pickSize, sizeOn);
-  ageChart  = paint('byAge',  ages,  ageChart,  pickAge,  ageOn);
-}
-
 const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };
 let adsSort = 'new', shown = 24, solo = null;
 /* How far Divar's published point may sit from the real property. Their
@@ -980,7 +890,6 @@ bootPage('index.html', () => {
   drawTrendTabs();
   drawTrend();
   drawDist();
-  drawBreakdown();
   document.getElementById('adsHead').textContent =
     `آگهی‌های ${kindLabel()} در ${S.hood || CITY.name}`;
   shown = 24;
