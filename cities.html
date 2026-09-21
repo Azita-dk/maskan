@@ -116,8 +116,10 @@ function drawCities(){
       const city = S.city;
       Object.assign(S, DEFAULTS, { city });
       const q = document.getElementById('q'); if (q) q.value = '';
-      for (const [id, k] of [['fMin','min'],['fMax','max'],['fRooms','rooms'],['fAge','age']])
-        document.getElementById(id).value = S[k];
+      for (const [id, k] of FILTER_INPUTS) {
+        const el = document.getElementById(id);
+        if (el) el.value = S[k];
+      }
       fillProvSelect(); fillCitySelect(); fillHoodSelect();
       commit();
     });

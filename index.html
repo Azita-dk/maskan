@@ -36,7 +36,8 @@
       </header>
       <div id="hoodGrid"><div class="loading">در حال بارگذاری…</div></div>
       <div class="scalekey"><span>ارزان‌ترین</span><span class="bar"></span>
-        <span>گران‌ترین</span><span>— رنگ هر خانه بر پایه قیمت هر متر مربع است</span></div>
+        <span>گران‌ترین</span><span>— عدد هر خانه میانه قیمت هر متر مربع آن محله است،
+          به میلیون تومان؛ رنگ هم بر پایه همان عدد است</span></div>
       <p class="foot" id="hoodFoot"></p>
     </div>
 
@@ -206,7 +207,7 @@ function drawCityCards(){
       <div class="top">
         <div><h3>${esc(c.name)}</h3>
           <div class="big">${cardMedian(c, filtered)}</div>
-          <div class="unit">میلیون تومان · هر متر مربع${
+          <div class="unit">میانه، میلیون تومان · هر متر مربع${
             filtered ? ' (با فیلترها)' : ''}</div></div>
         ${landmark(c.name)}
       </div>
@@ -293,7 +294,7 @@ function drawMarkets(){
         <span class="num">${med === null ? '—' : FA1(med)}</span>
         <span class="sub">${med === null
           ? 'هنوز جمع‌آوری نشده'
-          : 'میلیون تومان بر متر · ' + FA(rows.length) + ' آگهی'}</span>
+          : 'میانه، میلیون تومان بر متر · ' + FA(rows.length) + ' آگهی'}</span>
       </button>`;
   }).join('');
 
@@ -429,7 +430,7 @@ function drawHoods(){
     box.innerHTML = `<div class="gcell on" data-hood="${esc(r.hood)}"
       style="background:${color};color:${ink}">
       <div class="grow"><span class="gname">${esc(r.hood)}</span></div>
-      <div class="grow"><span class="gval">${FA1(r.med)}</span>
+      <div class="grow"><span class="gval"><span class="glbl">میانه</span> ${FA1(r.med)}</span>
         <span class="gcount">${FA(r.n)} آگهی</span></div>
     </div>`;
     box.querySelector('[data-hood]').addEventListener('click', () => {
@@ -454,11 +455,10 @@ function drawHoods(){
     const color = heat(r.med, lo, hi);
     const ink = heatIsLight(r.med, lo, hi) ? '#1a1a1a' : '#fff';
     return `<div class="gcell${r.hood === S.hood ? ' on' : ''}" data-hood="${esc(r.hood)}"
-      title="${esc(r.hood)} — ${FA1(r.med)} میلیون/متر — ${FA(r.n)} آگهی — ${confLevel(r.n).label}"
+      title="${esc(r.hood)} — میانه ${FA1(r.med)} میلیون تومان بر متر — ${FA(r.n)} آگهی — ${confLevel(r.n).label}"
       style="background:${color};color:${ink}">
-      <div class="grow"><span class="gname">${esc(r.hood)}</span>
-        <span class="grank">${FA(i + 1)}</span></div>
-      <div class="grow"><span class="gval">${FA1(r.med)}</span>
+      <div class="grow"><span class="gname">${esc(r.hood)}</span></div>
+      <div class="grow"><span class="gval"><span class="glbl">میانه</span> ${FA1(r.med)}</span>
         <span class="gcount">${FA(r.n)} آگهی</span></div>
     </div>`;
   }).join('');
@@ -490,11 +490,11 @@ document.getElementById('hoodTabs').addEventListener('click', e => {
 function historySeries(){
   if (S.hood) {
     const byKind = (CITY.hood_hist || {})[S.kind] || {};
-    return (byKind[S.hood] || []).filter(r => r.v > 0);
+    return (byKind[S.hood] || []).filter(r => r.v > 0 && r.d >= HISTORY_START);
   }
   const ours = CITY.ours || {};
   const series = Array.isArray(ours) ? ours : (ours[S.kind] || []);
-  return series.filter(r => r.v > 0);
+  return series.filter(r => r.v > 0 && r.d >= HISTORY_START);
 }
 function historyDays(h){
   if (h.length < 2) return 0;
@@ -645,24 +645,51 @@ function drawDist(){
 }
 
 function drawBreakdown(){
+  // lo/hi are what a click on the bar sets as the filter
   const SIZE = [
-    { label:'زیر ۵۰', t:a => a < 50 }, { label:'۵۰ تا ۷۵', t:a => a>=50&&a<75 },
-    { label:'۷۵ تا ۱۰۰', t:a => a>=75&&a<100 }, { label:'۱۰۰ تا ۱۵۰', t:a => a>=100&&a<150 },
-    { label:'۱۵۰ تا ۲۰۰', t:a => a>=150&&a<200 }, { label:'بالای ۲۰۰', t:a => a>=200 } ];
+    { label:'زیر ۵۰', t:a => a < 50, lo:0, hi:49 },
+    { label:'۵۰ تا ۷۵', t:a => a>=50&&a<75, lo:50, hi:74 },
+    { label:'۷۵ تا ۱۰۰', t:a => a>=75&&a<100, lo:75, hi:99 },
+    { label:'۱۰۰ تا ۱۵۰', t:a => a>=100&&a<150, lo:100, hi:149 },
+    { label:'۱۵۰ تا ۲۰۰', t:a => a>=150&&a<200, lo:150, hi:199 },
+    { label:'بالای ۲۰۰', t:a => a>=200, lo:200, hi:9999 } ];
   const AGE = [
-    { label:'نوساز', t:g => g <= 1 }, { label:'۲ تا ۵', t:g => g>1&&g<=5 },
-    { label:'۶ تا ۱۰', t:g => g>5&&g<=10 }, { label:'۱۱ تا ۲۰', t:g => g>10&&g<=20 },
-    { label:'بالای ۲۰', t:g => g>20 } ];
+    { label:'نوساز', t:g => g <= 1, lo:0, hi:1 },
+    { label:'۲ تا ۵', t:g => g>1&&g<=5, lo:2, hi:5 },
+    { label:'۶ تا ۱۰', t:g => g>5&&g<=10, lo:6, hi:10 },
+    { label:'۱۱ تا ۲۰', t:g => g>10&&g<=20, lo:11, hi:20 },
+    { label:'بالای ۲۰', t:g => g>20, lo:21, hi:null } ];
 
   const bucket = (rows, bands, pick) => bands.map(b => {
     const v = rows.filter(l => pick(l) != null && b.t(pick(l))).map(l => l.m).filter(x => x>0);
-    return { label:b.label, n:v.length, med: v.length ? round1(median(v)) : null };
+    return { label:b.label, n:v.length, med: v.length ? round1(median(v)) : null,
+             lo:b.lo, hi:b.hi };
   }).filter(x => x.n > 0);
+
+  /* Clicking a bar filters the page to it; clicking it again clears it.
+     These bars were only pictures before, so pressing one did nothing while
+     it looked like it should. */
+  const sizeOn = r => S.min === String(r.lo) && S.max === String(r.hi);
+  const ageOn  = r => S.agelo === String(r.lo) &&
+                      S.agehi === (r.hi == null ? '' : String(r.hi));
+  const pickSize = r => {
+    const on = sizeOn(r);
+    S.min = on ? DEFAULTS.min : String(r.lo);
+    S.max = on ? DEFAULTS.max : String(r.hi);
+    commit();
+  };
+  const pickAge = r => {
+    const on = ageOn(r);
+    S.agelo = on ? '' : String(r.lo);
+    S.agehi = on ? '' : (r.hi == null ? '' : String(r.hi));
+    S.age = DEFAULTS.age;
+    commit();
+  };
 
   const sizes = bucket(activeListings('area'), SIZE, l => l.a);
   const ages  = bucket(activeListings('age'),  AGE,  l => l.g);
 
-  const paint = (id, rows, prev) => {
+  const paint = (id, rows, prev, pick, isOn) => {
     prev && prev.destroy();
     if (!rows.length) return null;
     const meds = rows.map(r => r.med);
@@ -672,10 +699,15 @@ function drawBreakdown(){
       // the sample size goes on the axis, not only in the tooltip: a band of
       // six listings and one of six hundred otherwise look identical
       data:{ labels: rows.map(r => [r.label, FA(r.n) + ' آگهی']),
-        datasets:[{ data:meds, borderWidth:0, barPercentage:.78,
+        datasets:[{ data:meds, barPercentage:.78,
           backgroundColor: rows.map(r =>
-            r.n < 20 ? CSSVAR('--rule') : heat(r.med, lo, hi)) }] },
+            r.n < 20 ? CSSVAR('--rule') : heat(r.med, lo, hi)),
+          borderColor: CSSVAR('--ink'),
+          borderWidth: rows.map(r => (isOn && isOn(r)) ? 3 : 0) }] },
       options:{ maintainAspectRatio:false,
+        onClick: (e, els) => { if (els.length && pick) pick(rows[els[0].index]); },
+        onHover: (e, els) => {
+          e.native.target.style.cursor = els.length ? 'pointer' : 'default'; },
         plugins:{ legend:{display:false},
           tooltip:{ rtl:true, displayColors:false,
             bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
@@ -689,8 +721,8 @@ function drawBreakdown(){
                             callback:v=>FA(v)} } } }
     });
   };
-  sizeChart = paint('bySize', sizes, sizeChart);
-  ageChart  = paint('byAge',  ages,  ageChart);
+  sizeChart = paint('bySize', sizes, sizeChart, pickSize, sizeOn);
+  ageChart  = paint('byAge',  ages,  ageChart,  pickAge,  ageOn);
 }
 
 const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };

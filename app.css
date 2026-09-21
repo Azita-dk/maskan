@@ -101,6 +101,16 @@ button{font:inherit;font-family:inherit;cursor:pointer}
   background:var(--paper);border-block:1px solid var(--rule)}
 
 .filters{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:12px}
+/* A from/to pair, like Divar's own filters. The unit sits in the label so
+   the boxes can stay short. */
+.filters .range{display:flex;flex-direction:column;gap:5px}
+.filters .range > span{font-size:12.5px;color:var(--muted)}
+.filters .range small{font-size:11px;opacity:.8}
+.filters .pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.filters .pair input{width:100%;min-width:0;box-sizing:border-box;height:38px;
+  border:1px solid var(--rule);border-radius:8px;padding:0 10px;
+  background:var(--card);color:var(--ink);font-family:inherit;font-size:14px}
+.filters .pair input:focus{outline:2px solid var(--green);outline-offset:-2px}
 .filters label{display:block}
 .filters span{display:block;font-size:11.5px;color:var(--muted);margin-bottom:3px}
 .filters select{width:100%;height:38px;padding:0 8px;font:inherit;font-size:14px;
@@ -350,6 +360,7 @@ tr.expired:hover{background:transparent}
   text-overflow:ellipsis;white-space:nowrap}
 .grank{font-size:11px;opacity:.72;font-variant-numeric:tabular-nums;flex:none}
 .gval{font-size:15.5px;font-weight:800;font-variant-numeric:tabular-nums}
+.glbl{font-size:10.5px;font-weight:600;opacity:.8;margin-inline-end:2px}
 .gcount{font-size:11px;opacity:.85;flex:none}
 @media (max-width:720px){
   #hoodGrid{grid-template-columns:repeat(auto-fill,minmax(136px,1fr));
@@ -466,8 +477,9 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
      سن بنا fold away. Most of the traffic here is a phone, so this is the
      layout that matters. */
   .filters{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px}
-  .filters label:nth-child(n+4){display:none}
-  .filters.open label:nth-child(n+4){display:block}
+  .filters > :nth-child(n+4){display:none}
+  .filters.open > label:nth-child(n+4){display:block}
+  .filters.open > .range:nth-child(n+4){display:flex}
   .filters label:nth-child(3){grid-column:1 / -1}
   .filterbtn{display:block}
   .grid4,.kpis{grid-template-columns:1fr 1fr}
@@ -493,6 +505,8 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   /* 16px again for iOS, and a taller control so the whole row is tappable
      rather than just the arrow. */
   .filters select{height:44px;font-size:16px}
+  .filters .pair input{height:44px;font-size:16px}
+  .filters .range{grid-column:1 / -1}
   .filters span{font-size:12px}
   .filterbtn{min-height:40px}
   .kindtabs{gap:6px}
