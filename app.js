@@ -75,6 +75,13 @@ function faMonth(iso){
 }
 
 const PROVINCE = {
+ // from the National Cartographic Center gazetteer; these five were missing
+ // and each showed up in the province list as a province of its own
+ "قرچک": "تهران",
+ "رودهن": "تهران",
+ "شهرجدیدهشتگرد": "البرز",
+ "چهارباغ": "البرز",
+ "آسارا": "البرز",
  "کرج": "البرز",
  "فردیس": "البرز",
  "نظرآباد": "البرز",
