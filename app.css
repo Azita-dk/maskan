@@ -373,7 +373,22 @@ tr.expired:hover{background:transparent}
 .sidebyside{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
 .sidebyside > .panel{margin:0;min-width:0}
 .sidebyside .chart{min-width:0}
-@media (max-width:900px){ .sidebyside{grid-template-columns:1fr} }
+/* The trend and the distribution stay abreast on a phone too, because
+   reading them together is the point: where the price sits, and how spread
+   out it is. Two narrow charts, so they lose some height and the panels
+   lose their side padding to give the plots the width back. */
+@media (max-width:900px){
+  .sidebyside{grid-template-columns:1fr 1fr;gap:8px}
+  .sidebyside .chart{height:190px}
+  .sidebyside .chart.short{height:190px}
+  .sidebyside > .panel{padding-inline:0}
+  .sidebyside .chartbox{padding-inline:4px}
+  .sidebyside header{padding-inline:10px}
+  .sidebyside header h3{font-size:13.5px}
+  .sidebyside .foot{padding-inline:10px;font-size:10.5px}
+  .sidebyside .statrow{grid-template-columns:repeat(2,1fr);padding-inline:6px}
+  .sidebyside .tabs button{padding:5px 7px;font-size:11px;min-height:0}
+}
 
 /* The map and the ads belong together: clicking a marker picks out a row,
    and picking a row lights the marker. Apart, that connection is invisible
@@ -390,7 +405,9 @@ tr.expired:hover{background:transparent}
 .mapads #map{height:520px}
 @media (max-width:1100px){
   .mapads{grid-template-columns:1fr}
-  .mapads > .panel:last-child{position:static}
+  /* Map above the list on one column. Below it, a reader has to scroll past
+     every row to reach it — and the map is how most people start. */
+  .mapads > .panel:last-child{position:static;order:-1}
   .mapads #map{height:380px}
 }
 
@@ -564,6 +581,32 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 @media (max-width:720px){
   /* 16px again for iOS, and a taller control so the whole row is tappable
      rather than just the arrow. */
+  /* A phone reads down, so the page has to be short. These four numbers
+     stacked one per row filled most of a screen before any content; two
+     abreast is the same information in a quarter of the height. */
+  .kpis{grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+  .kpi{padding:11px 12px}
+  .kpi .k{font-size:11px}
+  .kpi .v{font-size:19px}
+  .kpi .u{font-size:10.5px}
+
+  /* The header follows the page down, so on a phone it should cost as
+     little height as it can: 64px of a 780px screen is a lot to give up
+     permanently. */
+  .nav .wrap{height:52px;gap:10px}
+  .brand .mark{width:30px;height:30px}
+  .brand b{font-size:15px}
+  .brand small{display:none}
+
+  /* Side padding is expensive on a 390px screen: 40px of the width went to
+     margins before anything was drawn. */
+  .wrap{padding:0 10px}
+  .panel{margin-bottom:12px;border-radius:10px}
+  .panel > header{padding:11px 12px}
+  .panel h3{font-size:14.5px}
+  .chartbox{padding:10px 8px}
+  .foot{padding:10px 12px;font-size:11px}
+
   .filters select{height:44px;font-size:16px}
   .filters .pair input{height:44px;font-size:16px}
   .filters span{font-size:12px}
@@ -574,7 +617,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .reset,.more{min-height:38px}
 }
 @media (max-width:480px){
-  .grid4,.kpis{grid-template-columns:1fr}
+  .grid4{grid-template-columns:1fr}
   .vgrid{grid-template-columns:1fr}
   .phead h1{font-size:22px}
   .hnum,.hhead span:nth-child(1),.htrack,.hhead span:nth-child(3){display:none}
