@@ -73,46 +73,49 @@
   <section>
     <div class="shead"><h2 id="adsHead">آگهی‌ها و نقشه</h2>
       <a href="ads.html" data-page="ads.html">صفحه کامل آگهی‌ها →</a></div>
-  <div class="panel">
-    <header><h3 id="mapTitle">نقشه قیمت</h3>
-      <button class="tabs" id="mapReset" style="display:none"></button></header>
-    <div class="mapwrap">
-      <div id="map"></div>
-      <div class="mapsearch">
-        <input id="mq" type="search" autocomplete="off"
-               placeholder="جست‌وجوی محله، امکانات یا متن آگهی…">
-        <button id="mqClear" class="hide" aria-label="پاک کردن">✕</button>
+  <div class="sidebyside mapads">
+    <div class="panel">
+      <header><h3 id="mapTitle">نقشه قیمت</h3>
+        <button class="tabs" id="mapReset" style="display:none"></button></header>
+      <div class="mapwrap">
+        <div id="map"></div>
+        <div class="mapsearch">
+          <input id="mq" type="search" autocomplete="off"
+                 placeholder="جست‌وجوی محله، امکانات یا متن آگهی…">
+          <button id="mqClear" class="hide" aria-label="پاک کردن">✕</button>
+        </div>
       </div>
+      <div class="legend"><span>کمترین قیمت</span><span class="bar"></span><span>بیشترین قیمت</span></div>
+      <p class="foot" id="mapNote"></p>
     </div>
-    <div class="legend"><span>کمترین قیمت</span><span class="bar"></span><span>بیشترین قیمت</span></div>
-    <p class="foot" id="mapNote"></p>
+
+    <div class="panel">
+      <header><h3 id="adsTitle">آگهی‌ها</h3>
+        <div class="tabs" id="adsTabs">
+          <button data-sort="new" class="on">تازه‌ترین</button>
+          <button data-sort="cheap">ارزان‌ترین هر متر</button>
+          <button data-sort="dear">گران‌ترین هر متر</button>
+          <button data-sort="cheapTotal">ارزان‌ترین قیمت کل</button>
+          <button data-sort="dearTotal">گران‌ترین قیمت کل</button>
+        </div></header>
+      <div id="soloBar" class="hide" style="padding:11px 16px;border-bottom:1px solid var(--rule);
+        display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13.5px">
+        <span>یک آگهی از روی نقشه انتخاب شده است</span>
+        <button class="reset" id="soloClear" style="border:1px solid var(--rule);
+          background:transparent;color:var(--muted);border-radius:8px;padding:4px 11px">
+          نمایش همه آگهی‌ها</button>
+      </div>
+      <table class="cards">
+        <thead><tr><th>عنوان</th><th>محله</th><th>متراژ</th>
+          <th>قیمت کل</th><th>هر متر</th><th>تاریخ</th><th>منبع</th></tr></thead>
+        <tbody id="adsBody"><tr><td colspan="7" class="loading">در حال بارگذاری…</td></tr></tbody>
+      </table>
+      <button class="more hide" id="adsMore"></button>
+      <p class="foot">آگهی‌ها متعلق به دیوار، شیپور و کیلید است و با کلیک روی هر
+        ردیف در همان سایت باز می‌شود. این سایت آگهی منتشر نمی‌کند.</p>
+    </div>
   </div>
 
-  <div class="panel">
-    <header><h3 id="adsTitle">آگهی‌ها</h3>
-      <div class="tabs" id="adsTabs">
-        <button data-sort="new" class="on">تازه‌ترین</button>
-        <button data-sort="cheap">ارزان‌ترین هر متر</button>
-        <button data-sort="dear">گران‌ترین هر متر</button>
-        <button data-sort="cheapTotal">ارزان‌ترین قیمت کل</button>
-        <button data-sort="dearTotal">گران‌ترین قیمت کل</button>
-      </div></header>
-    <div id="soloBar" class="hide" style="padding:11px 16px;border-bottom:1px solid var(--rule);
-      display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13.5px">
-      <span>یک آگهی از روی نقشه انتخاب شده است</span>
-      <button class="reset" id="soloClear" style="border:1px solid var(--rule);
-        background:transparent;color:var(--muted);border-radius:8px;padding:4px 11px">
-        نمایش همه آگهی‌ها</button>
-    </div>
-    <table class="cards">
-      <thead><tr><th>عنوان</th><th>محله</th><th>متراژ</th>
-        <th>قیمت کل</th><th>هر متر</th><th>تاریخ</th><th>منبع</th></tr></thead>
-      <tbody id="adsBody"><tr><td colspan="7" class="loading">در حال بارگذاری…</td></tr></tbody>
-    </table>
-    <button class="more hide" id="adsMore"></button>
-    <p class="foot">آگهی‌ها متعلق به دیوار، شیپور و کیلید است و با کلیک روی هر
-      ردیف در همان سایت باز می‌شود. این سایت آگهی منتشر نمی‌کند.</p>
-  </div>
   </section>
 
   <section>

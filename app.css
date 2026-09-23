@@ -375,6 +375,22 @@ tr.expired:hover{background:transparent}
 .sidebyside .chart{min-width:0}
 @media (max-width:900px){ .sidebyside{grid-template-columns:1fr} }
 
+/* The map and the ads belong together: clicking a marker picks out a row,
+   and picking a row lights the marker. Apart, that connection is invisible
+   because one is off screen while you use the other.
+   The ads get the wider share — seven columns — and the pair separates
+   sooner than the charts do, since a cramped table is worse than a stacked
+   one. The map sticks while the list is scrolled, so the selection stays in
+   view. */
+.mapads{grid-template-columns:5fr 7fr}
+.mapads > .panel:first-child{position:sticky;top:12px}
+.mapads #map{height:520px}
+@media (max-width:1100px){
+  .mapads{grid-template-columns:1fr}
+  .mapads > .panel:first-child{position:static}
+  .mapads #map{height:380px}
+}
+
 /* ------------------------------------------------- neighbourhood grid */
 /* One tile per neighbourhood, in rank order. Reading right to left, top to
    bottom, is the ranking — so the dearest is the first tile and the cheapest
