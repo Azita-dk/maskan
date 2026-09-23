@@ -123,7 +123,15 @@ function drawKpis(){
  * So the series starts after the last day the count moved by more than a
  * tenth. As coverage settles the chart grows back, one honest day at a time,
  * and no false step is ever drawn. */
-const COVERAGE_STEP = 0.10;
+/* Half, not a tenth.
+   A tenth was set before the history was recomputed, when a day's median
+   came from whatever had been scraped by then. Now every day is worked out
+   from the same listings, and the count still moves a few percent daily
+   because the market itself has more or fewer adverts live — which a tenth
+   read as a coverage change, trimming the line to a single point and leaving
+   the chart empty. Half still catches what this is for: Tehran going from
+   16,350 listings to 102,578 in five days. */
+const COVERAGE_STEP = 0.50;
 function sameCoverage(h){
   if (h.length < 2 || h.some(r => r.n == null)) return h;
   let from = 0;
