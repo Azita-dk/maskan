@@ -382,12 +382,15 @@ tr.expired:hover{background:transparent}
    sooner than the charts do, since a cramped table is worse than a stacked
    one. The map sticks while the list is scrolled, so the selection stays in
    view. */
-.mapads{grid-template-columns:5fr 7fr}
-.mapads > .panel:first-child{position:sticky;top:12px}
+/* Ads first in the source, map second — the first panel sits on the right
+   in this layout, so the ads land right and the map left. Placed by source
+   order rather than by column number, which reads the same either way. */
+.mapads{grid-template-columns:7fr 5fr}
+.mapads > .panel:last-child{position:sticky;top:12px}
 .mapads #map{height:520px}
 @media (max-width:1100px){
   .mapads{grid-template-columns:1fr}
-  .mapads > .panel:first-child{position:static}
+  .mapads > .panel:last-child{position:static}
   .mapads #map{height:380px}
 }
 
