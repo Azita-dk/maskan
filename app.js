@@ -802,8 +802,13 @@ function fillKindSelect(){
     .reduce((sum, c) => sum + (((c.byKind || {})[kindId] || {}).n || 0), 0);
 
   box.innerHTML = KINDS.map(k => {
-    const here = ((CITY && CITY.listings) || [])
-      .filter(l => (l.k || 'apartment') === k.id).length;
+    /* byKind counts every listing in the city; CITY.listings holds only the
+       newest of them, because a file with all of Tehran's would exceed the
+       25 MB limit on a stored value. Counting the array would under-report
+       a large city by tens of thousands. */
+    const here = ((CITY && CITY.byKind && CITY.byKind[k.id]) || {}).n
+      ?? ((CITY && CITY.listings) || [])
+           .filter(l => (l.k || 'apartment') === k.id).length;
     const all = national(k.id);
     return `<button data-k="${k.id}"${k.id === S.kind ? ' class="on"' : ''}
       ${all ? '' : ' disabled title="این بازار هنوز جمع‌آوری نشده"'}

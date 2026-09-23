@@ -112,14 +112,37 @@ function drawKpis(){
 /* History is stored per kind. `ours` and `hood_hist` are objects keyed by
    apartment / villa / land, never one merged series — joining them would put
    a step in the line on the day the second market started being collected. */
+/* Only the days that measure the same market.
+ *
+ * The median is taken over whatever listings existed that day, so when
+ * coverage changes the line moves for a reason that has nothing to do with
+ * prices. Tehran went from 16,350 listings to 102,578 in five days as the
+ * price bands reached parts of the market that were previously unreachable,
+ * and the line fell to 218.8 and rose to 247.5 — neither was the market.
+ *
+ * So the series starts after the last day the count moved by more than a
+ * tenth. As coverage settles the chart grows back, one honest day at a time,
+ * and no false step is ever drawn. */
+const COVERAGE_STEP = 0.10;
+function sameCoverage(h){
+  if (h.length < 2 || h.some(r => r.n == null)) return h;
+  let from = 0;
+  for (let i = 1; i < h.length; i++) {
+    const a = h[i - 1].n, b = h[i].n;
+    if (a > 0 && Math.abs(b - a) / a > COVERAGE_STEP) from = i;
+  }
+  return h.slice(from);
+}
+
 function historySeries(){
   if (S.hood) {
     const byKind = (CITY.hood_hist || {})[S.kind] || {};
-    return (byKind[S.hood] || []).filter(r => r.v > 0 && r.d >= HISTORY_START);
+    return sameCoverage((byKind[S.hood] || [])
+      .filter(r => r.v > 0 && r.d >= HISTORY_START));
   }
   const ours = CITY.ours || {};
   const series = Array.isArray(ours) ? ours : (ours[S.kind] || []);
-  return series.filter(r => r.v > 0 && r.d >= HISTORY_START);
+  return sameCoverage(series.filter(r => r.v > 0 && r.d >= HISTORY_START));
 }
 function historyDays(h){
   if (h.length < 2) return 0;
@@ -164,7 +187,9 @@ function drawTrend(){
     return;
   }
   const span = historyDays(hist);
-  note.textContent = `میانه قیمت آگهی‌ها، میلیون تومان بر متر مربع — تاریخچه از ` +
+  note.textContent = `نمودار از روزی شروع می‌شود که تعداد آگهی‌ها ثابت شده باشد؛ روزهایی که
+        پوشش سایت تغییر کرده کنار گذاشته می‌شوند، چون میانه آن روزها روی مجموعه
+        دیگری از آگهی‌ها حساب شده است. میانه قیمت آگهی‌ها، میلیون تومان بر متر مربع — تاریخچه از ` +
     `${faDate(hist[0].d)}، یعنی ${FA(span)} روز.` +
     (span < 365 ? ' مقایسه چندساله وقتی ممکن می‌شود که داده‌اش جمع شده باشد.' : '');
 
