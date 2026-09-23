@@ -492,7 +492,11 @@ function sameCoverage(h){
     const a = h[i - 1].n, b = h[i].n;
     if (a > 0 && Math.abs(b - a) / a > COVERAGE_STEP) from = i;
   }
-  return h.slice(from);
+  /* Trimming must never empty the chart. If the last coverage change was
+     recent there is nothing left to draw, and an empty panel is worse than
+     a line with a caveat — so the whole series is kept instead. */
+  const kept = h.slice(from);
+  return kept.length >= 2 ? kept : h;
 }
 
 function historySeries(){
