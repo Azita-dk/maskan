@@ -640,7 +640,8 @@ function renderSearchBar(host){
       <div class="search">
         <span class="go">${ICONS.search}</span>
         <input id="q" type="search" autocomplete="off"
-               placeholder="جست‌وجوی شهر، محله، امکانات یا متن آگهی…">
+               placeholder="جست‌وجوی شهر، محله، امکانات یا متن آگهی…"
+               data-short="جست‌وجو در آگهی‌ها…">
         <button class="clear hide" id="qClear" aria-label="پاک کردن">×</button>
         <div class="sugg hide" id="sugg"></div>
       </div>
@@ -686,6 +687,20 @@ function renderSearchBar(host){
   document.getElementById('qClear').classList.toggle('hide', !S.q);
 
   fillKindSelect();
+  /* A phone cuts the long placeholder off mid-word — "…یا متن آگه". The
+     short one is used on narrow screens, and swaps back if the window grows
+     or the phone is turned. */
+  const fitPlaceholder = () => {
+    for (const el of document.querySelectorAll('input[data-short]')) {
+      const long = el.getAttribute('data-long') || el.placeholder;
+      if (!el.getAttribute('data-long')) el.setAttribute('data-long', long);
+      el.placeholder = window.innerWidth <= 720
+        ? el.getAttribute('data-short') : el.getAttribute('data-long');
+    }
+  };
+  fitPlaceholder();
+  window.addEventListener('resize', fitPlaceholder);
+
   fillProvSelect();
   fillCitySelect();
   fillHoodSelect();
@@ -1033,7 +1048,14 @@ function drawChips(){
 function drawSummary(){
   const box = document.getElementById('summary');
   if (!box) return;
-  const n = activeListings().length;
+  /* With nothing filtered this is the city's real total, which the build
+     counted over every listing. The file itself holds only the newest of
+     them — all of Tehran's would exceed the 25 MB limit on a stored value —
+     so counting the array said 12,000 beside a tab reading 102,578. */
+  const fcNow = activeFilterCount();
+  const bk = (CITY && CITY.byKind && CITY.byKind[S.kind]) || null;
+  const n = (!S.hood && !fcNow && !S.q && bk && bk.n != null)
+    ? bk.n : activeListings().length;
   const where = S.hood ? `${esc(S.hood)}، ${esc(CITY.name)}`
     : esc(CITY ? CITY.name : '') + (S.prov ? ` (استان ${esc(S.prov)})` : '');
   const fc = activeFilterCount();
