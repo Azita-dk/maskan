@@ -373,6 +373,12 @@ const DEFAULTS = { kind:'apartment', prov:'', city:'', hood:'', min:'', max:'',
                    rooms:'all', age:'999', agelo:'', agehi:'', date:'0', sample:'20',
                    q:'', feat:'' };
 
+/* A value that changes every minute, appended to each data request.
+   The files are rebuilt every five minutes, and without this a reader can be
+   served a copy from a cache for far longer — the price chart sat on
+   21 September while the database already held 23. */
+const cacheTick = () => Math.floor(Date.now() / 60000);
+
 const S = { ...DEFAULTS };
 
 // every filter control and the state key it drives
@@ -1070,11 +1076,11 @@ function commit(){
 
 /* ---------------------------------------------------------- data access */
 async function loadStats(){
-  DB = await (await fetch(DATA_BASE + '/data/stats.json')).json();
+  DB = await (await fetch(DATA_BASE + '/data/stats.json?v=' + cacheTick())).json();
   return DB;
 }
 async function loadCity(id){
-  CITY = await (await fetch(`${DATA_BASE}/data/${id}.json`)).json();
+  CITY = await (await fetch(`${DATA_BASE}/data/${id}.json?v=${cacheTick()}`)).json();
   CITY.id = id;
   return CITY;
 }
