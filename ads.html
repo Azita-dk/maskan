@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="app.css?v=20260923i">
+<link rel="stylesheet" href="app.css?v=20260923j">
 </head>
 <body>
 
@@ -56,6 +56,7 @@
                placeholder="جست‌وجوی محله، امکانات یا متن آگهی…"
                data-short="جست‌وجو روی نقشه…">
         <button id="mqClear" class="hide" aria-label="پاک کردن">✕</button>
+        <button id="mqGo" aria-label="جست‌وجو">جست‌وجو</button>
       </div>
     </div>
     <div class="legend"><span>کمترین قیمت</span><span class="bar"></span><span>بیشترین قیمت</span></div>
@@ -71,7 +72,7 @@
 </div></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=20260923i"></script>
+<script src="app.js?v=20260923j"></script>
 <script>
 const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };
 /* How far Divar's published point may sit from the real property. Their
@@ -173,7 +174,23 @@ document.getElementById('soloClear').addEventListener('click', () => {
   solo = null; drawAds(); drawMap();
 });
 
+/* The way back from one listing to all of them, on the map itself.
+   The button was in the markup but never shown or wired, so the only reset
+   was the one above the ads table — which on a phone now sits below the
+   map, out of sight at the moment it is needed. */
+function syncMapReset(){
+  const b = document.getElementById('mapReset');
+  if (!b) return;
+  b.style.display = solo ? '' : 'none';
+  b.textContent = 'نمایش همه روی نقشه';
+  if (!b.dataset.wired) {
+    b.dataset.wired = '1';
+    b.addEventListener('click', () => { solo = null; drawAds(); drawMap(); });
+  }
+}
+
 function drawMap(){
+  syncMapReset();
   const pts = activeListings().filter(l => l.y && l.x && l.m > 0);
   if (!map) {
     map = L.map('map', { scrollWheelZoom:false });

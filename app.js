@@ -643,6 +643,7 @@ function renderSearchBar(host){
                placeholder="جست‌وجوی شهر، محله، امکانات یا متن آگهی…"
                data-short="جست‌وجو در آگهی‌ها…">
         <button class="clear hide" id="qClear" aria-label="پاک کردن">×</button>
+        <button class="gobtn" id="qGo">جست‌وجو</button>
         <div class="sugg hide" id="sugg"></div>
       </div>
 
@@ -760,6 +761,13 @@ function renderSearchBar(host){
       });
     }
   }
+
+  const qGo = document.getElementById('qGo');
+  if (qGo) qGo.addEventListener('click', () => {
+    const el = document.getElementById('q');
+    S.q = el ? el.value.trim() : ''; commit();
+    if (el) el.blur();
+  });
 
   document.getElementById('filterBtn').addEventListener('click', () =>
     document.getElementById('filters').classList.toggle('open'));
