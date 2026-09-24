@@ -7,7 +7,7 @@
 <meta name="description" content="روند قیمت، توزیع قیمت، و قیمت بر پایه متراژ و سن بنا.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=20260924e">
+<link rel="stylesheet" href="app.css?v=20260924f">
 </head>
 <body>
 
@@ -31,6 +31,7 @@
   <div class="panel">
     <header><h3 id="trendTitle">روند قیمت</h3>
       <div class="tabs" id="trendTabs"></div></header>
+      <div class="cmpbar" id="cmpBar"></div>
     <div class="chartbox"><div class="chart">
       <canvas id="trend"></canvas><div class="callout hide" id="callout"></div>
     </div></div>
@@ -72,7 +73,7 @@
 </div></footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=20260924e"></script>
+<script src="app.js?v=20260924f"></script>
 <script>
 let trendChart=null, distChart=null, sizeChart=null, ageChart=null, hoodBars=null;
 let period = 'all';
@@ -204,6 +205,53 @@ function byMonth(hist){
                                      v: round1(median(m.vals)) }));
 }
 
+const CMP_MAX = 4;
+const cmpList = () => (S.cmp ? S.cmp.split('|').filter(Boolean) : []);
+
+/* Which neighbourhoods to compare is the reader's choice, not a ranking.
+   Boligsiden works this way: pick two areas and see them against each other.
+   The picks live in the address, so a comparison can be sent to someone. */
+function drawCmpPicker(){
+  const bar = document.getElementById('cmpBar');
+  if (!bar) return;
+  const hist = historySeries();
+  if ((hist.length > 1 ? historyDays(hist) : 0) < MIN_TREND_DAYS) {
+    bar.innerHTML = ''; return;
+  }
+  const byKind = (CITY.hood_hist || {})[S.kind] || {};
+  const have = hoodStats()
+    .filter(h => (byKind[h.hood] || []).length > 1)
+    .sort((a, b) => b.n - a.n);
+  const chosen = cmpList();
+  const opts = have.filter(h => !chosen.includes(h.hood));
+
+  bar.innerHTML =
+    `<span class="cmplbl">مقایسه با:</span>` +
+    chosen.map((h, i) => `<button class="cmpchip" data-drop="${esc(h)}">
+        <i style="background:${LINE_COLORS[(i + 1) % LINE_COLORS.length]}"></i>
+        ${esc(h)} <b>✕</b></button>`).join('') +
+    (chosen.length < CMP_MAX && opts.length
+      ? `<select id="cmpAdd"><option value="">+ افزودن محله</option>` +
+        opts.map(h => `<option value="${esc(h.hood)}">${esc(h.hood)} (${FA(h.n)})</option>`).join('') +
+        `</select>`
+      : '') +
+    (chosen.length ? `<button class="cmpclear" id="cmpClear">پاک کردن</button>` : '');
+
+  const add = document.getElementById('cmpAdd');
+  if (add) add.addEventListener('change', e => {
+    if (!e.target.value) return;
+    S.cmp = [...chosen, e.target.value].join('|');
+    commit();
+  });
+  bar.querySelectorAll('[data-drop]').forEach(b =>
+    b.addEventListener('click', () => {
+      S.cmp = chosen.filter(h => h !== b.dataset.drop).join('|');
+      commit();
+    }));
+  const cl = document.getElementById('cmpClear');
+  if (cl) cl.addEventListener('click', () => { S.cmp = ''; commit(); });
+}
+
 function drawTrend(){
   trendChart && trendChart.destroy();
   const note = document.getElementById('trendNote');
@@ -239,13 +287,12 @@ function drawTrend(){
   const pos = new Map(labels.map((l, i) => [l, i]));
   const series = [{ name: S.hood || CITY.name, rows: monthly, wide: true }];
 
-  if (!S.hood) {
+  {
     const byKind = (CITY.hood_hist || {})[S.kind] || {};
-    const ranked = hoodStats().sort((x, y) => y.n - x.n).slice(0, HOOD_LINES);
-    for (const h of ranked) {
-      const rows = (byKind[h.hood] || []).filter(r => r.v > 0 && r.d >= HISTORY_START);
+    for (const h of cmpList()) {
+      const rows = (byKind[h] || []).filter(r => r.v > 0 && r.d >= HISTORY_START);
       if (rows.length < 2) continue;
-      series.push({ name: h.hood, rows: byMonth(rows) });
+      series.push({ name: h, rows: byMonth(rows) });
     }
   }
 
@@ -260,8 +307,8 @@ function drawTrend(){
     <div class="d">${latest.label}${pct === null ? '' :
       ' · ' + (pct >= 0 ? '+' : '\u2212') + FA1(Math.abs(pct)) + '\u066A در این بازه'}</div>`;
 
-  note.textContent = `میانه ماهانه قیمت هر متر مربع، به میلیون تومان` +
-    (series.length > 1 ? ' — شهر و پرآگهی‌ترین محله‌هایش.' : '.');
+  note.textContent = 'میانه ماهانه قیمت هر متر مربع، به میلیون تومان' +
+    (series.length > 1 ? ' — محله‌های انتخاب‌شده در کنار هم.' : '.');
 
   trendChart = new Chart(ctx, {
     type:'line',
@@ -491,6 +538,7 @@ bootPage('stats.html', () => {
   drawKpis();
   drawHoodBars();
   drawTrendTabs();
+  drawCmpPicker();
   drawTrend();
   drawDist();
   drawBreakdown();

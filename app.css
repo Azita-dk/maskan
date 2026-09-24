@@ -431,6 +431,28 @@ tr.expired:hover{background:transparent}
   .adssearch button{flex:0 0 44px;width:44px;height:44px}
 }
 
+/* Choosing neighbourhoods to compare. Chips for what is picked, a select to
+   add another — a select rather than a dropdown of my own because it is what
+   a phone already knows how to show well. */
+.cmpbar{display:flex;flex-wrap:wrap;align-items:center;gap:7px;
+  padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--bg)}
+.cmpbar:empty{display:none}
+.cmplbl{font-size:12px;color:var(--muted)}
+.cmpchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--rule);
+  background:var(--card);color:var(--ink);border-radius:999px;padding:5px 10px;
+  font:inherit;font-size:12.5px;cursor:pointer}
+.cmpchip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.cmpchip b{color:var(--muted);font-weight:700}
+.cmpchip:hover b{color:var(--ink)}
+.cmpbar select{border:1px solid var(--rule);border-radius:999px;padding:5px 10px;
+  font:inherit;font-size:12.5px;background:var(--card);color:var(--ink);cursor:pointer}
+.cmpclear{border:0;background:none;color:var(--muted);font:inherit;font-size:12px;
+  cursor:pointer;text-decoration:underline}
+@media (max-width:720px){
+  .cmpbar{padding:10px 12px}
+  .cmpchip,.cmpbar select{font-size:13px;padding:8px 12px;min-height:38px}
+}
+
 /* ------------------------------------------------- neighbourhood grid */
 /* One tile per neighbourhood, in rank order. Reading right to left, top to
    bottom, is the ranking — so the dearest is the first tile and the cheapest

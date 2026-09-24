@@ -371,7 +371,7 @@ const KINDS = [
 const DEFAULTS = { kind:'apartment', prov:'', city:'', hood:'', min:'', max:'',
                    pmin:'', pmax:'', mmin:'', mmax:'',
                    rooms:'all', age:'999', agelo:'', agehi:'', date:'0', sample:'20',
-                   q:'', feat:'' };
+                   q:'', feat:'', cmp:'' };
 
 /* A value that changes every minute, appended to each data request.
    The files are rebuilt every five minutes, and without this a reader can be
