@@ -406,6 +406,23 @@ tr.expired:hover{background:transparent}
   .mapads #map{height:380px}
 }
 
+/* The search that belongs to the ads list, under its header. */
+.adssearch{display:flex;gap:8px;align-items:center;width:100%;box-sizing:border-box;
+  padding:11px 16px;border-bottom:1px solid var(--rule);background:var(--bg)}
+.adssearch input{flex:1 1 auto;min-width:0;border:1px solid var(--rule);border-radius:9px;
+  padding:10px 12px;font:inherit;font-size:14px;background:var(--card);color:var(--ink)}
+.adssearch input:focus{border-color:var(--green);outline:0}
+.adssearch input::-webkit-search-cancel-button{display:none}
+.adssearch button{flex:0 0 40px;width:40px;height:40px;display:flex;
+  align-items:center;justify-content:center;border:1px solid var(--rule);
+  background:var(--card);color:var(--muted);border-radius:9px;cursor:pointer}
+.adssearch #aqGo{background:var(--green);border-color:var(--green);color:#fff}
+@media (max-width:720px){
+  .adssearch{padding:10px 12px}
+  .adssearch input{font-size:16px;height:44px}
+  .adssearch button{flex:0 0 44px;width:44px;height:44px}
+}
+
 /* ------------------------------------------------- neighbourhood grid */
 /* One tile per neighbourhood, in rank order. Reading right to left, top to
    bottom, is the ranking — so the dearest is the first tile and the cheapest
@@ -456,9 +473,12 @@ tr.expired:hover{background:transparent}
   background:var(--card);color:var(--muted);border-radius:10px;
   padding:8px 11px;font-size:13px;cursor:pointer;
   box-shadow:0 2px 10px rgba(0,0,0,.14)}
+/* An icon, not a word. The map column is narrow, and a text button left the
+   field too short to read what had been typed into it. */
 .mapsearch #mqGo{background:var(--green);border-color:var(--green);color:#fff;
-  font-weight:700}
-@media (max-width:720px){ .mapsearch #mqGo{padding:10px 12px;min-height:44px} }
+  display:flex;align-items:center;justify-content:center;
+  width:40px;height:40px;padding:0;flex:0 0 40px}
+@media (max-width:720px){ .mapsearch #mqGo{width:44px;height:44px;flex:0 0 44px} }
 /* the zoom control is pushed below the search rather than fighting it */
 .mapwrap .leaflet-top.leaflet-left{margin-top:52px}
 @media (max-width:720px){
