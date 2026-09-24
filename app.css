@@ -377,8 +377,13 @@ tr.expired:hover{background:transparent}
    selection — how the price moved, and how it is spread — so reading them
    together is the point. Stacked on anything narrow, where two half-width
    charts would each be unreadable. */
-.sidebyside{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
-.sidebyside > .panel{margin:0;min-width:0}
+.sidebyside{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:stretch}
+/* Both panels reach the same height and the chart area takes up the slack,
+   so the two plots share a baseline instead of one floating above the
+   other's footnotes. */
+.sidebyside > .panel{margin:0;min-width:0;display:flex;flex-direction:column}
+.sidebyside > .panel > .chartbox{flex:1 1 auto;display:flex;flex-direction:column}
+.sidebyside > .panel > .chartbox > .chart{flex:1 1 auto;height:auto;min-height:220px}
 .sidebyside .chart{min-width:0}
 /* Stacked on anything narrow. Two charts abreast on a phone left each about
    185px wide, which is not enough for either to be read. */
