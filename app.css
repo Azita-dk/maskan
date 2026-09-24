@@ -77,6 +77,8 @@ button{font:inherit;font-family:inherit;cursor:pointer}
 .search{position:relative;margin-top:12px}
 /* An explicit search button. Typing already filters after a pause, but on a
    phone there is nothing to press and no sign that anything happened. */
+/* The icon that used to sit here is gone; the button takes its place, and
+   the field is padded to clear it so text can never run underneath. */
 .gobtn{position:absolute;inset-inline-start:6px;top:50%;transform:translateY(-50%);
   border:0;border-radius:8px;background:var(--green);color:#fff;font-family:inherit;
   font-weight:700;font-size:13px;padding:8px 14px;cursor:pointer}
@@ -86,10 +88,11 @@ button{font:inherit;font-family:inherit;cursor:pointer}
   border:1px solid var(--rule);background:var(--paper);color:var(--ink);
   font:inherit;font-size:15.5px;
   /* logical properties, so the icon and the text cannot collide in RTL */
-  padding-inline-start:48px;padding-inline-end:16px}
+  /* room for the search button, which sits at the start edge */
+  padding-inline-start:104px;padding-inline-end:44px}
 .search input:focus{border-color:var(--green);outline:0;background:var(--card);
   box-shadow:0 0 0 3px var(--green-pale)}
-.search .go{position:absolute;inset-inline-start:6px;top:6px;
+.search .go{display:none;position:absolute;inset-inline-start:6px;top:6px;
   width:38px;height:38px;border-radius:8px;border:0;background:transparent;
   color:var(--muted);display:grid;place-items:center;pointer-events:none}
 .search .go svg{width:20px;height:20px}

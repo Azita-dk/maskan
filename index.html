@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="app.css?v=20260924d">
+<link rel="stylesheet" href="app.css?v=20260924e">
 </head>
 <body>
 
@@ -143,7 +143,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=20260924d"></script>
+<script src="app.js?v=20260924e"></script>
 <script>
 let allOpen = false;
 let trendChart = null, distChart = null;
@@ -530,11 +530,15 @@ function historyDays(h){
 }
 
 function drawTrendTabs(){
-  const span = historyDays(historySeries());
+  /* The chart is monthly now, so day ranges no longer fit. Nothing is
+     offered until there is a month to look at. */
+  const hist = historySeries();
+  const span = hist.length > 1 ? historyDays(hist) : 0;
+  const box0 = document.getElementById('trendTabs');
+  if (span < MIN_TREND_DAYS) { if (box0) box0.innerHTML = ''; return; }
   const opts = [['all','همه']];
-  if (span >= 7)  opts.push(['7','۷ روز']);
-  if (span >= 30) opts.push(['30','۱ ماه']);
-  if (span >= 90) opts.push(['90','۳ ماه']);
+  if (span >= 90)  opts.push(['90','۳ ماه']);
+  if (span >= 180) opts.push(['180','۶ ماه']);
   if (span >= 365) opts.push(['365','۱ سال']);
   if (!opts.some(o => o[0] === period)) period = 'all';
   const box = document.getElementById('trendTabs');
@@ -548,65 +552,106 @@ function drawTrendTabs(){
     }));
 }
 
-function drawTrend(){
-  let hist = historySeries();
-  if (period !== 'all') {
-    const cut = new Date(Date.now() - (+period)*864e5).toISOString().slice(0,10);
-    hist = hist.filter(r => r.d >= cut);
+const MIN_TREND_DAYS = 30;
+const HOOD_LINES = 5;
+const LINE_COLORS = ['#0C7A4F','#B3261E','#D97706','#1D5FA8','#7A3E9D','#0E7490'];
+
+/* Monthly points, not daily.
+   A daily median of a market this size is mostly noise — the same flats,
+   reordered. A month is the shortest span over which a move in Tehran means
+   anything. */
+function byMonth(hist){
+  const g = new Map();
+  for (const r of hist) {
+    const k = faMonth(r.d);
+    if (!g.has(k)) g.set(k, { label:k, d:r.d, vals:[] });
+    g.get(k).vals.push(r.v);
+    g.get(k).d = r.d;
   }
+  return [...g.values()].map(m => ({ label:m.label, d:m.d,
+                                     v: round1(median(m.vals)) }));
+}
+
+function drawTrend(){
   trendChart && trendChart.destroy();
   const note = document.getElementById('trendNote');
   const callout = document.getElementById('callout');
+  const ctx = document.getElementById('trend');
   document.getElementById('trendTitle').textContent =
     `روند قیمت ${kindLabel()} در ${S.hood || CITY.name}`;
 
-  if (hist.length < 2) {
+  let daily = historySeries();
+  const span = daily.length > 1 ? historyDays(daily) : 0;
+  if (period !== 'all' && span >= MIN_TREND_DAYS) {
+    const cut = new Date(Date.now() - (+period) * 864e5).toISOString().slice(0, 10);
+    const cropped = daily.filter(r => r.d >= cut);
+    if (cropped.length > 1) daily = cropped;
+  }
+
+  /* Nothing is drawn until a month of history exists.
+     The data is collected from the first day; a line over a week of it would
+     invite people to read a trend that is not there yet. */
+  if (span < MIN_TREND_DAYS) {
     callout.classList.add('hide');
-    note.textContent = 'برای رسم نمودار هنوز روز کافی ثبت نشده است. ' +
-      'این سایت تازه شروع به ثبت تاریخچه کرده و هر شبانه‌روز یک نقطه اضافه می‌شود.';
+    ctx.style.display = 'none';
+    note.textContent = 'نمودار روند پس از جمع‌آوری داده کافی نشان داده می‌شود؛ ' +
+      'داده‌ها از همین حالا ثبت می‌شوند و نمودار حدود یک ماه دیگر در دسترس خواهد بود.';
     return;
   }
-  const span = historyDays(hist);
-  note.textContent = `میانه قیمت هر متر مربع، به میلیون تومان — از ` +
-    `${faDate(hist[0].d)} (${FA(span)} روز).`;
+  ctx.style.display = '';
 
-  // The history is a stored daily median per city and per neighbourhood — one
-  // number a day, not the listings behind it. A size or age filter cannot be
-  // applied retrospectively to a number that was already averaged. Saying so
-  // is better than drawing a line that looks filtered and is not.
-  const fc = activeFilterCount();
-  if (fc) note.textContent += ' — این خط از میانه‌های روزانه ثبت‌شده ساخته می‌شود' +
-    ' و فیلترهای متراژ، اتاق و سن بنا روی آن اثر ندارد؛ بقیه نمودارهای این صفحه' +
-    ' فیلتر شده‌اند.';
+  /* Neighbourhoods side by side, which is what the chart is for: تهران on
+     its own says little, ونک against نارمک against پونک says a great deal. */
+  const monthly = byMonth(daily);
+  const labels = monthly.map(m => m.label);
+  const pos = new Map(labels.map((l, i) => [l, i]));
+  const series = [{ name: S.hood || CITY.name, rows: monthly, wide: true }];
 
+  if (!S.hood) {
+    const byKind = (CITY.hood_hist || {})[S.kind] || {};
+    const ranked = hoodStats().sort((x, y) => y.n - x.n).slice(0, HOOD_LINES);
+    for (const h of ranked) {
+      const rows = (byKind[h.hood] || []).filter(r => r.v > 0 && r.d >= HISTORY_START);
+      if (rows.length < 2) continue;
+      series.push({ name: h.hood, rows: byMonth(rows) });
+    }
+  }
 
-  const latest = hist[hist.length-1];
-  const pct = hist[0].v ? (latest.v - hist[0].v) / hist[0].v * 100 : null;
+  const all = series.flatMap(s => s.rows.map(r => r.v));
+  const lo = Math.min(...all), hi = Math.max(...all);
+  const pad = Math.max((hi - lo) * .15, hi * .04);
+
+  const latest = monthly[monthly.length - 1];
+  const pct = monthly[0].v ? (latest.v - monthly[0].v) / monthly[0].v * 100 : null;
   callout.classList.remove('hide');
   callout.innerHTML = `<div class="n">${FA1(latest.v)} میلیون تومان</div>
-    <div class="d">${faMonth(latest.d)}${pct === null ? '' :
+    <div class="d">${latest.label}${pct === null ? '' :
       ' · ' + (pct >= 0 ? '+' : '\u2212') + FA1(Math.abs(pct)) + '\u066A در این بازه'}</div>`;
 
-  const vals = hist.map(r => r.v);
-  const lo = Math.min(...vals), hi = Math.max(...vals);
-  const pad = Math.max((hi-lo)*.25, hi*.05);
-  const ctx = document.getElementById('trend');
-  const grad = ctx.getContext('2d').createLinearGradient(0,0,0,280);
-  grad.addColorStop(0, CSSVAR('--green-mid') + '44');
-  grad.addColorStop(1, CSSVAR('--green-mid') + '00');
+  note.textContent = `میانه ماهانه قیمت هر متر مربع، به میلیون تومان` +
+    (series.length > 1 ? ' — شهر و پرآگهی‌ترین محله‌هایش.' : '.');
 
   trendChart = new Chart(ctx, {
     type:'line',
-    data:{ labels: hist.map(r => faShortDate(r.d)),
-      datasets:[{ data: vals, borderColor: CSSVAR('--green-mid'),
-        backgroundColor: grad, borderWidth:2.5, fill:true, tension:.3,
-        pointRadius: hist.length > 40 ? 0 : 3, pointBackgroundColor: CSSVAR('--card'),
-        pointBorderColor: CSSVAR('--green-mid'), pointBorderWidth:2 }] },
+    data:{ labels,
+      datasets: series.map((s, i) => ({
+        label: s.name,
+        data: labels.map(l => {
+          const r = s.rows.find(x => x.label === l);
+          return r ? r.v : null;
+        }),
+        borderColor: LINE_COLORS[i % LINE_COLORS.length],
+        backgroundColor: LINE_COLORS[i % LINE_COLORS.length],
+        borderWidth: s.wide ? 3 : 2,
+        fill:false, tension:.3, spanGaps:true,
+        pointRadius: 3, pointHoverRadius: 5 })) },
     options:{ maintainAspectRatio:false,
-      plugins:{ legend:{display:false},
-        tooltip:{ rtl:true, displayColors:false,
-          bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
-          callbacks:{ label: c => FA1(c.parsed.y) + ' میلیون تومان' } } },
+      interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{ display: series.length > 1, position:'bottom',
+                  labels:{ font:{family:'Vazirmatn',size:11}, boxWidth:10,
+                           usePointStyle:true, pointStyle:'line' } },
+        tooltip:{ rtl:true, bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
+          callbacks:{ label: c => `${c.dataset.label}: ${FA1(c.parsed.y)}` } } },
       scales:{ x:{ grid:{display:false},
                    ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
                           maxTicksLimit:8, maxRotation:0} },
