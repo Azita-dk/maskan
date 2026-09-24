@@ -373,22 +373,10 @@ tr.expired:hover{background:transparent}
 .sidebyside{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
 .sidebyside > .panel{margin:0;min-width:0}
 .sidebyside .chart{min-width:0}
-/* The trend and the distribution stay abreast on a phone too, because
-   reading them together is the point: where the price sits, and how spread
-   out it is. Two narrow charts, so they lose some height and the panels
-   lose their side padding to give the plots the width back. */
-@media (max-width:900px){
-  .sidebyside{grid-template-columns:1fr 1fr;gap:8px}
-  .sidebyside .chart{height:190px}
-  .sidebyside .chart.short{height:190px}
-  .sidebyside > .panel{padding-inline:0}
-  .sidebyside .chartbox{padding-inline:4px}
-  .sidebyside header{padding-inline:10px}
-  .sidebyside header h3{font-size:13.5px}
-  .sidebyside .foot{padding-inline:10px;font-size:10.5px}
-  .sidebyside .statrow{grid-template-columns:repeat(2,1fr);padding-inline:6px}
-  .sidebyside .tabs button{padding:5px 7px;font-size:11px;min-height:0}
-}
+/* Stacked on anything narrow. Two charts abreast on a phone left each about
+   185px wide, which is not enough for either to be read. */
+@media (max-width:900px){ .sidebyside{grid-template-columns:1fr} }
+
 
 /* The map and the ads belong together: clicking a marker picks out a row,
    and picking a row lights the marker. Apart, that connection is invisible
