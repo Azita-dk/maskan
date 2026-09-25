@@ -8,6 +8,31 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+.tablewrap{container-type:inline-size;overflow-x:auto}
+table.cards td{white-space:nowrap}
+table.cards td:first-child{white-space:normal;min-width:160px}
+@container (max-width:760px){
+  table.cards, table.cards thead, table.cards tbody,
+  table.cards tr, table.cards th, table.cards td{display:block}
+  table.cards thead{position:absolute;width:1px;height:1px;overflow:hidden;
+    clip:rect(0 0 0 0);white-space:nowrap}
+  table.cards tr{border-bottom:1px solid var(--rule);padding:12px 14px;
+    display:grid;grid-template-columns:1fr 1fr;column-gap:18px}
+  table.cards tr:last-child{border-bottom:0}
+  table.cards td:first-child, table.cards td.loading{grid-column:1/-1}
+  table.cards td{border:0;padding:3px 0;display:flex;justify-content:space-between;
+    align-items:baseline;gap:14px;font-size:13.5px;white-space:normal;text-align:end}
+  table.cards td::before{content:attr(data-l);color:var(--muted);font-size:12px;
+    flex:0 0 auto;text-align:start}
+  table.cards td:first-child{display:block;font-weight:700;font-size:14.5px;
+    margin-bottom:5px;line-height:1.6;min-width:0;text-align:start}
+  table.cards td:first-child::before{content:none}
+  table.cards td:empty{display:none}
+  table.cards td.loading{display:block;text-align:center}
+  table.cards td.loading::before{content:none}
+}
+</style>
 <link rel="stylesheet" href="app.css?v=20260925c">
 </head>
 <body>
@@ -44,11 +69,11 @@
         background:transparent;color:var(--muted);border-radius:8px;padding:4px 11px">
         نمایش همه آگهی‌ها</button>
     </div>
-    <table class="cards">
+    <div class="tablewrap"><table class="cards">
       <thead><tr><th>عنوان</th><th>محله</th><th>متراژ</th>
         <th>قیمت کل</th><th>هر متر</th><th>تاریخ</th><th>منبع</th></tr></thead>
       <tbody id="adsBody"><tr><td colspan="7" class="loading">در حال بارگذاری…</td></tr></tbody>
-    </table>
+    </table></div>
     <button class="more hide" id="adsMore"></button>
     <p class="foot">آگهی‌ها متعلق به دیوار، شیپور و کیلید است و با کلیک روی هر
       ردیف در همان سایت باز می‌شود. این سایت آگهی منتشر نمی‌کند.</p>
