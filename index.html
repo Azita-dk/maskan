@@ -9,8 +9,6 @@
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-.sidebyside .cmpbar{border-bottom:0;border-top:1px solid var(--rule)}
-.sidebyside .cmpbar:empty{display:none}
 .typ{padding:14px 16px;display:grid;gap:10px}
 .trow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px 14px;
   width:100%;padding:11px 14px;border:1px solid var(--rule);border-radius:10px;
@@ -99,10 +97,10 @@ table.cards td:first-child{white-space:normal;min-width:160px}
       <div class="panel">
         <header><h3 id="trendTitle">روند قیمت</h3>
           <div class="tabs" id="trendTabs"></div></header>
+      <div class="cmpbar" id="cmpBar"></div>
         <div class="chartbox"><div class="chart">
           <canvas id="trend"></canvas>
         </div></div>
-        <div class="cmpbar" id="cmpBar"></div>
         <p class="foot" id="trendNote"></p>
       </div>
 
