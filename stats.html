@@ -87,7 +87,7 @@ function drawKpis(){
   // it, since drawKpis is the first thing bootPage runs.
   const hist = historySeries();
   let change = '—', cls = '';
-  if (hist.length > 1) {
+  if (hist.length > 1 && !HIST_FALLBACK) {
     const a = hist[0], b = hist[hist.length-1];
     const days = Math.round((new Date(b.d) - new Date(a.d)) / 864e5);
     if (days >= 7 && a.v) {
@@ -147,15 +147,41 @@ function sameCoverage(h){
   return kept.length >= 2 ? kept : h;
 }
 
-function historySeries(){
-  if (S.hood) {
-    const byKind = (CITY.hood_hist || {})[S.kind] || {};
-    return sameCoverage((byKind[S.hood] || [])
-      .filter(r => r.v > 0 && r.d >= HISTORY_START));
+let HIST_FALLBACK = false;
+const canonHood = t => String(t || '')
+  .replace(/[يئ]/g, 'ی').replace(/ك/g, 'ک').replace(/[أإآ]/g, 'ا').replace(/ۀ/g, 'ه')
+  .replace(/^(محله|منطقه|شهرک|بلوار|خیابان|میدان)\s+/, '')
+  .replace(/[\s\u200c\-_.]/g, '');
+
+function hoodHistory(name){
+  const byKind = (CITY.hood_hist || {})[S.kind] || {};
+  const key = canonHood(name), byDay = new Map();
+  for (const h in byKind) {
+    if (canonHood(h) !== key) continue;
+    for (const r of byKind[h]) {
+      if (!(r.v > 0) || r.d < HISTORY_START) continue;
+      const cur = byDay.get(r.d);
+      if (!cur || (r.n || 0) > (cur.n || 0)) byDay.set(r.d, r);
+    }
   }
+  return [...byDay.values()].sort((a, b) => (a.d < b.d ? -1 : 1));
+}
+
+function cityHistory(){
   const ours = CITY.ours || {};
   const series = Array.isArray(ours) ? ours : (ours[S.kind] || []);
   return sameCoverage(series.filter(r => r.v > 0 && r.d >= HISTORY_START));
+}
+
+function historySeries(){
+  const city = cityHistory();
+  HIST_FALLBACK = false;
+  if (!S.hood) return city;
+  const from = city.length ? city[0].d : HISTORY_START;
+  const hood = hoodHistory(S.hood).filter(r => r.d >= from);
+  if (hood.length > 1 && historyDays(hood) >= MIN_TREND_DAYS) return hood;
+  HIST_FALLBACK = true;
+  return city;
 }
 function historyDays(h){
   if (h.length < 2) return 0;
@@ -218,9 +244,8 @@ function drawCmpPicker(){
   if ((hist.length > 1 ? historyDays(hist) : 0) < MIN_TREND_DAYS) {
     bar.innerHTML = ''; return;
   }
-  const byKind = (CITY.hood_hist || {})[S.kind] || {};
   const have = hoodStats()
-    .filter(h => (byKind[h.hood] || []).length > 1)
+    .filter(h => hoodHistory(h.hood).length > 1)
     .sort((a, b) => b.n - a.n);
   const chosen = cmpList();
   const opts = have.filter(h => !chosen.includes(h.hood));
@@ -256,10 +281,10 @@ function drawTrend(){
   trendChart && trendChart.destroy();
   const note = document.getElementById('trendNote');
   const ctx = document.getElementById('trend');
-  document.getElementById('trendTitle').textContent =
-    `روند قیمت ${kindLabel()} در ${S.hood || CITY.name}`;
-
   let daily = historySeries();
+  const lineName = S.hood && !HIST_FALLBACK ? S.hood : CITY.name;
+  document.getElementById('trendTitle').textContent =
+    `روند قیمت ${kindLabel()} در ${lineName}`;
   const span = daily.length > 1 ? historyDays(daily) : 0;
   if (period !== 'all' && span >= MIN_TREND_DAYS) {
     const cut = new Date(Date.now() - (+period) * 864e5).toISOString().slice(0, 10);
@@ -283,12 +308,11 @@ function drawTrend(){
   const monthly = byMonth(daily);
   const labels = monthly.map(m => m.label);
   const pos = new Map(labels.map((l, i) => [l, i]));
-  const series = [{ name: S.hood || CITY.name, rows: monthly, wide: true }];
+  const series = [{ name: lineName, rows: monthly, wide: true }];
 
   {
-    const byKind = (CITY.hood_hist || {})[S.kind] || {};
     for (const h of cmpList()) {
-      const rows = (byKind[h] || []).filter(r => r.v > 0 && r.d >= HISTORY_START);
+      const rows = hoodHistory(h).filter(r => r.d >= daily[0].d);
       if (rows.length < 2) continue;
       series.push({ name: h, rows: byMonth(rows) });
     }
@@ -298,11 +322,12 @@ function drawTrend(){
   const lo = Math.min(...all), hi = Math.max(...all);
   const pad = Math.max((hi - lo) * .15, hi * .04);
 
-  const latest = monthly[monthly.length - 1];
-  const pct = monthly[0].v ? (latest.v - monthly[0].v) / monthly[0].v * 100 : null;
 
   note.textContent = 'میانه ماهانه قیمت هر متر مربع، به میلیون تومان' +
     (series.length > 1 ? ' — محله‌های انتخاب‌شده در کنار هم.' : '.');
+
+  if (HIST_FALLBACK) note.textContent += ` تاریخچه ${S.hood} هنوز برای رسم روند کافی نیست؛ ` +
+    `تا جمع شدن آن، روند کل ${CITY.name} نشان داده می‌شود.`;
 
   trendChart = new Chart(ctx, {
     type:'line',

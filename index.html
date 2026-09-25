@@ -30,6 +30,29 @@ button.trow:hover{border-color:var(--green-mid)}
   font-variant-numeric:tabular-nums}
 .trow .val small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
 .typ .empty{padding:30px 10px;text-align:center;color:var(--muted)}
+.tablewrap{container-type:inline-size;overflow-x:auto}
+table.cards td{white-space:nowrap}
+table.cards td:first-child{white-space:normal;min-width:160px}
+@container (max-width:760px){
+  table.cards, table.cards thead, table.cards tbody,
+  table.cards tr, table.cards th, table.cards td{display:block}
+  table.cards thead{position:absolute;width:1px;height:1px;overflow:hidden;
+    clip:rect(0 0 0 0);white-space:nowrap}
+  table.cards tr{border-bottom:1px solid var(--rule);padding:12px 14px;
+    display:grid;grid-template-columns:1fr 1fr;column-gap:18px}
+  table.cards tr:last-child{border-bottom:0}
+  table.cards td:first-child, table.cards td.loading{grid-column:1/-1}
+  table.cards td{border:0;padding:3px 0;display:flex;justify-content:space-between;
+    align-items:baseline;gap:14px;font-size:13.5px;white-space:normal;text-align:end}
+  table.cards td::before{content:attr(data-l);color:var(--muted);font-size:12px;
+    flex:0 0 auto;text-align:start}
+  table.cards td:first-child{display:block;font-weight:700;font-size:14.5px;
+    margin-bottom:5px;line-height:1.6;min-width:0;text-align:start}
+  table.cards td:first-child::before{content:none}
+  table.cards td:empty{display:none}
+  table.cards td.loading{display:block;text-align:center}
+  table.cards td.loading::before{content:none}
+}
 </style>
 <link rel="stylesheet" href="app.css?v=20260925c">
 </head>
@@ -120,11 +143,11 @@ button.trow:hover{border-color:var(--green-mid)}
           background:transparent;color:var(--muted);border-radius:8px;padding:4px 11px">
           نمایش همه آگهی‌ها</button>
       </div>
-      <table class="cards">
+      <div class="tablewrap"><table class="cards">
         <thead><tr><th>عنوان</th><th>محله</th><th>متراژ</th>
           <th>قیمت کل</th><th>هر متر</th><th>تاریخ</th><th>منبع</th></tr></thead>
         <tbody id="adsBody"><tr><td colspan="7" class="loading">در حال بارگذاری…</td></tr></tbody>
-      </table>
+      </table></div>
       <button class="more hide" id="adsMore"></button>
       <p class="foot">آگهی‌ها متعلق به دیوار، شیپور و کیلید است و با کلیک روی هر
         ردیف در همان سایت باز می‌شود. این سایت آگهی منتشر نمی‌کند.</p>
@@ -316,6 +339,9 @@ function drawProvSummary(){
  */
 function changeKpi(){
   const h = historySeries();
+  if (HIST_FALLBACK)
+    return { label:'تغییر قیمت', text:'—', cls:'',
+             sub:'تاریخچه این محله هنوز کافی نیست' };
   if (h.length < 2)
     return { label:'تغییر قیمت', text:'—', cls:'',
              sub:'هنوز روز کافی ثبت نشده' };
@@ -558,15 +584,41 @@ function sameCoverage(h){
   return kept.length >= 2 ? kept : h;
 }
 
-function historySeries(){
-  if (S.hood) {
-    const byKind = (CITY.hood_hist || {})[S.kind] || {};
-    return sameCoverage((byKind[S.hood] || [])
-      .filter(r => r.v > 0 && r.d >= HISTORY_START));
+let HIST_FALLBACK = false;
+const canonHood = t => String(t || '')
+  .replace(/[يئ]/g, 'ی').replace(/ك/g, 'ک').replace(/[أإآ]/g, 'ا').replace(/ۀ/g, 'ه')
+  .replace(/^(محله|منطقه|شهرک|بلوار|خیابان|میدان)\s+/, '')
+  .replace(/[\s\u200c\-_.]/g, '');
+
+function hoodHistory(name){
+  const byKind = (CITY.hood_hist || {})[S.kind] || {};
+  const key = canonHood(name), byDay = new Map();
+  for (const h in byKind) {
+    if (canonHood(h) !== key) continue;
+    for (const r of byKind[h]) {
+      if (!(r.v > 0) || r.d < HISTORY_START) continue;
+      const cur = byDay.get(r.d);
+      if (!cur || (r.n || 0) > (cur.n || 0)) byDay.set(r.d, r);
+    }
   }
+  return [...byDay.values()].sort((a, b) => (a.d < b.d ? -1 : 1));
+}
+
+function cityHistory(){
   const ours = CITY.ours || {};
   const series = Array.isArray(ours) ? ours : (ours[S.kind] || []);
   return sameCoverage(series.filter(r => r.v > 0 && r.d >= HISTORY_START));
+}
+
+function historySeries(){
+  const city = cityHistory();
+  HIST_FALLBACK = false;
+  if (!S.hood) return city;
+  const from = city.length ? city[0].d : HISTORY_START;
+  const hood = hoodHistory(S.hood).filter(r => r.d >= from);
+  if (hood.length > 1 && historyDays(hood) >= MIN_TREND_DAYS) return hood;
+  HIST_FALLBACK = true;
+  return city;
 }
 function historyDays(h){
   if (h.length < 2) return 0;
@@ -629,9 +681,8 @@ function drawCmpPicker(){
   if ((hist.length > 1 ? historyDays(hist) : 0) < MIN_TREND_DAYS) {
     bar.innerHTML = ''; return;
   }
-  const byKind = (CITY.hood_hist || {})[S.kind] || {};
   const have = hoodStats()
-    .filter(h => (byKind[h.hood] || []).length > 1)
+    .filter(h => hoodHistory(h.hood).length > 1)
     .sort((a, b) => b.n - a.n);
   const chosen = cmpList();
   const opts = have.filter(h => !chosen.includes(h.hood));
@@ -667,10 +718,10 @@ function drawTrend(){
   trendChart && trendChart.destroy();
   const note = document.getElementById('trendNote');
   const ctx = document.getElementById('trend');
-  document.getElementById('trendTitle').textContent =
-    `روند قیمت ${kindLabel()} در ${S.hood || CITY.name}`;
-
   let daily = historySeries();
+  const lineName = S.hood && !HIST_FALLBACK ? S.hood : CITY.name;
+  document.getElementById('trendTitle').textContent =
+    `روند قیمت ${kindLabel()} در ${lineName}`;
   const span = daily.length > 1 ? historyDays(daily) : 0;
   if (period !== 'all' && span >= MIN_TREND_DAYS) {
     const cut = new Date(Date.now() - (+period) * 864e5).toISOString().slice(0, 10);
@@ -694,12 +745,11 @@ function drawTrend(){
   const monthly = byMonth(daily);
   const labels = monthly.map(m => m.label);
   const pos = new Map(labels.map((l, i) => [l, i]));
-  const series = [{ name: S.hood || CITY.name, rows: monthly, wide: true }];
+  const series = [{ name: lineName, rows: monthly, wide: true }];
 
   {
-    const byKind = (CITY.hood_hist || {})[S.kind] || {};
     for (const h of cmpList()) {
-      const rows = (byKind[h] || []).filter(r => r.v > 0 && r.d >= HISTORY_START);
+      const rows = hoodHistory(h).filter(r => r.d >= daily[0].d);
       if (rows.length < 2) continue;
       series.push({ name: h, rows: byMonth(rows) });
     }
@@ -712,6 +762,9 @@ function drawTrend(){
 
   note.textContent = 'میانه ماهانه قیمت هر متر مربع، به میلیون تومان' +
     (series.length > 1 ? ' — محله‌های انتخاب‌شده در کنار هم.' : '.');
+
+  if (HIST_FALLBACK) note.textContent += ` تاریخچه ${S.hood} هنوز برای رسم روند کافی نیست؛ ` +
+    `تا جمع شدن آن، روند کل ${CITY.name} نشان داده می‌شود.`;
 
   trendChart = new Chart(ctx, {
     type:'line',
