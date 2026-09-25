@@ -8,7 +8,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="app.css?v=20260924g">
+<link rel="stylesheet" href="app.css?v=20260925c">
 </head>
 <body>
 
@@ -55,7 +55,7 @@
           <div class="tabs" id="trendTabs"></div></header>
       <div class="cmpbar" id="cmpBar"></div>
         <div class="chartbox"><div class="chart">
-          <canvas id="trend"></canvas><div class="callout hide" id="callout"></div>
+          <canvas id="trend"></canvas>
         </div></div>
         <p class="foot" id="trendNote"></p>
       </div>
@@ -144,7 +144,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=20260924g"></script>
+<script src="app.js?v=20260925c"></script>
 <script>
 let allOpen = false;
 let trendChart = null, distChart = null;
@@ -305,8 +305,16 @@ function changeKpi(){
              sub:`فقط ${FA(days)} روز داده — برای مقایسه کم است` };
 
   const pct = (b.v - a.v) / a.v * 100;
+  /* Named by the span it actually covers. A count of days reads as precision
+     the figure does not have once there are months of history. */
   const label = days >= 365 ? 'تغییر سالانه'
-              : days >= 28  ? 'تغییر ماهانه'
+              : days >= 300 ? 'تغییر ۱۰ ماهه'
+              : days >= 240 ? 'تغییر ۸ ماهه'
+              : days >= 165 ? 'تغییر ۶ ماهه'
+              : days >= 105 ? 'تغییر ۴ ماهه'
+              : days >= 75  ? 'تغییر ۳ ماهه'
+              : days >= 45  ? 'تغییر ۲ ماهه'
+              : days >= 21  ? 'تغییر ماهانه'
               : `تغییر ${FA(days)} روزه`;
   return {
     label,
@@ -354,6 +362,20 @@ function drawKpis(){
 }
 
 function hoodStats(){
+  /* Unfiltered, these come from the build, which saw every listing.
+     CITY.listings is an even sample — the whole city will not fit inside the
+     25 MB limit on a stored value — so counting it gave each neighbourhood
+     about a tenth of its real listings. Once a filter is on there is no
+     choice but the sample, and then the figures describe that selection. */
+  if (!S.q && activeFilterCount() === 0) {
+    const pre = ((CITY && CITY.rows) || [])
+      .filter(r => (r.k || 'apartment') === S.kind && r.n >= 5 && r.median > 0)
+      .map(r => ({ hood: r.hood, n: r.n, med: round1(r.median),
+                   y: r.lat ?? null, x: r.lng ?? null,
+                   geoN: (r.lat && r.lng) ? r.n : 0 }));
+    if (pre.length) return pre;
+  }
+
   const rows = activeListings();
   const g = {};
   for (const l of rows) {
@@ -623,7 +645,6 @@ function drawCmpPicker(){
 function drawTrend(){
   trendChart && trendChart.destroy();
   const note = document.getElementById('trendNote');
-  const callout = document.getElementById('callout');
   const ctx = document.getElementById('trend');
   document.getElementById('trendTitle').textContent =
     `روند قیمت ${kindLabel()} در ${S.hood || CITY.name}`;
@@ -640,7 +661,6 @@ function drawTrend(){
      The data is collected from the first day; a line over a week of it would
      invite people to read a trend that is not there yet. */
   if (span < MIN_TREND_DAYS) {
-    callout.classList.add('hide');
     ctx.style.display = 'none';
     note.textContent = 'نمودار روند پس از جمع‌آوری داده کافی نشان داده می‌شود؛ ' +
       'داده‌ها از همین حالا ثبت می‌شوند و نمودار حدود یک ماه دیگر در دسترس خواهد بود.';
@@ -670,10 +690,6 @@ function drawTrend(){
 
   const latest = monthly[monthly.length - 1];
   const pct = monthly[0].v ? (latest.v - monthly[0].v) / monthly[0].v * 100 : null;
-  callout.classList.remove('hide');
-  callout.innerHTML = `<div class="n">${FA1(latest.v)} میلیون تومان</div>
-    <div class="d">${latest.label}${pct === null ? '' :
-      ' · ' + (pct >= 0 ? '+' : '\u2212') + FA1(Math.abs(pct)) + '\u066A در این بازه'}</div>`;
 
   note.textContent = 'میانه ماهانه قیمت هر متر مربع، به میلیون تومان' +
     (series.length > 1 ? ' — محله‌های انتخاب‌شده در کنار هم.' : '.');
@@ -758,7 +774,7 @@ function drawDist(){
   });
 
   document.getElementById('distStats').innerHTML = [
-    ['کمترین', q(.02)], ['چارک اول', q(.25)], ['میانه', med],
+    ['کمترین', q(.02)], ['چارک اول', q(.25)], ['میانه امروز', med],
     ['چارک سوم', q(.75)], ['بیشترین', q(.98)],
   ].map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${FA1(round1(v))}</div></div>`).join('');
 }
@@ -802,18 +818,6 @@ function rows(){
   return r;
 }
 
-/* A Divar listing runs about 28 days. Its expiry is not stored, but posted_at
-   was derived by subtracting that lifetime from Divar's own unavailable_after,
-   so adding it back recovers the date. Expired rows stay in the figures — they
-   were real asking prices on the day they were posted — but they stop
-   pretending to be somewhere you can click through to. */
-const LISTING_LIFETIME_DAYS = 28;
-const isExpired = (l) => {
-  if (!l.d) return false;
-  const gone = new Date(l.d).getTime() + LISTING_LIFETIME_DAYS * 864e5;
-  return isFinite(gone) && gone < Date.now();
-};
-
 /* The search that sits with the ads. It drives the same value as the bar at
    the top, so the count, the map and the list never disagree about what is
    being shown — two independent searches on one page would. */
@@ -853,21 +857,16 @@ function drawAds(){
     return;
   }
   const list = solo ? all : all.slice(0, shown);
-  body.innerHTML = list.map(l => {
-    const dead = isExpired(l);
-    return `
-    <tr${l.u && !dead ? ` data-url="${esc(l.u)}"` : ''} data-token="${esc(l.t)}"${
-      dead ? ' class="expired" title="این آگهی دیگر در دیوار موجود نیست"' : ''}>
+  body.innerHTML = list.map(l => `
+    <tr${l.u ? ` data-url="${esc(l.u)}"` : ''} data-token="${esc(l.t)}">
       <td data-l="عنوان">${esc(l.n || '—')}</td>
       <td data-l="محله">${esc(l.h || '')}</td>
       <td data-l="متراژ">${l.a ? FA(l.a) + ' متر' : '—'}</td>
       <td data-l="قیمت کل">${l.p ? FA1(l.p/1000) + ' میلیارد' : '—'}</td>
       <td data-l="هر متر">${FA1(l.m)} میلیون</td>
       <td data-l="تاریخ">${l.d ? faShortDate(l.d) : '—'}</td>
-      <td data-l="منبع">${dead ? 'منقضی شده'
-        : esc(SOURCE_NAME[l.s] || l.s || '') + (l.u ? ' ↗' : '')}</td>
-    </tr>`;
-  }).join('');
+      <td data-l="منبع">${esc(SOURCE_NAME[l.s] || l.s || '')}${l.u ? ' ↗' : ''}</td>
+    </tr>`).join('');
 
   body.querySelectorAll('tr[data-token]').forEach(tr =>
     tr.addEventListener('click', () => {
@@ -974,11 +973,9 @@ function drawMap(){
       <span style="color:#5A6472">${esc(l.h || '')}</span><br>
       ${FA1(l.m)} میلیون تومان بر متر مربع${l.a ? ' · ' + FA(l.a) + ' متر' : ''}
       ${l.p ? '<br>قیمت کل: ' + FA1(l.p/1000) + ' میلیارد تومان' : ''}
-      ${isExpired(l)
-        ? '<br><span style="color:#8a8a8a;font-size:12px">این آگهی دیگر در دیوار موجود نیست</span>'
-        : (l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener"
+      ${l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener"
         style="color:${CSSVAR('--green')};font-weight:700">دیدن آگهی در ${
-        SOURCE_NAME[l.s] || l.s} ↗</a>` : '')}</div>`);
+        SOURCE_NAME[l.s] || l.s} ↗</a>` : ''}</div>`);
     mk.on('click', () => { solo = l.t; keepView = true; drawAds(); drawMap();
       document.getElementById('adsTitle').scrollIntoView({behavior:'smooth', block:'center'}); });
     mk.addTo(layer);
