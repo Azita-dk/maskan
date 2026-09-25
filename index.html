@@ -8,6 +8,29 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+.sidebyside .cmpbar{border-bottom:0;border-top:1px solid var(--rule)}
+.sidebyside .cmpbar:empty{display:none}
+.typ{padding:14px 16px;display:grid;gap:10px}
+.trow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px 14px;
+  width:100%;padding:11px 14px;border:1px solid var(--rule);border-radius:10px;
+  background:var(--card);color:inherit;font:inherit;text-align:start}
+button.trow{cursor:pointer}
+button.trow:hover{border-color:var(--green-mid)}
+.trow.on{border-color:var(--green);background:var(--green-pale)}
+.trow.thin{opacity:.6}
+.trow .lbl b{display:block;font-size:15px;font-weight:800}
+.trow .lbl small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+.trow .track{grid-column:1/-1;order:3;position:relative;height:12px;border-radius:6px;background:var(--rule)}
+.trow .band{position:absolute;top:0;bottom:0;border-radius:6px;background:var(--green-mid);opacity:.35}
+.trow .mid{position:absolute;top:-4px;bottom:-4px;width:3px;border-radius:2px;
+  background:var(--green);transform:translateX(50%)}
+.trow .val{text-align:end}
+.trow .val b{display:block;font-size:18px;font-weight:800;color:var(--green);
+  font-variant-numeric:tabular-nums}
+.trow .val small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.typ .empty{padding:30px 10px;text-align:center;color:var(--muted)}
+</style>
 <link rel="stylesheet" href="app.css?v=20260925c">
 </head>
 <body>
@@ -53,19 +76,17 @@
       <div class="panel">
         <header><h3 id="trendTitle">روند قیمت</h3>
           <div class="tabs" id="trendTabs"></div></header>
-      <div class="cmpbar" id="cmpBar"></div>
         <div class="chartbox"><div class="chart">
           <canvas id="trend"></canvas>
         </div></div>
+        <div class="cmpbar" id="cmpBar"></div>
         <p class="foot" id="trendNote"></p>
       </div>
 
       <div class="panel">
-        <header><h3 id="distTitle">توزیع قیمت</h3></header>
-        <div class="chartbox"><div class="chart short"><canvas id="dist"></canvas></div></div>
-        <div class="statrow" id="distStats"></div>
-        <p class="foot">چند آگهی در هر بازه قیمتی قرار می‌گیرد. منحنی، توزیع
-          نرمالِ هم‌میانگین است تا کجی توزیع دیده شود.</p>
+        <header><h3 id="typTitle">یک خانه معمولی چند؟</h3></header>
+        <div class="typ" id="typBody"></div>
+        <p class="foot" id="typFoot"></p>
       </div>
     </div>
 
@@ -688,8 +709,6 @@ function drawTrend(){
   const lo = Math.min(...all), hi = Math.max(...all);
   const pad = Math.max((hi - lo) * .15, hi * .04);
 
-  const latest = monthly[monthly.length - 1];
-  const pct = monthly[0].v ? (latest.v - monthly[0].v) / monthly[0].v * 100 : null;
 
   note.textContent = 'میانه ماهانه قیمت هر متر مربع، به میلیون تومان' +
     (series.length > 1 ? ' — محله‌های انتخاب‌شده در کنار هم.' : '.');
@@ -715,68 +734,100 @@ function drawTrend(){
                            usePointStyle:true, pointStyle:'line' } },
         tooltip:{ rtl:true, bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
           callbacks:{ label: c => `${c.dataset.label}: ${FA1(c.parsed.y)}` } } },
-      scales:{ x:{ grid:{display:false},
+      scales:{ x:{ grid:{display:false}, offset:true,
                    ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
                           maxTicksLimit:8, maxRotation:0} },
-               y:{ position:'right', min:Math.max(0, lo-pad), max:hi+pad,
+               y:{ position:'right', suggestedMin:Math.max(0, lo-pad), suggestedMax:hi+pad,
                    grid:{color:CSSVAR('--rule')},
                    ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
                           callback:v=>FA(Math.round(v))} } } }
   });
 }
 
-function drawDist(){
-  const rows = activeListings();
-  const vals = rows.map(l => l.m).filter(v => v > 0).sort((a,b)=>a-b);
-  distChart && distChart.destroy();
-  const panel = document.getElementById('dist').closest('.panel');
-  if (vals.length < 20) { panel.classList.add('hide'); return; }
-  panel.classList.remove('hide');
-  document.getElementById('distTitle').textContent =
-    `توزیع قیمت ${kindLabel()} در ${S.hood || CITY.name}`;
+const money = v => v >= 1000 ? `${FA1(round1(v / 1000))} میلیارد`
+                              : `${FA(Math.round(v))} میلیون`;
 
-  const q = p => vals[Math.max(0, Math.min(vals.length-1, Math.floor(vals.length*p)))];
-  const lo = q(.02), hi = q(.98), bins = 26, w = (hi-lo)/bins || 1;
-  const counts = new Array(bins).fill(0);
-  for (const v of vals) {
-    if (v < lo || v > hi) continue;
-    counts[Math.min(bins-1, Math.floor((v-lo)/w))]++;
+function typicalGroups(){
+  if (S.kind === 'land') return [
+    { label:'تا ۲۰۰ متر',        test: l => l.a < 200 },
+    { label:'۲۰۰ تا ۵۰۰ متر',     test: l => l.a >= 200 && l.a < 500 },
+    { label:'۵۰۰ تا ۱۰۰۰ متر',    test: l => l.a >= 500 && l.a < 1000 },
+    { label:'بیش از ۱۰۰۰ متر',    test: l => l.a >= 1000 },
+  ];
+  return [
+    { label:'بدون خواب', rooms:'0', test: l => l.r === 0, optional:true },
+    { label:'۱ خوابه',   rooms:'1', test: l => l.r === 1 },
+    { label:'۲ خوابه',   rooms:'2', test: l => l.r === 2 },
+    { label:'۳ خوابه',   rooms:'3', test: l => l.r === 3 },
+    { label:'۴ خوابه',   rooms:'4', test: l => l.r === 4 },
+  ];
+}
+
+function drawTypical(){
+  const land = S.kind === 'land';
+  const where = S.hood || CITY.name;
+  document.getElementById('typTitle').textContent = land
+    ? `یک زمین معمولی در ${where} چند؟`
+    : `یک ${kindLabel()} معمولی در ${where} چند؟`;
+
+  const base = activeListings('rooms').filter(l => l.p > 0 && l.a > 0);
+  const q = (arr, p) => arr[Math.max(0, Math.min(arr.length - 1, Math.floor(arr.length * p)))];
+  const groups = typicalGroups().map(g => {
+    const rows = base.filter(g.test);
+    const prices = rows.map(l => l.p).sort((a, b) => a - b);
+    return { ...g, n: rows.length,
+             med: prices.length ? median(prices) : 0,
+             lo: prices.length ? q(prices, .25) : 0,
+             hi: prices.length ? q(prices, .75) : 0,
+             area: rows.length ? Math.round(median(rows.map(l => l.a))) : 0 };
+  }).filter(g => !(g.optional && g.n < 10));
+
+  const box = document.getElementById('typBody');
+  const foot = document.getElementById('typFoot');
+  const usable = groups.filter(g => g.n >= 10);
+  if (!usable.length) {
+    box.innerHTML = '<div class="empty">برای این انتخاب آگهی کافی نیست. ' +
+      'فیلترها را کمتر کنید یا محله دیگری را امتحان کنید.</div>';
+    foot.textContent = '';
+    return;
   }
-  const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
-  const sd = Math.sqrt(vals.reduce((a,b)=>a+(b-mean)**2,0)/vals.length) || 1;
-  const peak = Math.max(...counts);
-  const curve = counts.map((_, i) => {
-    const x = lo + w*(i+.5);
-    return peak * Math.exp(-((x-mean)**2)/(2*sd*sd));
-  });
-  const med = round1(median(vals));
 
-  distChart = new Chart(document.getElementById('dist'), {
-    data:{ labels: counts.map((_, i) => FA1(round1(lo + w*i))),
-      datasets:[
-        { type:'bar', label:'تعداد آگهی', data:counts, borderWidth:0,
-          barPercentage:.96, categoryPercentage:1,
-          backgroundColor: counts.map((_, i) => heat(lo + w*i, lo, hi)) },
-        { type:'line', label:'منحنی نرمال هم‌میانگین', data:curve,
-          borderColor:CSSVAR('--muted'), borderWidth:1.5, borderDash:[5,4],
-          pointRadius:0, fill:false, tension:.4 }] },
-    options:{ maintainAspectRatio:false,
-      plugins:{ legend:{ position:'bottom',
-          labels:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
-                  boxWidth:12, usePointStyle:true} },
-        tooltip:{ rtl:true, bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'} } },
-      scales:{ x:{ grid:{display:false},
-                   ticks:{font:{family:'Vazirmatn',size:10}, color:CSSVAR('--muted'),
-                          maxTicksLimit:9, maxRotation:0} },
-               y:{ position:'right', grid:{color:CSSVAR('--rule')},
-                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
-                          callback:v=>FA(v)} } } }
-  });
+  const top = Math.max(...usable.map(g => g.hi)) * 1.05 || 1;
+  const pct = v => (v / top * 100).toFixed(1);
+  box.innerHTML = groups.map(g => {
+    const ok = g.n >= 10;
+    const on = !land && S.rooms === g.rooms;
+    const tag = land ? 'div' : 'button';
+    const attrs = land ? '' : ` data-rooms="${g.rooms}"`;
+    if (!ok) return `<${tag} class="trow thin"${attrs}>
+        <span class="lbl"><b>${g.label}</b><small>${FA(g.n)} آگهی</small></span>
+        <span class="track"></span>
+        <span class="val"><small>آگهی کافی نیست</small></span></${tag}>`;
+    return `<${tag} class="trow${on ? ' on' : ''}"${attrs}
+        title="نیمی از آگهی‌ها بین ${money(g.lo)} و ${money(g.hi)} تومان">
+        <span class="lbl"><b>${g.label}</b>
+          <small>حدود ${FA(g.area)} متر · ${FA(g.n)} آگهی ${
+            confLevel(g.n).cls === 'hi' ? '' : confBadge(g.n, true)}</small></span>
+        <span class="track">
+          <span class="band" style="inset-inline-start:${pct(g.lo)}%;width:${
+            Math.max(1, pct(g.hi) - pct(g.lo))}%"></span>
+          <span class="mid" style="inset-inline-start:${pct(g.med)}%"></span></span>
+        <span class="val"><b>${money(g.med)}</b>
+          <small>${money(g.lo)} تا ${money(g.hi)}</small></span></${tag}>`;
+  }).join('');
 
-  document.getElementById('distStats').innerHTML = [
-    ['کمترین', q(.02)], ['چارک اول', q(.25)], ['میانه امروز', med],
-    ['چارک سوم', q(.75)], ['بیشترین', q(.98)],
-  ].map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${FA1(round1(v))}</div></div>`).join('');
+  box.querySelectorAll('button[data-rooms]').forEach(b =>
+    b.addEventListener('click', () => {
+      S.rooms = S.rooms === b.dataset.rooms ? 'all' : b.dataset.rooms;
+      const el = document.getElementById('fRooms');
+      if (el) el.value = S.rooms;
+      commit();
+    }));
+
+  foot.innerHTML = 'قیمت کل درخواستی به تومان. عدد بزرگ قیمت معمول (میانه) است؛ ' +
+    'نوار سبز محدوده‌ای است که نیمی از آگهی‌ها در آن قرار دارند.' +
+    (land ? '' : ' روی هر ردیف بزنید تا بقیه صفحه به همان تعداد خواب محدود شود.') +
+    ` <a href="${linkTo('stats.html')}" data-page="stats.html">توزیع کامل قیمت →</a>`;
 }
 
 const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };
@@ -1067,7 +1118,7 @@ bootPage('index.html', () => {
   drawTrendTabs();
   drawCmpPicker();
   drawTrend();
-  drawDist();
+  drawTypical();
   document.getElementById('adsHead').textContent =
     `آگهی‌های ${kindLabel()} در ${S.hood || CITY.name}`;
   shown = PAGE();
