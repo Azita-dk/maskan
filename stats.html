@@ -7,7 +7,7 @@
 <meta name="description" content="روند قیمت، توزیع قیمت، و قیمت بر پایه متراژ و سن بنا.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=20260924h">
+<link rel="stylesheet" href="app.css?v=20260925c">
 </head>
 <body>
 
@@ -33,7 +33,7 @@
       <div class="tabs" id="trendTabs"></div></header>
       <div class="cmpbar" id="cmpBar"></div>
     <div class="chartbox"><div class="chart">
-      <canvas id="trend"></canvas><div class="callout hide" id="callout"></div>
+      <canvas id="trend"></canvas>
     </div></div>
     <p class="foot" id="trendNote"></p>
   </div>
@@ -73,7 +73,7 @@
 </div></footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=20260924h"></script>
+<script src="app.js?v=20260925c"></script>
 <script>
 let trendChart=null, distChart=null, sizeChart=null, ageChart=null, hoodBars=null;
 let period = 'all';
@@ -255,7 +255,6 @@ function drawCmpPicker(){
 function drawTrend(){
   trendChart && trendChart.destroy();
   const note = document.getElementById('trendNote');
-  const callout = document.getElementById('callout');
   const ctx = document.getElementById('trend');
   document.getElementById('trendTitle').textContent =
     `روند قیمت ${kindLabel()} در ${S.hood || CITY.name}`;
@@ -272,7 +271,6 @@ function drawTrend(){
      The data is collected from the first day; a line over a week of it would
      invite people to read a trend that is not there yet. */
   if (span < MIN_TREND_DAYS) {
-    callout.classList.add('hide');
     ctx.style.display = 'none';
     note.textContent = 'نمودار روند پس از جمع‌آوری داده کافی نشان داده می‌شود؛ ' +
       'داده‌ها از همین حالا ثبت می‌شوند و نمودار حدود یک ماه دیگر در دسترس خواهد بود.';
@@ -302,10 +300,6 @@ function drawTrend(){
 
   const latest = monthly[monthly.length - 1];
   const pct = monthly[0].v ? (latest.v - monthly[0].v) / monthly[0].v * 100 : null;
-  callout.classList.remove('hide');
-  callout.innerHTML = `<div class="n">${FA1(latest.v)} میلیون تومان</div>
-    <div class="d">${latest.label}${pct === null ? '' :
-      ' · ' + (pct >= 0 ? '+' : '\u2212') + FA1(Math.abs(pct)) + '\u066A در این بازه'}</div>`;
 
   note.textContent = 'میانه ماهانه قیمت هر متر مربع، به میلیون تومان' +
     (series.length > 1 ? ' — محله‌های انتخاب‌شده در کنار هم.' : '.');
@@ -395,7 +389,7 @@ function drawDist(){
     // 2nd and 98th percentiles. Labelling them as the extremes made the page
     // contradict the ads table, which shows the real maximum — Hamadan read
     // 300 here and 419.9 there, and both were right.
-    ['صدک ۲', q(.02)], ['چارک اول', q(.25)], ['میانه', med],
+    ['صدک ۲', q(.02)], ['چارک اول', q(.25)], ['میانه امروز', med],
     ['چارک سوم', q(.75)], ['صدک ۹۸', q(.98)],
   ].map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${FA1(round1(v))}</div></div>`).join('');
 }
