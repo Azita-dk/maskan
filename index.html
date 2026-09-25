@@ -712,14 +712,53 @@ function drawCmpPicker(){
   if (cl) cl.addEventListener('click', () => { S.cmp = ''; commit(); });
 }
 
+const trendFiltered = () => (activeFilterCount() - (S.prov ? 1 : 0)) > 0 || !!S.q;
+
+function filterLabel(){
+  const n = activeFilterCount() - (S.prov ? 1 : 0) + (S.q ? 1 : 0);
+  if (n === 1 && S.rooms !== 'all')
+    return S.rooms === '0' ? 'بدون خواب' : `${FA(S.rooms)} خوابه`;
+  return 'انتخاب شما';
+}
+
+function filteredHistory(hood){
+  const pts = ((CITY && CITY.listings) || [])
+    .filter(l => ofKind(l) && passes(l) && (!hood || l.h === hood) && l.d && l.m > 0)
+    .map(l => ({ d: l.d, m: l.m }))
+    .sort((a, b) => (a.d < b.d ? -1 : 1));
+  if (pts.length < 30) return [];
+  const today = new Date().toISOString().slice(0, 10);
+  const out = [];
+  let i = 0;
+  const live = [];
+  for (let t = Date.parse(HISTORY_START); ; t += 864e5) {
+    const d = new Date(t).toISOString().slice(0, 10);
+    if (d > today) break;
+    while (i < pts.length && pts[i].d <= d) live.push(pts[i++].m);
+    if (live.length >= 30) out.push({ d, v: round1(median(live)), n: live.length });
+  }
+  return out;
+}
+
 function drawTrend(){
   trendChart && trendChart.destroy();
   const note = document.getElementById('trendNote');
   const ctx = document.getElementById('trend');
   let daily = historySeries();
-  const lineName = S.hood && !HIST_FALLBACK ? S.hood : CITY.name;
-  document.getElementById('trendTitle').textContent =
-    `روند قیمت ${kindLabel()} در ${lineName}`;
+  let lineName = S.hood && !HIST_FALLBACK ? S.hood : CITY.name;
+  let reference = null, filteredOn = false, filteredThin = false;
+  if (trendFiltered()) {
+    const fh = filteredHistory(S.hood);
+    if (fh.length > 1 && historyDays(fh) >= MIN_TREND_DAYS) {
+      reference = { name: `کل بازار ${lineName}`, rows: daily };
+      daily = fh;
+      lineName = `${filterLabel()}، ${S.hood || CITY.name}`;
+      filteredOn = true;
+    } else filteredThin = true;
+  }
+  document.getElementById('trendTitle').textContent = filteredOn
+    ? `روند قیمت ${kindLabel()} ${filterLabel()} در ${S.hood || CITY.name}`
+    : `روند قیمت ${kindLabel()} در ${lineName}`;
   const span = daily.length > 1 ? historyDays(daily) : 0;
   if (period !== 'all' && span >= MIN_TREND_DAYS) {
     const cut = new Date(Date.now() - (+period) * 864e5).toISOString().slice(0, 10);
@@ -747,10 +786,16 @@ function drawTrend(){
 
   {
     for (const h of cmpList()) {
-      const rows = hoodHistory(h).filter(r => r.d >= daily[0].d);
+      const rows = (filteredOn ? filteredHistory(h) : hoodHistory(h))
+        .filter(r => r.d >= daily[0].d);
       if (rows.length < 2) continue;
       series.push({ name: h, rows: byMonth(rows) });
     }
+  }
+
+  if (reference && series.length === 1) {
+    const rows = byMonth(reference.rows.filter(r => r.d >= daily[0].d));
+    if (rows.length) series.push({ name: reference.name, rows, ref: true });
   }
 
   const all = series.flatMap(s => s.rows.map(r => r.v));
@@ -761,6 +806,10 @@ function drawTrend(){
   note.textContent = 'میانه ماهانه قیمت هر متر مربع، به میلیون تومان' +
     (series.length > 1 ? ' — محله‌های انتخاب‌شده در کنار هم.' : '.');
 
+  if (filteredOn) note.textContent += ' خط اصلی از آگهی‌های همین انتخاب ' +
+    'محاسبه شده است؛ خط خاکستری کل بازار است.';
+  if (filteredThin) note.textContent += ' برای این انتخاب آگهی تاریخ‌دار کافی نیست؛ ' +
+    'خط، کل بازار را بدون فیلترها نشان می‌دهد.';
   if (HIST_FALLBACK) note.textContent += ` تاریخچه ${S.hood} هنوز برای رسم روند کافی نیست؛ ` +
     `تا جمع شدن آن، روند کل ${CITY.name} نشان داده می‌شود.`;
 
@@ -773,8 +822,9 @@ function drawTrend(){
           const r = s.rows.find(x => x.label === l);
           return r ? r.v : null;
         }),
-        borderColor: LINE_COLORS[i % LINE_COLORS.length],
-        backgroundColor: LINE_COLORS[i % LINE_COLORS.length],
+        borderColor: s.ref ? CSSVAR('--muted') : LINE_COLORS[i % LINE_COLORS.length],
+        backgroundColor: s.ref ? CSSVAR('--muted') : LINE_COLORS[i % LINE_COLORS.length],
+        borderDash: s.ref ? [5, 4] : [],
         borderWidth: s.wide ? 3 : 2,
         fill:false, tension:.3, spanGaps:true,
         pointRadius: 3, pointHoverRadius: 5 })) },
