@@ -253,9 +253,7 @@ const jMonthLabel = k => `${J_MONTHS[k % 12]} ${FA_YEAR(Math.floor(k / 12))}`;
 const dashLast = months => {
   const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
   const last = months.length - 1;
-  return { borderDash: c =>
-    (c.p1DataIndex === last && months[last] === nowKey) ||
-    months[c.p0DataIndex] < COLLECT_START_KEY ? [5, 4] : undefined };
+  return {};
 };
 const hollowPre = (months, color) => c =>
   months[c.dataIndex] < COLLECT_START_KEY ? CSSVAR('--card') : color;
@@ -389,9 +387,12 @@ function drawTrendTabs(){
     }));
 }
 
+let hideMain = false;
+
 function drawCmpPicker(){
   const bar = document.getElementById('cmpBar');
   if (!bar) return;
+  if (!cmpList().length) hideMain = false;
   if (allTrendMonths().length < 1) { bar.innerHTML = ''; return; }
   const hm = (CITY.hood_monthly || {})[S.kind] || {};
   const have = (typeof hoodStats === 'function' ? hoodStats()
@@ -403,8 +404,14 @@ function drawCmpPicker(){
   const chosen = cmpList();
   const opts = have.filter(h => !chosen.includes(h.hood));
 
+  const mainName = mainHood() || CITY.name;
   bar.innerHTML =
     `<span class="cmplbl">مقایسه با:</span>` +
+    (chosen.length
+      ? `<button class="cmpchip" data-main style="${hideMain ? 'opacity:.5;text-decoration:line-through' : ''}"
+           title="${hideMain ? 'نمایش دوباره' : 'پنهان کردن'} ${esc(mainName)} در نمودار">
+           <i style="background:${LINE_COLORS[0]}"></i>${esc(mainName)} <b>${hideMain ? '+' : '✕'}</b></button>`
+      : '') +
     chosen.map((h, i) => `<button class="cmpchip" data-drop="${esc(h)}">
         <i style="background:${LINE_COLORS[(i + 1) % LINE_COLORS.length]}"></i>
         ${esc(h)} <b>✕</b></button>`).join('') +
@@ -427,7 +434,9 @@ function drawCmpPicker(){
       commit();
     }));
   const cl = document.getElementById('cmpClear');
-  if (cl) cl.addEventListener('click', () => { S.cmp = ''; commit(); });
+  if (cl) cl.addEventListener('click', () => { S.cmp = ''; hideMain = false; commit(); });
+  const mb = bar.querySelector('[data-main]');
+  if (mb) mb.addEventListener('click', () => { hideMain = !hideMain; commit(); });
 }
 
 function monthlyChange(){
@@ -497,7 +506,8 @@ function drawTrend(){
     if (months.filter(k => by.has(k) && by.get(k).v != null).length < 1) { missing.push(h); return; }
     series.push({ name: h, by, color: LINE_COLORS[(ci + 1) % LINE_COLORS.length] });
   });
-  if (filtered && series.length === 1) {
+  if (hideMain && series.length > 1) series.shift();
+  if (filtered && series.length === 1 && !hideMain) {
     const ref = monthlyBase(hood);
     series.push({ name: `کل بازار ${place}`, by: ref, ref: true });
   }
@@ -520,7 +530,7 @@ function drawTrend(){
         pointBackgroundColor: s.ref ? CSSVAR('--muted') : hollowPre(months, s.color),
         borderWidth: s.wide ? 3 : 2, tension: .3, spanGaps: true,
         pointRadius: s.ref ? 0 : 4, pointHoverRadius: 6,
-        segment: s.ref ? { borderDash: () => [5, 4] } : dashLast(months),
+        segment: dashLast(months),
         _by: s.by,
       })),
     },
@@ -539,12 +549,12 @@ function drawTrend(){
   const tn = [];
   if (monthsWithData < 2) tn.push('فعلاً فقط یک ماه داده هست؛ خط روند از ماه دوم کشیده می‌شود.');
   if (months.some(k => k < COLLECT_START_KEY))
-    tn.push('جمع‌آوری از شهریور ۱۴۰۵ آغاز شده است. ماه‌های پیش از آن با پس‌زمینه خاکستری و خط‌چین نشان داده می‌شوند: در آن‌ها فقط آگهی‌هایی هست که تا شهریور هنوز روی دیوار بوده‌اند — بیشتر خانه‌های بزرگ‌تر و گران‌تر — پس تعدادشان کمتر و قیمتشان بالاتر از واقع است.');
+    tn.push('جمع‌آوری از شهریور ۱۴۰۵ آغاز شده است. ماه‌های پیش از آن با پس‌زمینه خاکستری نشان داده می‌شوند: در آن‌ها فقط آگهی‌هایی هست که تا شهریور هنوز روی دیوار بوده‌اند — بیشتر خانه‌های بزرگ‌تر و گران‌تر — پس تعدادشان کمتر و قیمتشان بالاتر از واقع است.');
   tn.push('«تغییر قیمت» فقط از شهریور ۱۴۰۵ به بعد حساب می‌شود.');
   tn.push(
     'هر آگهی در همه ماه‌هایی شمرده می‌شود که روی دیوار بوده: از ماه انتشار تا ماهی که حذف شده، یا تا امروز اگر هنوز فعال است. در هر ماه فقط یک بار شمرده می‌شود.',
     'اگر قیمت آگهی عوض شود، از همان ماه با قیمت تازه حساب می‌شود. آگهی‌ای که بیش از سه هفته در دیوار دیده نشود، حذف‌شده به حساب می‌آید.',
-    'ماه جاری هنوز تمام نشده و خط‌چین است.');
+    'ماه جاری هنوز تمام نشده است.');
   if (filtered) tn.push(`همه خط‌ها فقط آگهی‌های «${filterLabel()}» را نشان می‌دهند` +
     (series.some(x => x.ref) ? '؛ خط خاکستری کل بازار است.' : '.'));
   if (S.hood && !hood) tn.push(`برای ${S.hood} داده ماهانه کافی نیست؛ کل ${CITY.name} نشان داده می‌شود.`);
