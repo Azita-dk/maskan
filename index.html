@@ -625,10 +625,12 @@ function drawTrendTabs(){
       period = b.dataset.p;
       box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
       drawTrend();
+      drawCountTrend();
     }));
 }
 
 const MIN_TREND_DAYS = 7;
+let TREND_MONTHS = null;
 const HOOD_LINES = 5;
 const LINE_COLORS = ['#0C7A4F','#B3261E','#D97706','#1D5FA8','#7A3E9D','#0E7490'];
 
@@ -752,6 +754,7 @@ function drawTrend(){
   /* Nothing is drawn until a month of history exists.
      The data is collected from the first day; a line over a week of it would
      invite people to read a trend that is not there yet. */
+  TREND_MONTHS = null;
   if (span < MIN_TREND_DAYS) {
     ctx.style.display = 'none';
     note.textContent = 'نمودار روند پس از جمع‌آوری داده کافی نشان داده می‌شود؛ ' +
@@ -764,6 +767,7 @@ function drawTrend(){
      its own says little, ونک against نارمک against پونک says a great deal. */
   const monthly = byMonth(daily);
   const labels = monthly.map(m => m.label);
+  TREND_MONTHS = monthly.map(m => jMonthKey(m.d));
   const pos = new Map(labels.map((l, i) => [l, i]));
   const series = [{ name: lineName, rows: monthly, wide: true }];
 
@@ -872,8 +876,9 @@ function drawCountTrend(){
   let first = nowKey - span + 1;
   const datedKeys = (CITY.listings || []).filter(l => ofKind(l) && l.d).map(l => jMonthKey(l.d));
   if (datedKeys.length) first = Math.max(first, Math.min(...datedKeys));
-  const months = [];
+  let months = [];
   for (let k = first; k <= nowKey; k++) months.push(k);
+  if (TREND_MONTHS && TREND_MONTHS.length > 1) months = [...TREND_MONTHS];
 
   const series = [{ name: place, hood: S.hood, color: LINE_COLORS[0], main: true }];
   cmpList().forEach((h, ci) =>
@@ -903,7 +908,7 @@ function drawCountTrend(){
   const axisFont = { family: 'Vazirmatn', size: 11 };
   const pre = scale > 1.05 ? 'حدود ' : '';
   const scales = {
-    x: { grid: { display: false },
+    x: { grid: { display: false }, offset: true,
          ticks: { font: axisFont, color: CSSVAR('--muted'), maxRotation: 0 } },
     y: { position: 'right', beginAtZero: true, grid: { color: CSSVAR('--rule') },
          ticks: { font: axisFont, color: CSSVAR('--muted'), precision: 0, callback: v => FA(v) } },
@@ -918,7 +923,7 @@ function drawCountTrend(){
   actChart = new Chart(canvas, {
     type: 'line',
     data: {
-      labels: months.map(k => k === nowKey ? `${jMonthLabel(k)} (تا امروز)` : jMonthLabel(k)),
+      labels: months.map(jMonthLabel),
       datasets: drawn.map(sr => ({
         label: sr.name,
         data: sr.rows,
@@ -926,7 +931,7 @@ function drawCountTrend(){
         borderColor: sr.color, backgroundColor: sr.color,
         borderWidth: sr.main ? 3 : 2, tension: .3,
         pointRadius: 4, pointHoverRadius: 6,
-        segment: { borderDash: c => c.p1DataIndex === last ? [5, 4] : undefined },
+        segment: { borderDash: c => c.p1DataIndex === last && months[last] === nowKey ? [5, 4] : undefined },
       })),
     },
     options: {
@@ -937,7 +942,10 @@ function drawCountTrend(){
           labels: { font: { family: 'Vazirmatn', size: 12 }, color: CSSVAR('--ink'),
                     usePointStyle: true, pointStyle: 'line', boxWidth: 24 } },
         tooltip: { rtl: true, titleFont: { family: 'Vazirmatn' }, bodyFont: { family: 'Vazirmatn' },
-          callbacks: { label: c => `${c.dataset.label}: ${pre}${FA(c.parsed.y)} آگهی تازه` } },
+          callbacks: {
+            title: items => jMonthLabel(months[items[0].dataIndex]) +
+              (months[items[0].dataIndex] === nowKey ? ' (تا امروز)' : ''),
+            label: c => `${c.dataset.label}: ${pre}${FA(c.parsed.y)} آگهی تازه` } },
       },
       scales,
     },
