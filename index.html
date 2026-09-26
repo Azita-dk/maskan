@@ -1028,7 +1028,7 @@ function drawCountTrend(){
   }
   canvas.style.display = ''; empty.classList.add('hide');
 
-  const cityWithHoods = !hood && series[0].main && series.length > 1;
+  const cityWithHoods = false;
   const approx = filtered;
   const axisFont = { family: 'Vazirmatn', size: 11 };
   const yAxes = {
@@ -1068,7 +1068,8 @@ function drawCountTrend(){
     'تعداد آگهی‌هایی که در آن ماه روی دیوار بوده‌اند — همان آگهی‌هایی که قیمتشان در نمودار کناری آمده. آگهی‌ای که چند ماه روی دیوار مانده در هر یک از آن ماه‌ها یک بار شمرده می‌شود.',
     'ماه جاری هنوز تمام نشده است.',
     'آگهی‌هایی که هنوز تاریخ دیوار ندارند شمرده نمی‌شوند، پس ماه جاری تا چند روز کمتر از واقع دیده می‌شود.'];
-  if (cityWithHoods) cn.push(`محور چپ ${CITY.name} و محور راست محله‌هاست.`);
+  if (!hood && series[0].main && series.length > 1)
+    cn.push(`برای دیدن بهتر محله‌ها، ${CITY.name} را با زدن ✕ کنار نامش در «مقایسه با» پنهان کنید.`);
   if (filtered) cn.push('با فیلتر، تعداد از نمونه‌ای از آگهی‌ها برآورد می‌شود و تقریبی است.');
   if (missing.length) cn.push(`برای ${missing.join('، ')} داده کافی نیست.`);
   setNote(foot, 'تعداد آگهی‌هایی که در هر ماه روی دیوار بوده‌اند.', cn);
