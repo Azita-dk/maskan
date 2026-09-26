@@ -9,6 +9,10 @@
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
+.notebtn{border:0;background:transparent;color:var(--green);font:inherit;font-weight:700;
+  cursor:pointer;padding:0 4px;text-decoration:underline;text-underline-offset:3px}
+.notemore{display:inline}
+.notemore.hide{display:none}
 .tablewrap{container-type:inline-size;overflow-x:auto}
 table.cards td{white-space:nowrap}
 table.cards td:first-child{white-space:normal;min-width:160px}
@@ -318,36 +322,15 @@ function drawProvSummary(){
  * honest to say and it says that instead.
  */
 function changeKpi(){
-  const h = historySeries();
-  if (HIST_FALLBACK)
-    return { label:'تغییر قیمت', text:'—', cls:'',
-             sub:'تاریخچه این محله هنوز کافی نیست' };
-  if (h.length < 2)
-    return { label:'تغییر قیمت', text:'—', cls:'',
-             sub:'هنوز روز کافی ثبت نشده' };
-  const a = h[0], b = h[h.length - 1];
-  const days = Math.round((new Date(b.d) - new Date(a.d)) / 864e5);
-  if (days < 7 || !a.v)
-    return { label:'تغییر قیمت', text:'—', cls:'',
-             sub:`فقط ${FA(days)} روز داده — برای مقایسه کم است` };
-
-  const pct = (b.v - a.v) / a.v * 100;
-  /* Named by the span it actually covers. A count of days reads as precision
-     the figure does not have once there are months of history. */
-  const label = days >= 365 ? 'تغییر سالانه'
-              : days >= 300 ? 'تغییر ۱۰ ماهه'
-              : days >= 240 ? 'تغییر ۸ ماهه'
-              : days >= 165 ? 'تغییر ۶ ماهه'
-              : days >= 105 ? 'تغییر ۴ ماهه'
-              : days >= 75  ? 'تغییر ۳ ماهه'
-              : days >= 45  ? 'تغییر ۲ ماهه'
-              : days >= 21  ? 'تغییر ماهانه'
-              : `تغییر ${FA(days)} روزه`;
+  const c = monthlyChange();
+  if (!c) return { label:'تغییر قیمت', text:'—', cls:'', sub:'هنوز دو ماه کامل داده نیست' };
+  const label = c.months >= 12 ? 'تغییر سالانه' : c.months === 1 ? 'تغییر ماهانه'
+              : `تغییر ${FA(c.months)} ماهه`;
   return {
     label,
-    text: (pct >= 0 ? '+' : '\u2212') + FA1(Math.abs(pct)) + '\u066A',
-    cls: pct >= 0 ? 'up' : 'down',
-    sub: `از ${faDate(a.d)}`,
+    text: (c.pct >= 0 ? '+' : '\u2212') + FA1(Math.abs(c.pct)) + '\u066A',
+    cls: c.pct >= 0 ? 'up' : 'down',
+    sub: `از ${jMonthLabel(c.from)} تا ${jMonthLabel(c.to)}`,
   };
 }
 
@@ -605,29 +588,6 @@ function historyDays(h){
   return Math.round((new Date(h[h.length-1].d) - new Date(h[0].d)) / 864e5);
 }
 
-function drawTrendTabs(){
-  /* The chart is monthly now, so day ranges no longer fit. Nothing is
-     offered until there is a month to look at. */
-  const hist = historySeries();
-  const span = hist.length > 1 ? historyDays(hist) : 0;
-  const box0 = document.getElementById('trendTabs');
-  if (span < MIN_TREND_DAYS) { if (box0) box0.innerHTML = ''; return; }
-  const opts = [['all','همه']];
-  if (span >= 90)  opts.push(['90','۳ ماه']);
-  if (span >= 180) opts.push(['180','۶ ماه']);
-  if (span >= 365) opts.push(['365','۱ سال']);
-  if (!opts.some(o => o[0] === period)) period = 'all';
-  const box = document.getElementById('trendTabs');
-  box.innerHTML = opts.reverse().map(([v,l]) =>
-    `<button data-p="${v}"${v === period ? ' class="on"' : ''}>${l}</button>`).join('');
-  box.querySelectorAll('button').forEach(b =>
-    b.addEventListener('click', () => {
-      period = b.dataset.p;
-      box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
-      drawTrend();
-      drawCountTrend();
-    }));
-}
 
 const MIN_TREND_DAYS = 7;
 let TREND_MONTHS = null;
@@ -656,15 +616,123 @@ const cmpList = () => (S.cmp ? S.cmp.split('|').filter(Boolean) : []);
 /* Which neighbourhoods to compare is the reader's choice, not a ranking.
    Boligsiden works this way: pick two areas and see them against each other.
    The picks live in the address, so a comparison can be sent to someone. */
+
+const trendFiltered = () => (activeFilterCount() - (S.prov ? 1 : 0)) > 0 || !!S.q;
+
+function filterLabel(){
+  const n = activeFilterCount() - (S.prov ? 1 : 0) + (S.q ? 1 : 0);
+  if (n === 1 && S.rooms !== 'all')
+    return S.rooms === '0' ? 'بدون خواب' : `${FA(S.rooms)} خوابه`;
+  return 'انتخاب شما';
+}
+
+function filteredHistory(hood, minN = 30){
+  const pts = ((CITY && CITY.listings) || [])
+    .filter(l => ofKind(l) && passes(l) && (!hood || l.h === hood) && l.d && l.m > 0)
+    .map(l => ({ d: l.d, m: l.m }))
+    .sort((a, b) => (a.d < b.d ? -1 : 1));
+  if (pts.length < minN) return [];
+  const today = new Date().toISOString().slice(0, 10);
+  const out = [];
+  let i = 0;
+  const live = [];
+  for (let t = Date.parse(HISTORY_START); ; t += 864e5) {
+    const d = new Date(t).toISOString().slice(0, 10);
+    if (d > today) break;
+    while (i < pts.length && pts[i].d <= d) live.push(pts[i++].m);
+    if (live.length >= minN) out.push({ d, v: round1(median(live)), n: live.length });
+  }
+  return out;
+}
+
+function findHoodMonthly(hood){
+  const hm = (CITY.hood_monthly || {})[S.kind] || {};
+  if (hm[hood]) return hm[hood];
+  const key = canonHood(hood);
+  for (const h in hm) if (canonHood(h) === key) return hm[h];
+  return null;
+}
+
+function monthlyBase(hood){
+  const src = hood ? findHoodMonthly(hood) : ((CITY.monthly || {})[S.kind] || []);
+  return new Map((src || []).map(([k, n, v]) => [k, { n, v }]));
+}
+
+function monthlySeries(hood){
+  const base = monthlyBase(hood);
+  const minN = hood ? 5 : 20;
+  const out = new Map();
+  if (!trendFiltered()) {
+    for (const [k, r] of base) out.set(k, { n: r.n, v: r.n >= minN ? r.v : null });
+    return out;
+  }
+  const allBy = new Map(), filtBy = new Map();
+  const want = hood ? canonHood(hood) : null;
+  for (const l of (CITY.listings || [])) {
+    if (!ofKind(l) || !l.d || (want && canonHood(l.h) !== want)) continue;
+    const k = jMonthKey(l.d);
+    allBy.set(k, (allBy.get(k) || 0) + 1);
+    if (passes(l) && l.m > 0) {
+      if (!filtBy.has(k)) filtBy.set(k, []);
+      filtBy.get(k).push(l.m);
+    }
+  }
+  for (const [k, r] of base) {
+    const a = allBy.get(k) || 0, f = filtBy.get(k) || [];
+    if (a < 5) continue;
+    out.set(k, { n: Math.round(r.n * f.length / a),
+                 v: f.length >= (hood ? 3 : 10) ? round1(median(f)) : null, approx: true });
+  }
+  return out;
+}
+
+const mainHood = () => (S.hood && findHoodMonthly(S.hood) ? S.hood : '');
+
+function allTrendMonths(){
+  return [...monthlySeries(mainHood()).entries()]
+    .filter(([, r]) => r.v != null).map(([k]) => k).sort((a, b) => a - b);
+}
+
+function trendMonths(){
+  let keys = allTrendMonths();
+  if (keys.length) {
+    const lo = keys[0], hi = keys[keys.length - 1];
+    keys = [];
+    for (let k = lo; k <= hi; k++) keys.push(k);
+  }
+  if (period !== 'all') keys = keys.slice(-Math.ceil(+period / 30));
+  return keys;
+}
+
+function drawTrendTabs(){
+  const n = allTrendMonths().length;
+  const box = document.getElementById('trendTabs');
+  if (!box) return;
+  if (n < 2) { box.innerHTML = ''; return; }
+  const opts = [['all', 'همه']];
+  if (n >= 4)  opts.push(['90', '۳ ماه']);
+  if (n >= 7)  opts.push(['180', '۶ ماه']);
+  if (n >= 13) opts.push(['365', '۱ سال']);
+  if (!opts.some(o => o[0] === period)) period = 'all';
+  box.innerHTML = opts.reverse().map(([v, l]) =>
+    `<button data-p="${v}"${v === period ? ' class="on"' : ''}>${l}</button>`).join('');
+  box.querySelectorAll('button').forEach(b =>
+    b.addEventListener('click', () => {
+      period = b.dataset.p;
+      box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+      drawTrend();
+      if (typeof drawCountTrend === 'function') drawCountTrend();
+    }));
+}
+
 function drawCmpPicker(){
   const bar = document.getElementById('cmpBar');
   if (!bar) return;
-  const hist = historySeries();
-  if ((hist.length > 1 ? historyDays(hist) : 0) < MIN_TREND_DAYS) {
-    bar.innerHTML = ''; return;
-  }
+  if (allTrendMonths().length < 2) { bar.innerHTML = ''; return; }
+  const hm = (CITY.hood_monthly || {})[S.kind] || {};
   const have = hoodStats()
-    .filter(h => hoodHistory(h.hood).length > 1)
+    .filter(h => h.hood !== S.hood &&
+      [...monthlySeries(h.hood).values()].filter(r => r.v != null).length > 1)
     .sort((a, b) => b.n - a.n);
   const chosen = cmpList();
   const opts = have.filter(h => !chosen.includes(h.hood));
@@ -696,145 +764,133 @@ function drawCmpPicker(){
   if (cl) cl.addEventListener('click', () => { S.cmp = ''; commit(); });
 }
 
-const trendFiltered = () => (activeFilterCount() - (S.prov ? 1 : 0)) > 0 || !!S.q;
-
-function filterLabel(){
-  const n = activeFilterCount() - (S.prov ? 1 : 0) + (S.q ? 1 : 0);
-  if (n === 1 && S.rooms !== 'all')
-    return S.rooms === '0' ? 'بدون خواب' : `${FA(S.rooms)} خوابه`;
-  return 'انتخاب شما';
+function monthlyChange(){
+  const m = monthlySeries(mainHood());
+  const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
+  const keys = [...m.keys()].filter(k => m.get(k).v != null && k < nowKey).sort((a, b) => a - b);
+  if (keys.length < 2) return null;
+  const a = keys[0], b = keys[keys.length - 1];
+  const va = m.get(a).v, vb = m.get(b).v;
+  if (!va) return null;
+  return { pct: (vb - va) / va * 100, from: a, to: b, months: b - a };
 }
 
-function filteredHistory(hood, minN = 30){
-  const pts = ((CITY && CITY.listings) || [])
-    .filter(l => ofKind(l) && passes(l) && (!hood || l.h === hood) && l.d && l.m > 0)
-    .map(l => ({ d: l.d, m: l.m }))
-    .sort((a, b) => (a.d < b.d ? -1 : 1));
-  if (pts.length < minN) return [];
-  const today = new Date().toISOString().slice(0, 10);
-  const out = [];
-  let i = 0;
-  const live = [];
-  for (let t = Date.parse(HISTORY_START); ; t += 864e5) {
-    const d = new Date(t).toISOString().slice(0, 10);
-    if (d > today) break;
-    while (i < pts.length && pts[i].d <= d) live.push(pts[i++].m);
-    if (live.length >= minN) out.push({ d, v: round1(median(live)), n: live.length });
-  }
-  return out;
+function lineChartOptions(months, fmt, extraY, showLegend){
+  const axisFont = { family: 'Vazirmatn', size: 11 };
+  const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
+  return {
+    maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: !!showLegend, rtl: true,
+        labels: { font: { family: 'Vazirmatn', size: 12 }, color: CSSVAR('--ink'),
+                  usePointStyle: true, pointStyle: 'line', boxWidth: 24 } },
+      tooltip: { rtl: true, titleFont: { family: 'Vazirmatn' }, bodyFont: { family: 'Vazirmatn' },
+        filter: item => item.parsed.y != null,
+        callbacks: {
+          title: items => jMonthLabel(months[items[0].dataIndex]) +
+            (months[items[0].dataIndex] === nowKey ? ' (تا امروز)' : ''),
+          label: fmt } },
+    },
+    scales: Object.assign({
+      x: { grid: { display: false }, offset: true,
+           ticks: { font: axisFont, color: CSSVAR('--muted'), maxRotation: 0 } },
+    }, extraY),
+  };
 }
+
+const dashLast = months => {
+  const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
+  const last = months.length - 1;
+  return { borderDash: c => c.p1DataIndex === last && months[last] === nowKey ? [5, 4] : undefined };
+};
 
 function drawTrend(){
-  trendChart && trendChart.destroy();
+  trendChart && trendChart.destroy(); trendChart = null;
   const note = document.getElementById('trendNote');
   const ctx = document.getElementById('trend');
-  let daily = historySeries();
-  let lineName = S.hood && !HIST_FALLBACK ? S.hood : CITY.name;
-  let reference = null, filteredOn = false, filteredThin = false;
-  const cmpMissing = [];
-  if (trendFiltered()) {
-    const fh = filteredHistory(S.hood, S.hood ? 10 : 30);
-    if (fh.length > 1 && historyDays(fh) >= MIN_TREND_DAYS) {
-      reference = { name: `کل بازار ${lineName}`, rows: daily };
-      daily = fh;
-      lineName = `${filterLabel()}، ${S.hood || CITY.name}`;
-      filteredOn = true;
-    } else filteredThin = true;
-  }
-  document.getElementById('trendTitle').textContent = filteredOn
-    ? `روند قیمت ${kindLabel()} ${filterLabel()} در ${S.hood || CITY.name}`
-    : `روند قیمت ${kindLabel()} در ${lineName}`;
-  const span = daily.length > 1 ? historyDays(daily) : 0;
-  if (period !== 'all' && span >= MIN_TREND_DAYS) {
-    const cut = new Date(Date.now() - (+period) * 864e5).toISOString().slice(0, 10);
-    const cropped = daily.filter(r => r.d >= cut);
-    if (cropped.length > 1) daily = cropped;
-  }
+  const hood = mainHood();
+  const place = hood || CITY.name;
+  const filtered = trendFiltered();
+  const months = trendMonths();
+  TREND_MONTHS = months;
+  document.getElementById('trendTitle').textContent = filtered
+    ? `روند قیمت ${kindLabel()} ${filterLabel()} در ${place}`
+    : `روند قیمت ${kindLabel()} در ${place}`;
 
-  /* Nothing is drawn until a month of history exists.
-     The data is collected from the first day; a line over a week of it would
-     invite people to read a trend that is not there yet. */
-  TREND_MONTHS = null;
-  if (span < MIN_TREND_DAYS) {
+  const main = monthlySeries(hood);
+  if (months.filter(k => main.has(k) && main.get(k).v != null).length < 2) {
     ctx.style.display = 'none';
-    note.textContent = 'نمودار روند پس از جمع‌آوری داده کافی نشان داده می‌شود؛ ' +
-      'داده‌ها از همین حالا ثبت می‌شوند و نمودار حدود یک ماه دیگر در دسترس خواهد بود.';
+    setNote(note, 'برای رسم روند دست‌کم دو ماه داده لازم است.', []);
     return;
   }
   ctx.style.display = '';
 
-  /* Neighbourhoods side by side, which is what the chart is for: تهران on
-     its own says little, ونک against نارمک against پونک says a great deal. */
-  const monthly = byMonth(daily);
-  const labels = monthly.map(m => m.label);
-  TREND_MONTHS = monthly.map(m => jMonthKey(m.d));
-  const pos = new Map(labels.map((l, i) => [l, i]));
-  const series = [{ name: lineName, rows: monthly, wide: true }];
-
-  {
-    cmpList().forEach((h, ci) => {
-      const rows = (filteredOn ? filteredHistory(h, 10) : hoodHistory(h))
-        .filter(r => r.d >= daily[0].d);
-      if (rows.length < 2) { cmpMissing.push(h); return; }
-      series.push({ name: h, rows: byMonth(rows), color: LINE_COLORS[(ci + 1) % LINE_COLORS.length] });
-    });
+  const series = [{ name: filtered ? `${filterLabel()}، ${place}` : place, by: main,
+                    color: LINE_COLORS[0], wide: true }];
+  const missing = [];
+  cmpList().forEach((h, ci) => {
+    const by = monthlySeries(h);
+    if (months.filter(k => by.has(k) && by.get(k).v != null).length < 2) { missing.push(h); return; }
+    series.push({ name: h, by, color: LINE_COLORS[(ci + 1) % LINE_COLORS.length] });
+  });
+  if (filtered && series.length === 1) {
+    const ref = monthlyBase(hood);
+    series.push({ name: `کل بازار ${place}`, by: ref, ref: true });
   }
 
-  if (reference && series.length === 1) {
-    const rows = byMonth(reference.rows.filter(r => r.d >= daily[0].d));
-    if (rows.length) series.push({ name: reference.name, rows, ref: true });
-  }
-
-  const all = series.flatMap(s => s.rows.map(r => r.v));
-  const lo = Math.min(...all), hi = Math.max(...all);
+  const vals = series.flatMap(s => months.map(k => s.by.get(k)).filter(r => r && r.v != null).map(r => r.v));
+  const lo = Math.min(...vals), hi = Math.max(...vals);
   const pad = Math.max((hi - lo) * .15, hi * .04);
-
-
-  note.textContent = 'میانه ماهانه قیمت هر متر مربع، به میلیون تومان' +
-    (series.some(x => !x.ref && x !== series[0]) ? ' — محله‌های انتخاب‌شده در کنار هم.' : '.');
-
-  if (filteredOn) note.textContent += ` همه خط‌ها فقط آگهی‌های «${filterLabel()}» را نشان می‌دهند` +
-    (series.some(x => x.ref) ? '؛ خط خاکستری کل بازار است.' : '.');
-  if (filteredThin) note.textContent += ' برای این انتخاب آگهی تاریخ‌دار کافی نیست؛ ' +
-    'خط، کل بازار را بدون فیلترها نشان می‌دهد.';
-  if (cmpMissing.length) note.textContent += ` برای ${cmpMissing.join('، ')}` +
-    (filteredOn ? ` با انتخاب «${filterLabel()}»` : '') + ' آگهی کافی نیست و خطی رسم نشده است.';
-  if (HIST_FALLBACK) note.textContent += ` تاریخچه ${S.hood} هنوز برای رسم روند کافی نیست؛ ` +
-    `تا جمع شدن آن، روند کل ${CITY.name} نشان داده می‌شود.`;
+  const axisFont = { family: 'Vazirmatn', size: 11 };
 
   trendChart = new Chart(ctx, {
-    type:'line',
-    data:{ labels,
-      datasets: series.map((s, i) => ({
+    type: 'line',
+    data: {
+      labels: months.map(jMonthLabel),
+      datasets: series.map(s => ({
         label: s.name,
-        data: labels.map(l => {
-          const r = s.rows.find(x => x.label === l);
-          return r ? r.v : null;
-        }),
-        borderColor: s.ref ? CSSVAR('--muted') : (s.color || LINE_COLORS[0]),
-        backgroundColor: s.ref ? CSSVAR('--muted') : (s.color || LINE_COLORS[0]),
-        borderDash: s.ref ? [5, 4] : [],
-        borderWidth: s.wide ? 3 : 2,
-        fill:false, tension:.3, spanGaps:true,
-        pointRadius: 3, pointHoverRadius: 5 })) },
-    options:{ maintainAspectRatio:false,
-      interaction:{ mode:'index', intersect:false },
-      plugins:{ legend:{ display: series.length > 1, position:'bottom',
-                  labels:{ font:{family:'Vazirmatn',size:11}, boxWidth:10,
-                           usePointStyle:true, pointStyle:'line' } },
-        tooltip:{ rtl:true, bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
-          callbacks:{ label: c => `${c.dataset.label}: ${FA1(c.parsed.y)}` } } },
-      scales:{ x:{ grid:{display:false}, offset:true,
-                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
-                          maxTicksLimit:8, maxRotation:0} },
-               y:{ position:'right', suggestedMin:Math.max(0, lo-pad), suggestedMax:hi+pad,
-                   grid:{color:CSSVAR('--rule')},
-                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
-                          callback:v=>FA(Math.round(v))} } } }
+        data: months.map(k => (s.by.get(k) || {}).v ?? null),
+        borderColor: s.ref ? CSSVAR('--muted') : s.color,
+        backgroundColor: s.ref ? CSSVAR('--muted') : s.color,
+        borderWidth: s.wide ? 3 : 2, tension: .3, spanGaps: true,
+        pointRadius: s.ref ? 0 : 4, pointHoverRadius: 6,
+        segment: s.ref ? { borderDash: () => [5, 4] } : dashLast(months),
+        _by: s.by,
+      })),
+    },
+    options: lineChartOptions(months, c => {
+      const r = c.dataset._by.get(months[c.dataIndex]) || {};
+      return `${c.dataset.label}: ${FA1(c.parsed.y)} میلیون` +
+        (r.n ? ` — ${r.approx ? 'حدود ' : ''}${FA(r.n)} آگهی` : '');
+    }, {
+      y: { position: 'right', suggestedMin: Math.max(0, lo - pad), suggestedMax: hi + pad,
+           grid: { color: CSSVAR('--rule') },
+           ticks: { font: axisFont, color: CSSVAR('--muted'), callback: v => FA(Math.round(v)) } },
+    }, series.length > 1),
   });
+
+  const tn = ['هر آگهی در ماهی شمرده می‌شود که دیوار تاریخ آن را نشان می‌دهد؛ اگر آگهی نردبان شود یا قیمتش عوض شود، به همان ماه می‌رود.',
+    'آگهی‌های حذف‌شده هم در ماه خودشان می‌مانند. ماه جاری هنوز تمام نشده و خط‌چین است.'];
+  if (filtered) tn.push(`همه خط‌ها فقط آگهی‌های «${filterLabel()}» را نشان می‌دهند` +
+    (series.some(x => x.ref) ? '؛ خط خاکستری کل بازار است.' : '.'));
+  if (S.hood && !hood) tn.push(`برای ${S.hood} داده ماهانه کافی نیست؛ کل ${CITY.name} نشان داده می‌شود.`);
+  if (missing.length) tn.push(`برای ${missing.join('، ')} داده کافی نیست و خطی رسم نشده است.`);
+  tn.push('قیمت، قیمت درخواستی فروشنده در آگهی است، نه قیمت معامله.');
+  setNote(note, 'میانه قیمت هر متر آگهی‌های هر ماه، به میلیون تومان.', tn);
 }
 
 let actChart = null;
+
+const noteOpen = {};
+function setNote(el, short, details){
+  const id = el.id, open = !!noteOpen[id];
+  el.innerHTML = `${esc(short)}${details.length ? ` <button class="notebtn" aria-expanded="${open}">${
+    open ? 'بستن' : 'توضیحات بیشتر'}</button><span class="notemore${open ? '' : ' hide'}"><br>${
+    details.map(esc).join(' ')}</span>` : ''}`;
+  const b = el.querySelector('.notebtn');
+  if (b) b.onclick = () => { noteOpen[id] = !noteOpen[id]; setNote(el, short, details); };
+}
 
 function jMonthKey(iso){
   const [y, m, d] = iso.split('-').map(Number);
@@ -843,79 +899,47 @@ function jMonthKey(iso){
 }
 const jMonthLabel = k => `${J_MONTHS[k % 12]} ${FA_YEAR(Math.floor(k / 12))}`;
 
-function monthlyNew(hood, scale, months){
-  const counts = new Map(months.map(k => [k, 0]));
-  let dated = 0, all = 0;
-  for (const l of (CITY.listings || [])) {
-    if (!ofKind(l) || !passes(l) || (hood && l.h !== hood)) continue;
-    all++;
-    if (!l.d) continue;
-    dated++;
-    const k = jMonthKey(l.d);
-    if (counts.has(k)) counts.set(k, counts.get(k) + 1);
-  }
-  const f = dated ? scale * all / dated : 0;
-  return { dated, rows: months.map(k => Math.round(counts.get(k) * f)) };
-}
 
 function drawCountTrend(){
   actChart && actChart.destroy(); actChart = null;
   const canvas = document.getElementById('act');
   const empty = document.getElementById('actEmpty');
   const foot = document.getElementById('actFoot');
-  const place = S.hood || CITY.name;
-  document.getElementById('actTitle').textContent =
-    `آگهی‌های تازه ${kindLabel()} در هر ماه — ${place}`;
+  const hood = mainHood();
+  const place = hood || CITY.name;
+  const filtered = trendFiltered();
+  document.getElementById('actTitle').textContent = filtered
+    ? `تعداد آگهی‌های ${kindLabel()} ${filterLabel()} در هر ماه — ${place}`
+    : `تعداد آگهی‌های ${kindLabel()} در هر ماه — ${place}`;
 
-  const kindN = ((CITY.byKind || {})[S.kind] || {}).n || 0;
-  const inFile = (CITY.listings || []).filter(ofKind).length;
-  const scale = inFile && kindN > inFile ? kindN / inFile : 1;
-
-  const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
-  const span = period === 'all' ? 12 : Math.max(2, Math.min(12, Math.ceil(+period / 30)));
-  let first = nowKey - span + 1;
-  const datedKeys = (CITY.listings || []).filter(l => ofKind(l) && l.d).map(l => jMonthKey(l.d));
-  if (datedKeys.length) first = Math.max(first, Math.min(...datedKeys));
-  let months = [];
-  for (let k = first; k <= nowKey; k++) months.push(k);
-  if (TREND_MONTHS && TREND_MONTHS.length > 1) months = [...TREND_MONTHS];
-
-  const series = [{ name: place, hood: S.hood, color: LINE_COLORS[0], main: true }];
-  cmpList().forEach((h, ci) =>
-    series.push({ name: h, hood: h, color: LINE_COLORS[(ci + 1) % LINE_COLORS.length] }));
+  const months = TREND_MONTHS && TREND_MONTHS.length > 1 ? TREND_MONTHS : trendMonths();
+  const series = [{ name: place, by: monthlySeries(hood), color: LINE_COLORS[0], main: true }];
   const missing = [];
-  for (const sr of series) {
-    const r = monthlyNew(sr.hood, scale, months);
-    sr.rows = r.rows;
-    sr.ok = r.dated >= (sr.hood ? 10 : 30);
-    if (!sr.ok && !sr.main) missing.push(sr.name);
-  }
-  const drawn = series.filter(sr => sr.ok);
+  cmpList().forEach((h, ci) => {
+    const by = monthlySeries(h);
+    if (!months.some(k => by.has(k))) { missing.push(h); return; }
+    series.push({ name: h, by, color: LINE_COLORS[(ci + 1) % LINE_COLORS.length] });
+  });
 
-  if (months.length < 2 || !drawn.length) {
+  if (months.length < 2 || !months.some(k => series[0].by.has(k))) {
     canvas.style.display = 'none';
     empty.classList.remove('hide');
-    empty.textContent = months.length < 2
-      ? 'این نمودار ماهانه است و از ماه دوم داده کشیده می‌شود.'
-      : 'برای این انتخاب هنوز آگهی تاریخ‌دار کافی نیست.';
-    foot.textContent = '';
+    empty.textContent = 'برای رسم نمودار دست‌کم دو ماه داده لازم است.';
+    setNote(foot, 'تعداد آگهی‌های هر ماه.', []);
     return;
   }
   canvas.style.display = ''; empty.classList.add('hide');
 
-  const cityWithHoods = drawn[0].main && !S.hood && drawn.length > 1;
-  const last = months.length - 1;
+  const cityWithHoods = !hood && series.length > 1;
+  const approx = filtered;
   const axisFont = { family: 'Vazirmatn', size: 11 };
-  const pre = scale > 1.05 ? 'حدود ' : '';
-  const scales = {
-    x: { grid: { display: false }, offset: true,
-         ticks: { font: axisFont, color: CSSVAR('--muted'), maxRotation: 0 } },
+  const yAxes = {
     y: { position: 'right', beginAtZero: true, grid: { color: CSSVAR('--rule') },
          ticks: { font: axisFont, color: CSSVAR('--muted'), precision: 0, callback: v => FA(v) } },
   };
   if (cityWithHoods) {
-    scales.y.title = { display: true, text: 'محله‌ها', font: axisFont, color: CSSVAR('--muted') };
-    scales.y2 = { position: 'left', beginAtZero: true, grid: { display: false },
+    yAxes.y.title = { display: true, text: 'محله‌ها', font: axisFont, color: CSSVAR('--muted') };
+    yAxes.y2 = { position: 'left', beginAtZero: true, grid: { display: false },
       title: { display: true, text: CITY.name, font: axisFont, color: LINE_COLORS[0] },
       ticks: { font: axisFont, color: LINE_COLORS[0], precision: 0, callback: v => FA(v) } };
   }
@@ -924,44 +948,28 @@ function drawCountTrend(){
     type: 'line',
     data: {
       labels: months.map(jMonthLabel),
-      datasets: drawn.map(sr => ({
-        label: sr.name,
-        data: sr.rows,
-        yAxisID: cityWithHoods && sr.main ? 'y2' : 'y',
-        borderColor: sr.color, backgroundColor: sr.color,
-        borderWidth: sr.main ? 3 : 2, tension: .3,
+      datasets: series.map(s => ({
+        label: s.name,
+        data: months.map(k => s.by.has(k) ? s.by.get(k).n : null),
+        yAxisID: cityWithHoods && s.main ? 'y2' : 'y',
+        borderColor: s.color, backgroundColor: s.color,
+        borderWidth: s.main ? 3 : 2, tension: .3, spanGaps: true,
         pointRadius: 4, pointHoverRadius: 6,
-        segment: { borderDash: c => c.p1DataIndex === last && months[last] === nowKey ? [5, 4] : undefined },
+        segment: dashLast(months),
       })),
     },
-    options: {
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: drawn.length > 1, rtl: true,
-          labels: { font: { family: 'Vazirmatn', size: 12 }, color: CSSVAR('--ink'),
-                    usePointStyle: true, pointStyle: 'line', boxWidth: 24 } },
-        tooltip: { rtl: true, titleFont: { family: 'Vazirmatn' }, bodyFont: { family: 'Vazirmatn' },
-          callbacks: {
-            title: items => jMonthLabel(months[items[0].dataIndex]) +
-              (months[items[0].dataIndex] === nowKey ? ' (تا امروز)' : ''),
-            label: c => `${c.dataset.label}: ${pre}${FA(c.parsed.y)} آگهی تازه` } },
-      },
-      scales,
-    },
+    options: lineChartOptions(months,
+      c => `${c.dataset.label}: ${approx ? 'حدود ' : ''}${FA(c.parsed.y)} آگهی`, yAxes,
+      series.length > 1),
   });
 
-  let t = 'تعداد آگهی‌هایی که در هر ماه در دیوار منتشر شده‌اند، بر پایه تاریخی که دیوار روی آگهی ' +
-    'نشان می‌دهد. ماه جاری هنوز تمام نشده و با خط‌چین نشان داده شده است.';
-  if (drawn.length > 1) t += ' محله‌ها همان‌هایی است که در نمودار قیمت مقایسه می‌کنید.';
-  if (cityWithHoods) t += ` محور چپ ${CITY.name} و محور راست محله‌هاست.`;
-  if (trendFiltered()) t += ' فیلترهای صفحه روی این نمودار هم اعمال شده است.';
-  if (!drawn[0].main) t += ` برای ${place} آگهی تاریخ‌دار کافی نیست.`;
-  if (missing.length) t += ` برای ${missing.join('، ')} آگهی تاریخ‌دار کافی نیست.`;
-  t += ' فقط آگهی‌هایی شمرده می‌شوند که هنگام جمع‌آوری هنوز روی دیوار بوده‌اند، پس ماه‌های ' +
-    'قدیمی‌تر کمتر از واقع دیده می‌شوند؛ و آگهی‌هایی که فروشنده «نردبان» کرده، دیوار ' +
-    'تاریخشان را تازه می‌کند، پس ماه‌های اخیر کمی بیشتر از واقع دیده می‌شوند.' + (pre ? ' ارقام از نمونه‌ای از آگهی‌ها برآورد شده و تقریبی است.' : '');
-  foot.textContent = t;
+  const cn = ['همان آگهی‌هایی که قیمتشان در نمودار کناری آمده؛ هر آگهی در ماه تاریخ دیوارش، یا ماه نردبان یا تغییر قیمتش، شمرده می‌شود.',
+    'ماه جاری هنوز تمام نشده و خط‌چین است.',
+    'ماه‌های قدیمی‌تر کمتر از واقع دیده می‌شوند، چون آگهی‌هایی که پیش از شروع جمع‌آوری حذف شده‌اند در داده نیستند.'];
+  if (cityWithHoods) cn.push(`محور چپ ${CITY.name} و محور راست محله‌هاست.`);
+  if (filtered) cn.push('با فیلتر، تعداد از نمونه‌ای از آگهی‌ها برآورد می‌شود و تقریبی است.');
+  if (missing.length) cn.push(`برای ${missing.join('، ')} داده کافی نیست.`);
+  setNote(foot, 'تعداد آگهی‌های هر ماه، بر پایه تاریخ دیوار.', cn);
 }
 
 const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };
