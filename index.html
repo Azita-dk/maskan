@@ -645,7 +645,30 @@ function filteredHistory(hood, minN = 30){
   return out;
 }
 
-const DATA_START_KEY = 1405 * 12 + 5;
+const COLLECT_START_KEY = 1405 * 12 + 5;
+const SHOW_FROM_KEY = () => jMonthKey(new Date().toISOString().slice(0, 10)) - 11;
+
+const preShade = {
+  id: 'preShade',
+  beforeDatasetsDraw(chart){
+    const months = chart.$months || [];
+    const n = months.filter(k => k < COLLECT_START_KEY).length;
+    if (!n) return;
+    const { ctx, chartArea: a, scales: { x } } = chart;
+    const edge = n < months.length
+      ? (x.getPixelForValue(n - 1) + x.getPixelForValue(n)) / 2 : a.right;
+    const x0 = Math.min(a.left, edge), x1 = Math.max(a.left, edge);
+    const left = x.getPixelForValue(0) < x.getPixelForValue(1) ? [a.left, edge] : [edge, a.right];
+    ctx.save();
+    ctx.fillStyle = CSSVAR('--paper');
+    ctx.fillRect(left[0], a.top, left[1] - left[0], a.bottom - a.top);
+    ctx.fillStyle = CSSVAR('--muted');
+    ctx.font = '11px Vazirmatn, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('ناقص — پیش از شروع جمع‌آوری', (left[0] + left[1]) / 2, a.top + 14);
+    ctx.restore();
+  }
+};
 
 function monthlyFromListings(hood){
   const kindN = ((CITY.byKind || {})[S.kind] || {}).n || 0;
@@ -656,7 +679,7 @@ function monthlyFromListings(hood){
   const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
   for (const l of (CITY.listings || [])) {
     if (!ofKind(l) || !l.d || !(l.m > 0) || (want && canonHood(l.h) !== want)) continue;
-    for (let k = Math.max(jMonthKey(l.d0 || l.d), DATA_START_KEY); k <= nowKey; k++) {
+    for (let k = Math.max(jMonthKey(l.d0 || l.d), SHOW_FROM_KEY()); k <= nowKey; k++) {
       if (!g.has(k)) g.set(k, []);
       g.get(k).push(l.m);
     }
@@ -680,7 +703,7 @@ function findHoodMonthly(hood){
 function monthlyBase(hood){
   const src = hood ? findHoodMonthly(hood)
     : CITY.monthly ? (CITY.monthly[S.kind] || []) : monthlyFromListings('');
-  return new Map((src || []).filter(([k]) => k >= DATA_START_KEY).map(([k, n, v]) => [k, { n, v }]));
+  return new Map((src || []).filter(([k]) => k >= SHOW_FROM_KEY()).map(([k, n, v]) => [k, { n, v }]));
 }
 
 function monthlySeries(hood){
@@ -697,7 +720,7 @@ function monthlySeries(hood){
   for (const l of (CITY.listings || [])) {
     if (!ofKind(l) || !l.d || (want && canonHood(l.h) !== want)) continue;
     const ok = passes(l) && l.m > 0;
-    for (let k = Math.max(jMonthKey(l.d0 || l.d), DATA_START_KEY); k <= nowKey; k++) {
+    for (let k = Math.max(jMonthKey(l.d0 || l.d), SHOW_FROM_KEY()); k <= nowKey; k++) {
       allBy.set(k, (allBy.get(k) || 0) + 1);
       if (ok) {
         if (!filtBy.has(k)) filtBy.set(k, []);
@@ -756,11 +779,11 @@ function drawTrendTabs(){
 function drawCmpPicker(){
   const bar = document.getElementById('cmpBar');
   if (!bar) return;
-  if (allTrendMonths().length < 2) { bar.innerHTML = ''; return; }
+  if (allTrendMonths().length < 1) { bar.innerHTML = ''; return; }
   const hm = (CITY.hood_monthly || {})[S.kind] || {};
   const have = hoodStats()
     .filter(h => h.hood !== S.hood &&
-      [...monthlySeries(h.hood).values()].filter(r => r.v != null).length > 1)
+      [...monthlySeries(h.hood).values()].filter(r => r.v != null).length > 0)
     .sort((a, b) => b.n - a.n);
   const chosen = cmpList();
   const opts = have.filter(h => !chosen.includes(h.hood));
@@ -795,7 +818,8 @@ function drawCmpPicker(){
 function monthlyChange(){
   const m = monthlySeries(mainHood());
   const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
-  const keys = [...m.keys()].filter(k => m.get(k).v != null && k < nowKey).sort((a, b) => a - b);
+  const keys = [...m.keys()].filter(k => m.get(k).v != null && k < nowKey && k >= COLLECT_START_KEY)
+    .sort((a, b) => a - b);
   if (keys.length < 2) return null;
   const a = keys[0], b = keys[keys.length - 1];
   const va = m.get(a).v, vb = m.get(b).v;
@@ -830,8 +854,12 @@ function lineChartOptions(months, fmt, extraY, showLegend){
 const dashLast = months => {
   const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
   const last = months.length - 1;
-  return { borderDash: c => c.p1DataIndex === last && months[last] === nowKey ? [5, 4] : undefined };
+  return { borderDash: c =>
+    (c.p1DataIndex === last && months[last] === nowKey) ||
+    months[c.p0DataIndex] < COLLECT_START_KEY ? [5, 4] : undefined };
 };
+const hollowPre = (months, color) => c =>
+  months[c.dataIndex] < COLLECT_START_KEY ? CSSVAR('--card') : color;
 
 function drawTrend(){
   trendChart && trendChart.destroy(); trendChart = null;
@@ -847,9 +875,10 @@ function drawTrend(){
     : `روند قیمت ${kindLabel()} در ${place}`;
 
   const main = monthlySeries(hood);
-  if (months.filter(k => main.has(k) && main.get(k).v != null).length < 2) {
+  const monthsWithData = months.filter(k => main.has(k) && main.get(k).v != null).length;
+  if (monthsWithData < 1) {
     ctx.style.display = 'none';
-    setNote(note, 'برای رسم روند دست‌کم دو ماه داده لازم است.', []);
+    setNote(note, 'برای این انتخاب هنوز داده کافی نیست.', []);
     return;
   }
   ctx.style.display = '';
@@ -859,7 +888,7 @@ function drawTrend(){
   const missing = [];
   cmpList().forEach((h, ci) => {
     const by = monthlySeries(h);
-    if (months.filter(k => by.has(k) && by.get(k).v != null).length < 2) { missing.push(h); return; }
+    if (months.filter(k => by.has(k) && by.get(k).v != null).length < 1) { missing.push(h); return; }
     series.push({ name: h, by, color: LINE_COLORS[(ci + 1) % LINE_COLORS.length] });
   });
   if (filtered && series.length === 1) {
@@ -874,6 +903,7 @@ function drawTrend(){
 
   trendChart = new Chart(ctx, {
     type: 'line',
+    plugins: [preShade],
     data: {
       labels: months.map(jMonthLabel),
       datasets: series.map(s => ({
@@ -881,6 +911,7 @@ function drawTrend(){
         data: months.map(k => (s.by.get(k) || {}).v ?? null),
         borderColor: s.ref ? CSSVAR('--muted') : s.color,
         backgroundColor: s.ref ? CSSVAR('--muted') : s.color,
+        pointBackgroundColor: s.ref ? CSSVAR('--muted') : hollowPre(months, s.color),
         borderWidth: s.wide ? 3 : 2, tension: .3, spanGaps: true,
         pointRadius: s.ref ? 0 : 4, pointHoverRadius: 6,
         segment: s.ref ? { borderDash: () => [5, 4] } : dashLast(months),
@@ -898,10 +929,16 @@ function drawTrend(){
     }, series.length > 1),
   });
 
-  const tn = ['جمع‌آوری از شهریور ۱۴۰۵ آغاز شده است. ماه‌های پیش از آن نشان داده نمی‌شوند، چون از آن ماه‌ها فقط آگهی‌هایی مانده‌اند که هنوز فروش نرفته‌اند — معمولاً گران‌ترها — و قیمت و تعدادشان تصویر درستی نمی‌دهد.',
+  trendChart.$months = months; trendChart.update && trendChart.update('none');
+  const tn = [];
+  if (monthsWithData < 2) tn.push('فعلاً فقط یک ماه داده هست؛ خط روند از ماه دوم کشیده می‌شود.');
+  if (months.some(k => k < COLLECT_START_KEY))
+    tn.push('جمع‌آوری از شهریور ۱۴۰۵ آغاز شده است. ماه‌های پیش از آن با پس‌زمینه خاکستری و خط‌چین نشان داده می‌شوند: در آن‌ها فقط آگهی‌هایی هست که تا شهریور هنوز روی دیوار بوده‌اند — بیشتر خانه‌های بزرگ‌تر و گران‌تر — پس تعدادشان کمتر و قیمتشان بالاتر از واقع است.');
+  tn.push('«تغییر قیمت» فقط از شهریور ۱۴۰۵ به بعد حساب می‌شود.');
+  tn.push(
     'هر آگهی در همه ماه‌هایی شمرده می‌شود که روی دیوار بوده: از ماه انتشار تا ماهی که حذف شده، یا تا امروز اگر هنوز فعال است. در هر ماه فقط یک بار شمرده می‌شود.',
     'اگر قیمت آگهی عوض شود، از همان ماه با قیمت تازه حساب می‌شود. آگهی‌ای که بیش از سه هفته در دیوار دیده نشود، حذف‌شده به حساب می‌آید.',
-    'ماه جاری هنوز تمام نشده و خط‌چین است.'];
+    'ماه جاری هنوز تمام نشده و خط‌چین است.');
   if (filtered) tn.push(`همه خط‌ها فقط آگهی‌های «${filterLabel()}» را نشان می‌دهند` +
     (series.some(x => x.ref) ? '؛ خط خاکستری کل بازار است.' : '.'));
   if (S.hood && !hood) tn.push(`برای ${S.hood} داده ماهانه کافی نیست؛ کل ${CITY.name} نشان داده می‌شود.`);
@@ -942,7 +979,7 @@ function drawCountTrend(){
     ? `آگهی‌های فروش ${kindLabel()} ${filterLabel()} در هر ماه — ${place}`
     : `آگهی‌های فروش ${kindLabel()} در هر ماه — ${place}`;
 
-  const months = TREND_MONTHS && TREND_MONTHS.length > 1 ? TREND_MONTHS : trendMonths();
+  const months = TREND_MONTHS && TREND_MONTHS.length ? TREND_MONTHS : trendMonths();
   const series = [{ name: place, by: monthlySeries(hood), color: LINE_COLORS[0], main: true }];
   const missing = [];
   cmpList().forEach((h, ci) => {
@@ -951,10 +988,10 @@ function drawCountTrend(){
     series.push({ name: h, by, color: LINE_COLORS[(ci + 1) % LINE_COLORS.length] });
   });
 
-  if (months.length < 2 || !months.some(k => series[0].by.has(k))) {
+  if (!months.length || !months.some(k => series[0].by.has(k))) {
     canvas.style.display = 'none';
     empty.classList.remove('hide');
-    empty.textContent = 'برای رسم نمودار دست‌کم دو ماه داده لازم است.';
+    empty.textContent = 'برای این انتخاب هنوز داده کافی نیست.';
     setNote(foot, 'تعداد آگهی‌های هر ماه.', []);
     return;
   }
@@ -976,6 +1013,7 @@ function drawCountTrend(){
 
   actChart = new Chart(canvas, {
     type: 'line',
+    plugins: [preShade],
     data: {
       labels: months.map(jMonthLabel),
       datasets: series.map(s => ({
@@ -983,6 +1021,7 @@ function drawCountTrend(){
         data: months.map(k => s.by.has(k) ? s.by.get(k).n : null),
         yAxisID: cityWithHoods && s.main ? 'y2' : 'y',
         borderColor: s.color, backgroundColor: s.color,
+        pointBackgroundColor: hollowPre(months, s.color),
         borderWidth: s.main ? 3 : 2, tension: .3, spanGaps: true,
         pointRadius: 4, pointHoverRadius: 6,
         segment: dashLast(months),
@@ -993,7 +1032,8 @@ function drawCountTrend(){
       series.length > 1),
   });
 
-  const cn = ['ماه‌های پیش از شهریور ۱۴۰۵، که جمع‌آوری از آن آغاز شد، نشان داده نمی‌شوند.',
+  actChart.$months = months; actChart.update && actChart.update('none');
+  const cn = ['ماه‌های پیش از شهریور ۱۴۰۵ (پس‌زمینه خاکستری) ناقص‌اند: فقط آگهی‌هایی که تا شهریور هنوز روی دیوار بوده‌اند در آن‌ها شمرده شده‌اند.',
     'تعداد آگهی‌هایی که در آن ماه روی دیوار بوده‌اند — همان آگهی‌هایی که قیمتشان در نمودار کناری آمده. آگهی‌ای که چند ماه روی دیوار مانده در هر یک از آن ماه‌ها یک بار شمرده می‌شود.',
     'ماه جاری هنوز تمام نشده و خط‌چین است.',
     'آگهی‌هایی که هنوز تاریخ دیوار ندارند شمرده نمی‌شوند، پس ماه جاری تا چند روز کمتر از واقع دیده می‌شود.'];
