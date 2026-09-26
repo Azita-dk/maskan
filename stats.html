@@ -256,7 +256,27 @@ const dashLast = months => {
   return { borderDash: c => c.p1DataIndex === last && months[last] === nowKey ? [5, 4] : undefined };
 };
 
+function monthlyFromListings(hood){
+  const kindN = ((CITY.byKind || {})[S.kind] || {}).n || 0;
+  const inFile = (CITY.listings || []).filter(ofKind).length;
+  const scale = inFile && kindN > inFile ? kindN / inFile : 1;
+  const want = hood ? canonHood(hood) : null;
+  const g = new Map();
+  for (const l of (CITY.listings || [])) {
+    if (!ofKind(l) || !l.d || !(l.m > 0) || (want && canonHood(l.h) !== want)) continue;
+    const k = jMonthKey(l.d);
+    if (!g.has(k)) g.set(k, []);
+    g.get(k).push(l.m);
+  }
+  return [...g].sort((a, b) => a[0] - b[0])
+    .map(([k, v]) => [k, Math.round(v.length * scale), round1(median(v))]);
+}
+
 function findHoodMonthly(hood){
+  if (!CITY.monthly) {
+    const m = monthlyFromListings(hood);
+    return m.length ? m : null;
+  }
   const hm = (CITY.hood_monthly || {})[S.kind] || {};
   if (hm[hood]) return hm[hood];
   const key = canonHood(hood);
@@ -265,7 +285,8 @@ function findHoodMonthly(hood){
 }
 
 function monthlyBase(hood){
-  const src = hood ? findHoodMonthly(hood) : ((CITY.monthly || {})[S.kind] || []);
+  const src = hood ? findHoodMonthly(hood)
+    : CITY.monthly ? (CITY.monthly[S.kind] || []) : monthlyFromListings('');
   return new Map((src || []).map(([k, n, v]) => [k, { n, v }]));
 }
 
