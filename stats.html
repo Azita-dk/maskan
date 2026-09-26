@@ -261,7 +261,7 @@ const hollowPre = (months, color) => c =>
   months[c.dataIndex] < COLLECT_START_KEY ? CSSVAR('--card') : color;
 
 const COLLECT_START_KEY = 1405 * 12 + 5;
-const SHOW_FROM_KEY = () => jMonthKey(new Date().toISOString().slice(0, 10)) - 11;
+const SHOW_FROM_KEY = () => 1405 * 12 + 2;
 
 const preShade = {
   id: 'preShade',
@@ -447,6 +447,7 @@ function lineChartOptions(months, fmt, extraY, showLegend){
   const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
   return {
     maintainAspectRatio: false,
+    layout: { padding: { top: 18 } },
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { display: !!showLegend, rtl: true,
