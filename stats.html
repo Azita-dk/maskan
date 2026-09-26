@@ -256,17 +256,21 @@ const dashLast = months => {
   return { borderDash: c => c.p1DataIndex === last && months[last] === nowKey ? [5, 4] : undefined };
 };
 
+const DATA_START_KEY = 1405 * 12 + 5;
+
 function monthlyFromListings(hood){
   const kindN = ((CITY.byKind || {})[S.kind] || {}).n || 0;
   const inFile = (CITY.listings || []).filter(ofKind).length;
   const scale = inFile && kindN > inFile ? kindN / inFile : 1;
   const want = hood ? canonHood(hood) : null;
   const g = new Map();
+  const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
   for (const l of (CITY.listings || [])) {
     if (!ofKind(l) || !l.d || !(l.m > 0) || (want && canonHood(l.h) !== want)) continue;
-    const k = jMonthKey(l.d);
-    if (!g.has(k)) g.set(k, []);
-    g.get(k).push(l.m);
+    for (let k = Math.max(jMonthKey(l.d0 || l.d), DATA_START_KEY); k <= nowKey; k++) {
+      if (!g.has(k)) g.set(k, []);
+      g.get(k).push(l.m);
+    }
   }
   return [...g].sort((a, b) => a[0] - b[0])
     .map(([k, v]) => [k, Math.round(v.length * scale), round1(median(v))]);
@@ -287,7 +291,7 @@ function findHoodMonthly(hood){
 function monthlyBase(hood){
   const src = hood ? findHoodMonthly(hood)
     : CITY.monthly ? (CITY.monthly[S.kind] || []) : monthlyFromListings('');
-  return new Map((src || []).map(([k, n, v]) => [k, { n, v }]));
+  return new Map((src || []).filter(([k]) => k >= DATA_START_KEY).map(([k, n, v]) => [k, { n, v }]));
 }
 
 function monthlySeries(hood){
@@ -300,13 +304,16 @@ function monthlySeries(hood){
   }
   const allBy = new Map(), filtBy = new Map();
   const want = hood ? canonHood(hood) : null;
+  const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
   for (const l of (CITY.listings || [])) {
     if (!ofKind(l) || !l.d || (want && canonHood(l.h) !== want)) continue;
-    const k = jMonthKey(l.d);
-    allBy.set(k, (allBy.get(k) || 0) + 1);
-    if (passes(l) && l.m > 0) {
-      if (!filtBy.has(k)) filtBy.set(k, []);
-      filtBy.get(k).push(l.m);
+    const ok = passes(l) && l.m > 0;
+    for (let k = Math.max(jMonthKey(l.d0 || l.d), DATA_START_KEY); k <= nowKey; k++) {
+      allBy.set(k, (allBy.get(k) || 0) + 1);
+      if (ok) {
+        if (!filtBy.has(k)) filtBy.set(k, []);
+        filtBy.get(k).push(l.m);
+      }
     }
   }
   for (const [k, r] of base) {
@@ -496,14 +503,16 @@ function drawTrend(){
     }, series.length > 1),
   });
 
-  const tn = ['هر آگهی در ماهی شمرده می‌شود که دیوار تاریخ آن را نشان می‌دهد؛ اگر آگهی نردبان شود یا قیمتش عوض شود، به همان ماه می‌رود.',
-    'آگهی‌های حذف‌شده هم در ماه خودشان می‌مانند. ماه جاری هنوز تمام نشده و خط‌چین است.'];
+  const tn = ['جمع‌آوری از شهریور ۱۴۰۵ آغاز شده است. ماه‌های پیش از آن نشان داده نمی‌شوند، چون از آن ماه‌ها فقط آگهی‌هایی مانده‌اند که هنوز فروش نرفته‌اند — معمولاً گران‌ترها — و قیمت و تعدادشان تصویر درستی نمی‌دهد.',
+    'هر آگهی در همه ماه‌هایی شمرده می‌شود که روی دیوار بوده: از ماه انتشار تا ماهی که حذف شده، یا تا امروز اگر هنوز فعال است. در هر ماه فقط یک بار شمرده می‌شود.',
+    'اگر قیمت آگهی عوض شود، از همان ماه با قیمت تازه حساب می‌شود. آگهی‌ای که بیش از سه هفته در دیوار دیده نشود، حذف‌شده به حساب می‌آید.',
+    'ماه جاری هنوز تمام نشده و خط‌چین است.'];
   if (filtered) tn.push(`همه خط‌ها فقط آگهی‌های «${filterLabel()}» را نشان می‌دهند` +
     (series.some(x => x.ref) ? '؛ خط خاکستری کل بازار است.' : '.'));
   if (S.hood && !hood) tn.push(`برای ${S.hood} داده ماهانه کافی نیست؛ کل ${CITY.name} نشان داده می‌شود.`);
   if (missing.length) tn.push(`برای ${missing.join('، ')} داده کافی نیست و خطی رسم نشده است.`);
   tn.push('قیمت، قیمت درخواستی فروشنده در آگهی است، نه قیمت معامله.');
-  setNote(note, 'میانه قیمت هر متر آگهی‌های هر ماه، به میلیون تومان.', tn);
+  setNote(note, 'میانه قیمت هر متر آگهی‌هایی که در هر ماه روی دیوار بوده‌اند، به میلیون تومان.', tn);
 }
 
 function setNote(el, short, details){
