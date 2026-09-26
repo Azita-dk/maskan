@@ -9,25 +9,8 @@
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-.typ{padding:14px 16px;display:grid;gap:10px}
-.trow{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px 14px;
-  width:100%;padding:11px 14px;border:1px solid var(--rule);border-radius:10px;
-  background:var(--card);color:inherit;font:inherit;text-align:start}
-button.trow{cursor:pointer}
-button.trow:hover{border-color:var(--green-mid)}
-.trow.on{border-color:var(--green);background:var(--green-pale)}
-.trow.thin{opacity:.6}
-.trow .lbl b{display:block;font-size:15px;font-weight:800}
-.trow .lbl small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
-.trow .track{grid-column:1/-1;order:3;position:relative;height:12px;border-radius:6px;background:var(--rule)}
-.trow .band{position:absolute;top:0;bottom:0;border-radius:6px;background:var(--green-mid);opacity:.35}
-.trow .mid{position:absolute;top:-4px;bottom:-4px;width:3px;border-radius:2px;
-  background:var(--green);transform:translateX(50%)}
-.trow .val{text-align:end}
-.trow .val b{display:block;font-size:18px;font-weight:800;color:var(--green);
-  font-variant-numeric:tabular-nums}
-.trow .val small{display:block;color:var(--muted);font-size:11px;margin-top:2px}
-.typ .empty{padding:30px 10px;text-align:center;color:var(--muted)}
+#actStats{grid-template-columns:repeat(4,1fr)}
+@media (max-width:480px){#actStats{grid-template-columns:repeat(2,1fr)}}
 .tablewrap{container-type:inline-size;overflow-x:auto}
 table.cards td{white-space:nowrap}
 table.cards td:first-child{white-space:normal;min-width:160px}
@@ -105,9 +88,11 @@ table.cards td:first-child{white-space:normal;min-width:160px}
       </div>
 
       <div class="panel">
-        <header><h3 id="typTitle">یک خانه معمولی چند؟</h3></header>
-        <div class="typ" id="typBody"></div>
-        <p class="foot" id="typFoot"></p>
+        <header><h3 id="actTitle">آگهی‌های تازه</h3></header>
+        <div class="chartbox"><div class="chart"><canvas id="act"></canvas>
+          <div class="loading hide" id="actEmpty"></div></div></div>
+        <div class="statrow" id="actStats"></div>
+        <p class="foot" id="actFoot"></p>
       </div>
     </div>
 
@@ -848,90 +833,82 @@ function drawTrend(){
   });
 }
 
-const money = v => v >= 1000 ? `${FA1(round1(v / 1000))} میلیارد`
-                              : `${FA(Math.round(v))} میلیون`;
+let actChart = null;
+const WEEK_LABELS = ['۳ هفته پیش', '۲ هفته پیش', 'هفته قبل', '۷ روز اخیر'];
 
-function typicalGroups(){
-  if (S.kind === 'land') return [
-    { label:'تا ۲۰۰ متر',        test: l => l.a < 200 },
-    { label:'۲۰۰ تا ۵۰۰ متر',     test: l => l.a >= 200 && l.a < 500 },
-    { label:'۵۰۰ تا ۱۰۰۰ متر',    test: l => l.a >= 500 && l.a < 1000 },
-    { label:'بیش از ۱۰۰۰ متر',    test: l => l.a >= 1000 },
-  ];
-  return [
-    { label:'بدون خواب', rooms:'0', test: l => l.r === 0, optional:true },
-    { label:'۱ خوابه',   rooms:'1', test: l => l.r === 1 },
-    { label:'۲ خوابه',   rooms:'2', test: l => l.r === 2 },
-    { label:'۳ خوابه',   rooms:'3', test: l => l.r === 3 },
-    { label:'۴ خوابه',   rooms:'4', test: l => l.r === 4 },
-  ];
-}
-
-function drawTypical(){
-  const land = S.kind === 'land';
+function drawActivity(){
+  actChart && actChart.destroy(); actChart = null;
   const where = S.hood || CITY.name;
-  document.getElementById('typTitle').textContent = land
-    ? `یک زمین معمولی در ${where} چند؟`
-    : `یک ${kindLabel()} معمولی در ${where} چند؟`;
+  document.getElementById('actTitle').textContent =
+    `آگهی‌های تازه ${kindLabel()} در ${where}`;
+  const canvas = document.getElementById('act');
+  const empty = document.getElementById('actEmpty');
+  const stats = document.getElementById('actStats');
+  const foot = document.getElementById('actFoot');
 
-  const base = activeListings('rooms').filter(l => l.p > 0 && l.a > 0);
-  const q = (arr, p) => arr[Math.max(0, Math.min(arr.length - 1, Math.floor(arr.length * p)))];
-  const groups = typicalGroups().map(g => {
-    const rows = base.filter(g.test);
-    const prices = rows.map(l => l.p).sort((a, b) => a - b);
-    return { ...g, n: rows.length,
-             med: prices.length ? median(prices) : 0,
-             lo: prices.length ? q(prices, .25) : 0,
-             hi: prices.length ? q(prices, .75) : 0,
-             area: rows.length ? Math.round(median(rows.map(l => l.a))) : 0 };
-  }).filter(g => !(g.optional && g.n < 10));
-
-  const box = document.getElementById('typBody');
-  const foot = document.getElementById('typFoot');
-  const usable = groups.filter(g => g.n >= 10);
-  if (!usable.length) {
-    box.innerHTML = '<div class="empty">برای این انتخاب آگهی کافی نیست. ' +
-      'فیلترها را کمتر کنید یا محله دیگری را امتحان کنید.</div>';
-    foot.textContent = '';
+  const sel = activeListings();
+  const dated = sel.filter(l => l.d);
+  if (dated.length < 20) {
+    canvas.style.display = 'none';
+    empty.classList.remove('hide');
+    empty.textContent = 'برای این انتخاب هنوز آگهی تاریخ‌دار کافی نیست.';
+    stats.innerHTML = ''; foot.textContent = '';
     return;
   }
+  canvas.style.display = ''; empty.classList.add('hide');
 
-  const top = Math.max(...usable.map(g => g.hi)) * 1.05 || 1;
-  const pct = v => (v / top * 100).toFixed(1);
-  box.innerHTML = groups.map(g => {
-    const ok = g.n >= 10;
-    const on = !land && S.rooms === g.rooms;
-    const tag = land ? 'div' : 'button';
-    const attrs = land ? '' : ` data-rooms="${g.rooms}"`;
-    if (!ok) return `<${tag} class="trow thin"${attrs}>
-        <span class="lbl"><b>${g.label}</b><small>${FA(g.n)} آگهی</small></span>
-        <span class="track"></span>
-        <span class="val"><small>آگهی کافی نیست</small></span></${tag}>`;
-    return `<${tag} class="trow${on ? ' on' : ''}"${attrs}
-        title="نیمی از آگهی‌ها بین ${money(g.lo)} و ${money(g.hi)} تومان">
-        <span class="lbl"><b>${g.label}</b>
-          <small>حدود ${FA(g.area)} متر · ${FA(g.n)} آگهی ${
-            confLevel(g.n).cls === 'hi' ? '' : confBadge(g.n, true)}</small></span>
-        <span class="track">
-          <span class="band" style="inset-inline-start:${pct(g.lo)}%;width:${
-            Math.max(1, pct(g.hi) - pct(g.lo))}%"></span>
-          <span class="mid" style="inset-inline-start:${pct(g.med)}%"></span></span>
-        <span class="val"><b>${money(g.med)}</b>
-          <small>${money(g.lo)} تا ${money(g.hi)}</small></span></${tag}>`;
-  }).join('');
+  const kindN = ((CITY.byKind || {})[S.kind] || {}).n || 0;
+  const inFile = (CITY.listings || []).filter(ofKind).length;
+  const scale = (inFile && kindN > inFile ? kindN / inFile : 1) * (sel.length / dated.length);
+  const approx = scale > 1.05;
 
-  box.querySelectorAll('button[data-rooms]').forEach(b =>
-    b.addEventListener('click', () => {
-      S.rooms = S.rooms === b.dataset.rooms ? 'all' : b.dataset.rooms;
-      const el = document.getElementById('fRooms');
-      if (el) el.value = S.rooms;
-      commit();
-    }));
+  const today = Date.parse(new Date().toISOString().slice(0, 10));
+  const counts = [0, 0, 0, 0], prices = [[], [], [], []];
+  for (const l of dated) {
+    const w = Math.floor(Math.max(0, Math.round((today - Date.parse(l.d)) / 864e5)) / 7);
+    if (w > 3) continue;
+    counts[w]++;
+    if (l.m > 0) prices[w].push(l.m);
+  }
+  const est = counts.map(c => Math.round(c * scale)).reverse();
+  const thisWeek = est[3], lastWeek = est[2];
+  const pre = approx ? 'حدود ' : '';
 
-  foot.innerHTML = 'قیمت کل درخواستی به تومان. عدد بزرگ قیمت معمول (میانه) است؛ ' +
-    'نوار سبز محدوده‌ای است که نیمی از آگهی‌ها در آن قرار دارند.' +
-    (land ? '' : ' روی هر ردیف بزنید تا بقیه صفحه به همان تعداد خواب محدود شود.') +
-    ` <a href="${linkTo('stats.html')}" data-page="stats.html">توزیع کامل قیمت →</a>`;
+  actChart = new Chart(canvas, {
+    type:'bar',
+    data:{ labels: WEEK_LABELS,
+      datasets:[{ data: est, borderRadius:6, maxBarThickness:56,
+        backgroundColor: est.map((_, i) => i === 3 ? CSSVAR('--green') : CSSVAR('--green-mid') + '66') }] },
+    options:{ maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ rtl:true, bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
+          callbacks:{ label: c => `${pre}${FA(c.parsed.y)} آگهی تازه` } } },
+      scales:{ x:{ grid:{display:false},
+                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted')} },
+               y:{ position:'right', beginAtZero:true, grid:{color:CSSVAR('--rule')},
+                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                          precision:0, callback:v=>FA(v)} } } }
+  });
+
+  const change = lastWeek ? (thisWeek - lastWeek) / lastWeek * 100 : null;
+  const newMed = prices[0].length >= 10 ? round1(median(prices[0])) : null;
+  const allVals = sel.map(l => l.m).filter(v => v > 0);
+  const allMed = allVals.length ? round1(median(allVals)) : null;
+  const cell = (k, v, cls = '') =>
+    `<div><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`;
+  stats.innerHTML =
+    cell('آگهی تازه در ۷ روز', pre + FA(thisWeek)) +
+    cell('نسبت به هفته قبل', change === null ? '—'
+      : (change >= 0 ? '+' : '\u2212') + FA(Math.round(Math.abs(change))) + '\u066A',
+      change === null ? '' : change >= 0 ? 'up' : 'down') +
+    cell('هر متر آگهی‌های تازه', newMed === null ? '—' : FA1(newMed)) +
+    cell('هر متر همه آگهی‌ها', allMed === null ? '—' : FA1(allMed));
+
+  foot.textContent = 'تعداد آگهی‌هایی که در هر هفته در دیوار منتشر شده‌اند، ' +
+    'با فیلترهای همین صفحه. قیمت‌ها به میلیون تومان است. ' +
+    'فقط آگهی‌هایی شمرده می‌شوند که هنگام جمع‌آوری هنوز فعال بوده‌اند، پس هفته‌های ' +
+    'قدیمی‌تر کمی کمتر از واقع دیده می‌شوند.' +
+    (approx ? ' ارقام تقریبی است، چون از نمونه‌ای از آگهی‌ها برآورد شده است.' : '');
 }
 
 const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };
@@ -1222,7 +1199,7 @@ bootPage('index.html', () => {
   drawTrendTabs();
   drawCmpPicker();
   drawTrend();
-  drawTypical();
+  drawActivity();
   document.getElementById('adsHead').textContent =
     `آگهی‌های ${kindLabel()} در ${S.hood || CITY.name}`;
   shown = PAGE();
