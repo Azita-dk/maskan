@@ -9,8 +9,6 @@
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-#actStats{grid-template-columns:repeat(4,1fr)}
-@media (max-width:480px){#actStats{grid-template-columns:repeat(2,1fr)}}
 .tablewrap{container-type:inline-size;overflow-x:auto}
 table.cards td{white-space:nowrap}
 table.cards td:first-child{white-space:normal;min-width:160px}
@@ -88,10 +86,9 @@ table.cards td:first-child{white-space:normal;min-width:160px}
       </div>
 
       <div class="panel">
-        <header><h3 id="actTitle">آگهی‌های تازه</h3></header>
+        <header><h3 id="actTitle">تعداد آگهی‌های فروش</h3></header>
         <div class="chartbox"><div class="chart"><canvas id="act"></canvas>
           <div class="loading hide" id="actEmpty"></div></div></div>
-        <div class="statrow" id="actStats"></div>
         <p class="foot" id="actFoot"></p>
       </div>
     </div>
@@ -834,81 +831,151 @@ function drawTrend(){
 }
 
 let actChart = null;
-const WEEK_LABELS = ['۳ هفته پیش', '۲ هفته پیش', 'هفته قبل', '۷ روز اخیر'];
 
-function drawActivity(){
+function jMonthKey(iso){
+  const [y, m, d] = iso.split('-').map(Number);
+  const [jy, jm] = toJalali(y, m, d);
+  return jy * 12 + jm - 1;
+}
+
+const monthBands = {
+  id: 'monthBands',
+  beforeDatasetsDraw(chart){
+    const labels = chart.data.labels || [];
+    if (labels.length < 2) return;
+    const { ctx, chartArea: area, scales: { x } } = chart;
+    const long = labels.length > 400;
+    const unit = d => long ? Math.floor(jMonthKey(d) / 12) : jMonthKey(d);
+    ctx.save();
+    ctx.fillStyle = CSSVAR('--paper');
+    let start = 0;
+    for (let i = 1; i <= labels.length; i++) {
+      if (i < labels.length && unit(labels[i]) === unit(labels[start])) continue;
+      if (unit(labels[start]) % 2 === 0) {
+        const x0 = start === 0 ? area.left : (x.getPixelForValue(start - 1) + x.getPixelForValue(start)) / 2;
+        const x1 = i === labels.length ? area.right : (x.getPixelForValue(i - 1) + x.getPixelForValue(i)) / 2;
+        ctx.fillRect(Math.min(x0, x1), area.top, Math.abs(x1 - x0), area.bottom - area.top);
+      }
+      start = i;
+    }
+    ctx.restore();
+  }
+};
+
+function drawCountTrend(){
   actChart && actChart.destroy(); actChart = null;
-  const where = S.hood || CITY.name;
-  document.getElementById('actTitle').textContent =
-    `آگهی‌های تازه ${kindLabel()} در ${where}`;
   const canvas = document.getElementById('act');
   const empty = document.getElementById('actEmpty');
-  const stats = document.getElementById('actStats');
   const foot = document.getElementById('actFoot');
 
-  const sel = activeListings();
-  const dated = sel.filter(l => l.d);
-  if (dated.length < 20) {
+  const ours = CITY.ours || {};
+  const cityRows = (Array.isArray(ours) ? ours : (ours[S.kind] || []))
+    .filter(r => r.n > 0 && r.d >= HISTORY_START);
+  let mainRows = cityRows, mainName = CITY.name, hoodShort = false;
+  if (S.hood) {
+    const h = hoodHistory(S.hood).filter(r => r.n > 0);
+    if (h.length > 1) { mainRows = h; mainName = S.hood; } else hoodShort = true;
+  }
+  document.getElementById('actTitle').textContent =
+    `تعداد آگهی‌های فروش ${kindLabel()} در ${mainName}`;
+
+  const series = [{ name: mainName, rows: mainRows, color: LINE_COLORS[0], main: true }];
+  const missing = [];
+  cmpList().forEach((h, ci) => {
+    const rows = hoodHistory(h).filter(r => r.n > 0);
+    if (rows.length < 2) { missing.push(h); return; }
+    series.push({ name: h, rows, color: LINE_COLORS[(ci + 1) % LINE_COLORS.length] });
+  });
+
+  if (period !== 'all') {
+    const cut = new Date(Date.now() - (+period) * 864e5).toISOString().slice(0, 10);
+    for (const s of series) {
+      const c = s.rows.filter(r => r.d >= cut);
+      if (c.length > 1) s.rows = c;
+    }
+  }
+
+  if (mainRows.length < 2) {
     canvas.style.display = 'none';
     empty.classList.remove('hide');
-    empty.textContent = 'برای این انتخاب هنوز آگهی تاریخ‌دار کافی نیست.';
-    stats.innerHTML = ''; foot.textContent = '';
+    empty.textContent = 'تاریخچه تعداد آگهی‌ها هنوز کافی نیست.';
+    foot.textContent = '';
     return;
   }
   canvas.style.display = ''; empty.classList.add('hide');
 
-  const kindN = ((CITY.byKind || {})[S.kind] || {}).n || 0;
-  const inFile = (CITY.listings || []).filter(ofKind).length;
-  const scale = (inFile && kindN > inFile ? kindN / inFile : 1) * (sel.length / dated.length);
-  const approx = scale > 1.05;
-
-  const today = Date.parse(new Date().toISOString().slice(0, 10));
-  const counts = [0, 0, 0, 0], prices = [[], [], [], []];
-  for (const l of dated) {
-    const w = Math.floor(Math.max(0, Math.round((today - Date.parse(l.d)) / 864e5)) / 7);
-    if (w > 3) continue;
-    counts[w]++;
-    if (l.m > 0) prices[w].push(l.m);
-  }
-  const est = counts.map(c => Math.round(c * scale)).reverse();
-  const thisWeek = est[3], lastWeek = est[2];
-  const pre = approx ? 'حدود ' : '';
-
-  actChart = new Chart(canvas, {
-    type:'bar',
-    data:{ labels: WEEK_LABELS,
-      datasets:[{ data: est, borderRadius:6, maxBarThickness:56,
-        backgroundColor: est.map((_, i) => i === 3 ? CSSVAR('--green') : CSSVAR('--green-mid') + '66') }] },
-    options:{ maintainAspectRatio:false,
-      plugins:{ legend:{display:false},
-        tooltip:{ rtl:true, bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
-          callbacks:{ label: c => `${pre}${FA(c.parsed.y)} آگهی تازه` } } },
-      scales:{ x:{ grid:{display:false},
-                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted')} },
-               y:{ position:'right', beginAtZero:true, grid:{color:CSSVAR('--rule')},
-                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
-                          precision:0, callback:v=>FA(v)} } } }
+  const cityWithHoods = mainName === CITY.name && series.length > 1;
+  const days = [...new Set(series.flatMap(s => s.rows.map(r => r.d)))].sort();
+  const long = days.length > 400, short = days.length <= 120;
+  let lastUnit = null;
+  const tick = days.map(d => {
+    const k = jMonthKey(d), u = long ? Math.floor(k / 12) : k;
+    if (u === lastUnit) return '';
+    lastUnit = u;
+    const [y, m, dd] = d.split('-').map(Number);
+    const [jy, jm] = toJalali(y, m, dd);
+    return long ? FA_YEAR(jy) : `${J_MONTHS[jm - 1]} ${FA_YEAR(jy)}`;
   });
 
-  const change = lastWeek ? (thisWeek - lastWeek) / lastWeek * 100 : null;
-  const newMed = prices[0].length >= 10 ? round1(median(prices[0])) : null;
-  const allVals = sel.map(l => l.m).filter(v => v > 0);
-  const allMed = allVals.length ? round1(median(allVals)) : null;
-  const cell = (k, v, cls = '') =>
-    `<div><div class="k">${k}</div><div class="v ${cls}">${v}</div></div>`;
-  stats.innerHTML =
-    cell('آگهی تازه در ۷ روز', pre + FA(thisWeek)) +
-    cell('نسبت به هفته قبل', change === null ? '—'
-      : (change >= 0 ? '+' : '\u2212') + FA(Math.round(Math.abs(change))) + '\u066A',
-      change === null ? '' : change >= 0 ? 'up' : 'down') +
-    cell('هر متر آگهی‌های تازه', newMed === null ? '—' : FA1(newMed)) +
-    cell('هر متر همه آگهی‌ها', allMed === null ? '—' : FA1(allMed));
+  const axisFont = { family: 'Vazirmatn', size: 11 };
+  const scales = {
+    x: { grid: { display: false },
+         ticks: short
+           ? { font: axisFont, color: CSSVAR('--muted'), maxRotation: 0, autoSkip: true,
+               maxTicksLimit: 6, callback: (v, i) => faShortDate(days[i]) }
+           : { font: axisFont, color: CSSVAR('--muted'), maxRotation: 0, autoSkip: false,
+               callback: (v, i) => tick[i] } },
+    y: { position: 'right', beginAtZero: true, grid: { color: CSSVAR('--rule') },
+         ticks: { font: axisFont, color: CSSVAR('--muted'), precision: 0, callback: v => FA(v) } },
+  };
+  if (cityWithHoods) {
+    scales.y.title = { display: true, text: 'محله‌ها', font: axisFont, color: CSSVAR('--muted') };
+    scales.y2 = { position: 'left', beginAtZero: true, grid: { display: false },
+      title: { display: true, text: CITY.name, font: axisFont, color: LINE_COLORS[0] },
+      ticks: { font: axisFont, color: LINE_COLORS[0], precision: 0, callback: v => FA(v) } };
+  }
 
-  foot.textContent = 'تعداد آگهی‌هایی که در هر هفته در دیوار منتشر شده‌اند، ' +
-    'با فیلترهای همین صفحه. قیمت‌ها به میلیون تومان است. ' +
-    'فقط آگهی‌هایی شمرده می‌شوند که هنگام جمع‌آوری هنوز فعال بوده‌اند، پس هفته‌های ' +
-    'قدیمی‌تر کمی کمتر از واقع دیده می‌شوند.' +
-    (approx ? ' ارقام تقریبی است، چون از نمونه‌ای از آگهی‌ها برآورد شده است.' : '');
+  actChart = new Chart(canvas, {
+    type: 'line',
+    plugins: [monthBands],
+    data: {
+      labels: days,
+      datasets: series.map(s => {
+        const idx = new Map(s.rows.map(r => [r.d, r.n]));
+        return {
+          label: s.name,
+          data: days.map(d => idx.has(d) ? idx.get(d) : null),
+          yAxisID: cityWithHoods && s.main ? 'y2' : 'y',
+          borderColor: s.color, backgroundColor: s.color,
+          borderWidth: s.main ? 3 : 2, tension: .35, spanGaps: true,
+          pointRadius: 0, pointHoverRadius: 5, pointHitRadius: 8,
+        };
+      }),
+    },
+    options: {
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: series.length > 1, rtl: true,
+          labels: { font: { family: 'Vazirmatn', size: 12 }, color: CSSVAR('--ink'),
+                    usePointStyle: true, pointStyle: 'line', boxWidth: 24 } },
+        tooltip: { rtl: true, titleFont: { family: 'Vazirmatn' }, bodyFont: { family: 'Vazirmatn' },
+          filter: item => item.parsed.y != null,
+          callbacks: { title: items => faDate(items[0].label),
+                       label: c => `${c.dataset.label}: ${FA(c.parsed.y)} آگهی` } },
+      },
+      scales,
+    },
+  });
+
+  let t = 'تعداد آگهی‌های فروش ثبت‌شده در هر روز' +
+    (series.length > 1 ? '، همان محله‌هایی که در نمودار قیمت مقایسه می‌کنید.' : '.');
+  if (cityWithHoods) t += ` محور چپ ${CITY.name} و محور راست محله‌هاست.`;
+  if (trendFiltered()) t += ' فیلترهای متراژ، قیمت، تعداد خواب و… روی این نمودار اثر ندارند.';
+  if (hoodShort) t += ` تاریخچه ${S.hood} هنوز کافی نیست؛ کل ${CITY.name} نشان داده می‌شود.`;
+  if (missing.length) t += ` برای ${missing.join('، ')} هنوز تاریخچه کافی نیست.`;
+  t += ' در هفته‌های اول، بخشی از افزایش تعداد به گسترش جمع‌آوری داده برمی‌گردد، نه به بازار.';
+  foot.textContent = t;
 }
 
 const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };
@@ -1199,7 +1266,7 @@ bootPage('index.html', () => {
   drawTrendTabs();
   drawCmpPicker();
   drawTrend();
-  drawActivity();
+  drawCountTrend();
   document.getElementById('adsHead').textContent =
     `آگهی‌های ${kindLabel()} در ${S.hood || CITY.name}`;
   shown = PAGE();
