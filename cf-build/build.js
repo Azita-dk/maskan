@@ -19,23 +19,28 @@ const MIN_SAMPLE = 20;            // below this a neighbourhood median is noise
 const MIN_CITY_LISTINGS = 30;     // below this a "city" is a rounding error
 const HISTORY_DAYS = 180;         // how much per-neighbourhood history to ship
 const MAD_CUTOFF = 3.5;
-const CITY_BAND = [0.25, 4.0];    // relative to the city's own median
 
-/* No expiry filter here, deliberately.
+/* The sanity band, as a multiple of the city's own median for that kind.
  *
- * Two attempts at one failed, both mine. Filtering on posted_at older than
- * 28 days removed listings that were renewed and still for sale. Filtering
- * on scraped_at was worse: the scraper skips listings whose price has not
- * changed, so scraped_at only moves when a price moves — the filter removed
- * every listing with a stable price, which is most of them.
- *
- * Telling a gone listing from an unchanged one needs the scraper to record
- * that it saw each listing, and it does not, because that would be a write
- * per listing per sweep. Until it does, everything in the table counts.
- *
- * The site still marks expired listings in the ads table and drops their
- * links — that runs in the browser from posted_at and costs nothing. */
-const LISTING_LIFETIME_DAYS = 28;
+ * It exists to drop values that cannot be a price — a rial figure entered as
+ * toman, an area field of 1 m² — not to decide what is expensive. At 4x it
+ * was doing the second thing: a 900 m² new-build in زعفرانیه at 1,800
+ * million/m² is 7.5x Tehran's median and entirely real, and the site was
+ * discarding it along with every other top-end listing. Tehran's upper tail
+ * is wide and genuine, so the band has to be wide enough to hold it. */
+const CITY_BAND = [0.05, 40];
+
+
+/* Listings written into each city file, per kind. 12,000 x 3 kinds is about
+   12 MB of JSON — inside the 25 MB limit on a stored value, with room for
+   the database to keep growing. */
+const PER_KIND_CAP = 12000;
+
+/* How far back the history is recomputed. Listings that expired before the
+   scraper first ran are not in the database, so days beyond this rest on too
+   few of them to mean anything. */
+const BACKFILL_DAYS = 30;
+const BACKFILL_PER_RUN = 2;
 
 /**
  * A matching key for place names — never for display.
@@ -68,6 +73,40 @@ const MONTHS = ["فروردین","اردیبهشت","خرداد","تیر","مر�
                 "مهر","آبان","آذر","دی","بهمن","اسفند"];
 
 /* ── small statistics ───────────────────────────────────────────────── */
+
+/* Where each city is, from Iran's National Cartographic Center gazetteer
+ * (gndb.ncc.org.ir). Four provincial capitals were cut off in the copy used —
+ * همدان, یزد, بندرعباس and اراک — and are their standard city centres.
+ *
+ * Villages the scraper meets in titles — تهراندشت, کردان, سهیلیه — are not
+ * in the gazetteer because they are not cities. A listing there goes to the
+ * nearest city that is, which for all three is کرج. */
+const CITY_POS = {
+  "تهران":[35.7122,51.3684],"مشهد":[36.3033,59.5819],"اصفهان":[32.6666,51.6607],
+  "کرج":[35.8378,50.9709],"شیراز":[29.5992,52.5325],"تبریز":[38.0793,46.2892],
+  "قم":[34.6456,50.8721],"اهواز":[31.3096,48.6722],"کرمانشاه":[34.3432,47.1002],
+  "ارومیه":[37.5481,45.0562],"رشت":[37.2841,49.5904],"زاهدان":[29.4905,60.8603],
+  "همدان":[34.7980,48.5146],"کرمان":[30.2799,57.0592],"یزد":[31.8974,54.3569],
+  "اردبیل":[38.2449,48.2897],"بندرعباس":[27.1832,56.2666],"اراک":[34.0917,49.6892],
+  "اسلامشهر":[35.5534,51.2408],"زنجان":[36.6785,48.4959],"سنندج":[35.3040,46.9987],
+  "قزوین":[36.2858,50.0066],"خرم آباد":[33.5052,48.3643],"گرگان":[36.8392,54.4390],
+  "ساری":[36.5614,53.0611],"شهریار":[35.6574,51.0586],"قدس":[35.7115,51.1158],
+  "کاشان":[33.9749,51.4359],"دزفول":[32.3784,48.4086],"بابل":[36.5462,52.6783],
+  "ملارد":[35.6630,50.9783],"سبزوار":[36.2092,57.6823],"آمل":[36.4722,52.3562],
+  "نیشابور":[36.2079,58.7940],"بجنورد":[37.4743,57.3264],"ورامین":[35.3294,51.6347],
+  "پاکدشت":[35.4816,51.6876],"بوشهر":[28.9214,50.8377],"بیرجند":[32.8569,59.2195],
+  "سیرجان":[29.4449,55.6752],"بروجرد":[33.8981,48.7554],"ایلام":[33.6349,46.4300],
+  "مرودشت":[29.8791,52.8109],"شهرکرد":[32.3319,50.8583],"خوی":[38.5500,44.9540],
+  "مراغه":[37.3862,46.2410],"سقز":[36.2417,46.2726],"رفسنجان":[30.4005,55.9871],
+  "لاهیجان":[37.2044,50.0061],"یاسوج":[30.6652,51.5877],"اندیشه":[35.6897,51.0223],
+  "هشتگرد":[35.9607,50.6867],"فردیس":[35.7453,51.0010],"پردیس":[35.7455,51.8052],
+  "پرند":[35.4859,50.9387],"نظرآباد":[35.9519,50.6045],"محمدشهر":[35.7486,50.8979],
+  "قرچک":[35.4210,51.5835],"بومهن":[35.7295,51.8702],"رودهن":[35.7376,51.9104],
+  "شهرجدیدهشتگرد":[35.9955,50.7505],"چهارباغ":[35.8393,50.8478],
+  "ماهدشت":[35.7260,50.8094],"کمال‌شهر":[35.8639,50.8822],
+  "مشکین‌دشت":[35.7470,50.9474],"گرمدره":[35.7458,51.0755],
+  "آسارا":[36.0395,51.1866],"طالقان":[36.1730,50.7685],
+};
 
 function median(xs) {
   if (!xs.length) return 0;
@@ -187,6 +226,54 @@ export async function build(env, log = [], from = 0, self = null) {
 
   log.push(`${all.results.length} listings read`);
 
+  /* A listing's city comes from text — Divar's label, or a town named in the
+   * title — and text is wrong often enough: a بنگاه's address, a road called
+   * جاده تهران, a village called تهراندشت. Its coordinates come from Divar's
+   * own map for that one listing, and are far more reliable. So when they
+   * disagree, the coordinates decide.
+   *
+   * A listing more than NEAR_KM from its own city's centre, and within
+   * NEAR_KM of another city's, is in that other city: it is moved, and the
+   * move is written back so the other city's own build picks it up. One more
+   * than FAR_KM from its city and near no other is somewhere the scraper
+   * does not cover, and is left out.
+   *
+   * The two thresholds keep adjacent towns from trading listings: کرج and
+   * فردیس are ten kilometres apart, so a Fardis flat filed under Karaj is
+   * still inside NEAR_KM of Karaj and stays where it is. */
+  const NEAR_KM = 20, FAR_KM = 30;
+  const kmTo = (r, city) => {
+    const p = CITY_POS[city]; if (!p) return null;
+    const R = 6371, rad = Math.PI / 180;
+    const dLat = (p[0] - r.lat) * rad, dLng = (p[1] - r.lng) * rad;
+    const h = Math.sin(dLat / 2) ** 2 +
+      Math.cos(r.lat * rad) * Math.cos(p[0] * rad) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+  const moves = [];
+  let misplaced = 0;
+  // only a city this build processes can receive a listing — one filed
+  // anywhere else would sit in the database and never reach the site
+  const built = new Set(everyCity);
+  all.results = all.results.filter(r => {
+    if (!r.lat || !r.lng || !CITY_POS[r.city]) return true;   // cannot check
+    const own = kmTo(r, r.city);
+    if (own <= NEAR_KM) return true;
+    let best = null, bestKm = Infinity;
+    for (const c in CITY_POS) {
+      if (c === r.city || !built.has(c)) continue;
+      const d = kmTo(r, c);
+      if (d < bestKm) { bestKm = d; best = c; }
+    }
+    if (best && bestKm <= NEAR_KM) {
+      moves.push({ source: r.source, source_id: r.source_id, city: best });
+      misplaced++;
+      return false;                 // it belongs to another city's build
+    }
+    if (own > FAR_KM) { misplaced++; return false; }
+    return true;
+  });
+
   // The sanity band is computed per city AND per kind. A single city median
   // across all three would treat every plot of land as an outlier, since land
   // runs many times the price per metre of a flat in the same street.
@@ -220,7 +307,9 @@ export async function build(env, log = [], from = 0, self = null) {
     cities.get(gk).push(r);
   }
 
-  log.push(`${outOfBand} dropped outside their city's range, ${dupes} duplicate reposts`);
+  log.push(`${outOfBand} dropped outside their city's range, ${dupes} duplicate reposts, ` +
+           `${misplaced} whose map position is in another town ` +
+           `(${moves.length} moved to it)`);
 
   // looked-up neighbourhood positions, so a neighbourhood without a single
   // enriched listing can still appear on the map
@@ -233,13 +322,22 @@ export async function build(env, log = [], from = 0, self = null) {
 
   const labels = monthLabels(36, jy, jm);
   // the index is accumulated across slices and written by the last one
+  /* Start every slice from the last published index, not from nothing.
+   *
+   * This loaded the previous cities only when continuing a pass (from > 0),
+   * so the first slice of each new pass wrote stats.json with eight cities
+   * in it. The national total halved and climbed back every forty minutes —
+   * 192,262 apartments, then 140,887, with Tehran unchanged in both.
+   *
+   * A city now keeps its last figures until its own slice rebuilds them, so
+   * the file is always complete: some entries are up to a pass old, none are
+   * missing. Yesterday's index is accepted for the same reason — the first
+   * pass after midnight should not publish a near-empty country. */
   let carried = [];
-  if (from > 0) {
-    try {
-      const prev = await env.SITE.get("build:index", { type: "json" });
-      if (prev && prev.day === today) carried = prev.cities;
-    } catch (e) { /* start the index again */ }
-  }
+  try {
+    const prev = await env.SITE.get("build:index", { type: "json" });
+    if (prev && Array.isArray(prev.cities)) carried = prev.cities;
+  } catch (e) { /* start the index again */ }
   const index = { generated: today, is_sample: false,
                   month_labels: labels, cities: carried };
   /* Does the snapshot table know about property kinds yet?
@@ -263,6 +361,7 @@ export async function build(env, log = [], from = 0, self = null) {
 
   const snapshots = [];
   const files = [];
+  let backfilled = 0;
 
   // One file per city, holding all three kinds. Splitting the file per kind
   // would mean a fresh download every time the reader switches tab; keeping
@@ -370,6 +469,78 @@ export async function build(env, log = [], from = 0, self = null) {
     }).sort((a, b) => b.m - a.m);
 
     const cityMed = Math.round(median(rows.map((r) => r.price_m2)) / 1e5) / 10;
+
+    /* The history, recomputed from today's listings.
+     *
+     * A day's median used to be whatever had been scraped by then, so the
+     * line moved when coverage moved: Tehran fell to 218.8 and rose to 247.5
+     * while its listing count went from 16,350 to 102,578 in five days.
+     * Neither was the market.
+     *
+     * Every listing carries its posting date, and a Divar advert runs about
+     * 28 days, so which listings were on the market on any past day can be
+     * worked out from the ones held now — and every day measured the same
+     * way, on the same data. Rewritten daily, because today's listings are a
+     * better record of last week than last week's scrape was.
+     *
+     * It reaches back only as far as the listings do: an advert that expired
+     * before the scraper first ran is not here, so the earliest days rest on
+     * fewer listings and drift. BACKFILL_DAYS keeps it to a window the data
+     * genuinely covers. */
+    /* At most a couple of rebuilds per run. Each is cheap now, but eight
+       cities times three kinds in one invocation is not, and a run that
+       overruns writes nothing at all. The rest are picked up by later runs,
+       since each is remembered for the day once done. */
+    const backfillKey = `backfill:${city}|${kind}:${today}`;
+    let doneToday = true;
+    if (backfilled < BACKFILL_PER_RUN) {
+      try { doneToday = !!(await env.SITE.get(backfillKey)); } catch (e) { doneToday = false; }
+    }
+    if (!doneToday) {
+      backfilled++;
+      /* Dates are turned into numbers once, not re-parsed for every day.
+         Parsing inside the loop meant three million Date.parse calls for
+         Tehran alone, and over seven million across the big cities in one
+         slice — past the thirty seconds a run gets, so the run died and
+         nothing was written at all. */
+      const dayMs = 864e5, now = Date.parse(today);
+      const dated = [];
+      for (const r of rows) {
+        if (!r.posted_at || !(r.price_m2 > 0)) continue;
+        const t = Date.parse(r.posted_at);
+        if (isFinite(t)) dated.push({ t, p: r.price_m2 });
+      }
+
+      for (let back = BACKFILL_DAYS; back >= 1; back--) {
+        const dayT = now - back * dayMs;
+        const d = new Date(dayT).toISOString().slice(0, 10);
+        const live = [];
+        /* On the market on that day means posted by then. A Divar advert
+           stays up until its seller takes it down, so there is no lifetime
+           after which to drop it — cutting at 28 days was throwing away most
+           of what was genuinely for sale. */
+        for (const r of dated) {
+          if (r.t > dayT) continue;
+          live.push(r.p);
+        }
+        if (live.length < 30) continue;                        // too few to trust
+        const m = Math.round(median(live) / 1e5) / 10;
+        const dt = new Date(d);
+        const [jy2, jm2] = gregorianToJalali(
+          dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+        if (perKindHistory) {
+          snapshots.push(db.prepare(
+            "INSERT OR REPLACE INTO city_snapshots VALUES (?,?,?,?,?,?,?)")
+            .bind(city, kind, d, jy2, jm2, m, live.length));
+        } else if (kind === "apartment") {
+          snapshots.push(db.prepare(
+            "INSERT OR REPLACE INTO city_snapshots VALUES (?,?,?,?,?,?)")
+            .bind(city, d, jy2, jm2, m, live.length));
+        }
+      }
+      try { await env.SITE.put(backfillKey, "1", { expirationTtl: 172800 }); }
+      catch (e) { /* it will simply run again */ }
+    }
     if (perKindHistory) {
       snapshots.push(db.prepare(
         "INSERT OR REPLACE INTO city_snapshots VALUES (?,?,?,?,?,?,?)")
@@ -381,9 +552,40 @@ export async function build(env, log = [], from = 0, self = null) {
     }
 
     cityFile.rows.push(...hoodRows);
-    cityFile.listings.push(...listings);
+    /* Only the newest listings go in the file.
+     *
+     * A stored value cannot exceed 25 MB. Tehran crossed 87,595 listings on
+     * 21 September — about 29 MB of JSON — and every write since was
+     * refused, so the site kept serving the last file that fitted while the
+     * database went on growing. It is also what made the site slow to open
+     * on a phone: the whole file is downloaded before anything appears.
+     *
+     * The medians, neighbourhood figures and counts above are computed from
+     * every listing first, so nothing in the statistics is sampled. What the
+     * cap limits is the ads table and the map, which show a few dozen at a
+     * time. */
+    /* An even sample, not the first N.
+     *
+     * The file cannot hold every listing — Tehran's would pass the 25 MB
+     * limit on a stored value — but what it holds has to look like the whole
+     * city, because the distribution chart is drawn from it. Taking a slice
+     * of whatever order the query returned gave a median of 600 against the
+     * city's true 240: the chart and the headline were reading different
+     * listings.
+     *
+     * Every k-th row keeps the shape of the distribution whatever the order,
+     * and spreads the sample across prices, neighbourhoods and dates alike. */
+    if (listings.length <= PER_KIND_CAP) {
+      cityFile.listings.push(...listings);
+    } else {
+      const step = listings.length / PER_KIND_CAP;
+      for (let i = 0; i < PER_KIND_CAP; i++) {
+        cityFile.listings.push(listings[Math.floor(i * step)]);
+      }
+    }
     cityFile.byKind[kind] = { n: rows.length, median: cityMed,
-                              hoods: hoodRows.length };
+                              hoods: hoodRows.length,
+                              shown: Math.min(rows.length, PER_KIND_CAP) };
    }   // end of kinds
 
     cityFile.listings.sort((a, b) => b.m - a.m);
@@ -454,21 +656,44 @@ export async function build(env, log = [], from = 0, self = null) {
      * next position is written here and the cron picks it up on its next
      * tick, a few minutes later. The build finishes itself over the course
      * of an hour without anyone driving it. */
+    /* stats.json is written on every slice, not only when a pass ends.
+     *
+     * It used to wait for the last slice, so with more cities than one slice
+     * could hold the site showed a file from the previous complete pass while
+     * the city files were current — 45,557 apartments on the tab and 33,759
+     * in the dropdown, from the same page. The index carries across slices,
+     * so writing it each time costs nothing and the file is always as fresh
+     * as the last slice made it. */
+    await env.SITE.put("data/stats.json", JSON.stringify(index));
     await env.SITE.put("build:index",
       JSON.stringify({ day: today, cities: index.cities, next: from + SLICE }),
       { expirationTtl: 86400 });
     log.push(`slice ${from}-${from + slice.length} done, ` +
-             `${Math.max(0, everyCity.length - from - SLICE)} cities left ` +
-             `— the next tick continues from ${from + SLICE}`);
+             `stats.json has ${index.cities.length} cities, ` +
+             `${Math.max(0, everyCity.length - from - SLICE)} left`);
   } else {
     await env.SITE.put("data/stats.json", JSON.stringify(index));
     await env.SITE.put("build:index",
       JSON.stringify({ day: today, cities: index.cities, next: null }),
       { expirationTtl: 86400 });
-    log.push(`stats.json written with ${index.cities.length} cities — build complete`);
+    log.push(`stats.json written with ${index.cities.length} cities — pass complete`);
   }
 
   log.push(`${files.length} city files written`);
+
+  /* Write the moves back. Each is a listing whose coordinates put it in a
+     different city from the one it was filed under; recording the right city
+     means the other city's own slice picks it up, and it is not re-detected
+     on every build. The neighbourhood goes too — it came from the wrong
+     city. Capped per run so a first pass over a large backlog cannot become
+     one enormous write. */
+  if (moves.length) {
+    const batch = moves.slice(0, 2000).map(m => db.prepare(
+      `UPDATE listings SET city = ?, hood = '' WHERE source = ? AND source_id = ?`)
+      .bind(m.city, m.source, m.source_id));
+    for (let i = 0; i < batch.length; i += 50) await db.batch(batch.slice(i, i + 50));
+    log.push(`${batch.length} listings refiled to the city their map position is in`);
+  }
   return { log, cities: index.cities.length, slice: `${from}-${from + slice.length}`, more,
            listings: all.results.length, day: today };
 }
@@ -777,7 +1002,11 @@ export default {
       return new Response(body, {
         headers: {
           "content-type": "application/json; charset=utf-8",
-          "cache-control": "public, max-age=1800",
+          /* One minute, not thirty. Thirty was set when the build ran
+             hourly; it now runs every five minutes, so the site could sit
+             half an hour behind its own data — the chart kept showing
+             21 September while the database had 23. */
+          "cache-control": "public, max-age=60, must-revalidate",
           "access-control-allow-origin": "*",
         },
       });

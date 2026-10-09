@@ -16,10 +16,20 @@ enabled = true
 
 # SLICE — cities rebuilt per invocation.
 # FREE PLAN VALUE: "8"    (10 ms CPU; all 48 at once used to fail)
-# PAID: 30 s CPU, so the whole country rebuilds in one tick and the site
-# is never more than ten minutes behind.
+#
+# Memory, not CPU, sets this. A Worker gets 128 MB whatever the plan, and
+# 100 cities meant holding 300,000 listings at once — every tick died with
+# exceededMemory after using 7.7 s of its 30 s CPU. Tehran alone is 45,000.
+#
+# Eight cities is roughly 80,000 listings at the worst end — Tehran plus the
+# next few. stats.json is now written on every slice rather than only at the
+# end of a pass, so a smaller slice no longer means a stale file; it means
+# each city is refreshed every eight slices instead of every one.
+#
+# If exceededMemory comes back in Observability, drop to 6, then 4. The
+# database grows daily, so a number that fits today may not next month.
 [vars]
-SLICE = "48"
+SLICE = "8"
 
 # FREE PLAN VALUE: ["*/10 * * * *"] — ten minutes, when a tick only managed
 # 8 cities and a full pass took six of them.
