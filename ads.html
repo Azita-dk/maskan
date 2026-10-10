@@ -4,11 +4,37 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>آگهی‌ها و نقشه — تحلیل بازار مسکن</title>
-<meta name="description" content="آگهی‌های فروش آپارتمان روی نقشه، با پیوند به دیوار، شیپور و کیلید.">
+<meta name="description" content="آگهی‌های فروش مسکن روی نقشه، با پیوند به دیوار.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
+.mapwrap{position:relative;isolation:isolate}
+@media (max-width:600px){
+  .kpis{grid-template-columns:1fr 1fr!important;gap:10px}
+  .kpi{padding:12px 12px 10px}
+  .kpi .v{font-size:22px}
+  .kpi .k{font-size:11.5px}
+  .statrow{grid-template-columns:repeat(5,1fr)!important}
+  .statrow div{padding:8px 2px}
+  .statrow .v{font-size:13px}
+  .statrow .k{font-size:10px}
+  .shead h2{font-size:17px}
+  .panel header{flex-wrap:wrap;gap:8px}
+  .panel header h3{font-size:15px}
+}
+.adscount{padding:10px 16px 0;font-size:13px;color:var(--muted)}
+.adscount b{color:var(--ink)}
+.areabar{padding:10px 16px;border-bottom:1px solid var(--rule);display:flex;gap:10px;
+  align-items:center;flex-wrap:wrap;font-size:13.5px;background:var(--green-pale)}
+.areabar .reset,#soloBar .reset{border:1px solid var(--rule);background:var(--card);color:var(--ink);
+  border-radius:8px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}
+#adsBody tr.sel{background:var(--green-pale)}
+@media (max-width:720px){
+  #map{height:340px}
+  #adsTabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  #adsTabs button{flex:0 0 auto}
+}
 .tablewrap{container-type:inline-size;overflow-x:auto}
 table.cards td{white-space:nowrap}
 table.cards td:first-child{white-space:normal;min-width:160px}
@@ -46,6 +72,23 @@ table.cards td:first-child{white-space:normal;min-width:160px}
   <div id="searchHost"></div>
 
   <div class="panel">
+    <header><h3 id="mapTitle">نقشه قیمت</h3>
+      <button class="tabs" id="mapReset" style="display:none"></button></header>
+    <div class="mapwrap">
+      <div id="map"></div>
+      <div class="mapsearch">
+        <input id="mq" type="search" autocomplete="off"
+               placeholder="جست‌وجوی محله، امکانات یا متن آگهی…"
+               data-short="جست‌وجو روی نقشه…">
+        <button id="mqClear" class="hide" aria-label="پاک کردن">✕</button>
+        <button id="mqGo" aria-label="جست‌وجو" title="جست‌وجو"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+      </div>
+    </div>
+    <div class="legend"><span>کمترین قیمت</span><span class="bar"></span><span>بیشترین قیمت</span></div>
+    <p class="foot" id="mapNote"></p>
+  </div>
+
+  <div class="panel">
     <header><h3 id="adsTitle">آگهی‌ها</h3>
       <div class="tabs" id="adsTabs">
         <button data-sort="new" class="on">تازه‌ترین</button>
@@ -62,9 +105,14 @@ table.cards td:first-child{white-space:normal;min-width:160px}
       <button id="aqGo" aria-label="جست‌وجو" title="جست‌وجو"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
     </div>
 
+    <div class="adscount" id="adsCount"></div>
+    <div id="areaBar" class="hide areabar">
+      <span id="areaText">فقط آگهی‌های محدوده نقشه</span>
+      <button class="reset" id="areaClear">نمایش همه آگهی‌ها</button>
+    </div>
     <div id="soloBar" class="hide" style="padding:11px 16px;border-bottom:1px solid var(--rule);
       display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13.5px">
-      <span>یک آگهی از روی نقشه انتخاب شده است</span>
+      <span>آگهی انتخاب‌شده روی نقشه</span>
       <button class="reset" id="soloClear" style="border:1px solid var(--rule);
         background:transparent;color:var(--muted);border-radius:8px;padding:4px 11px">
         نمایش همه آگهی‌ها</button>
@@ -75,26 +123,10 @@ table.cards td:first-child{white-space:normal;min-width:160px}
       <tbody id="adsBody"><tr><td colspan="7" class="loading">در حال بارگذاری…</td></tr></tbody>
     </table></div>
     <button class="more hide" id="adsMore"></button>
-    <p class="foot">آگهی‌ها متعلق به دیوار، شیپور و کیلید است و با کلیک روی هر
-      ردیف در همان سایت باز می‌شود. این سایت آگهی منتشر نمی‌کند.</p>
+    <p class="foot">آگهی‌ها متعلق به دیوار است و با کلیک روی هر ردیف در دیوار باز
+      می‌شود. این سایت آگهی منتشر نمی‌کند.</p>
   </div>
 
-  <div class="panel">
-    <header><h3 id="mapTitle">نقشه قیمت</h3>
-      <button class="tabs" id="mapReset" style="display:none"></button></header>
-    <div class="mapwrap">
-      <div id="map"></div>
-      <div class="mapsearch">
-        <input id="mq" type="search" autocomplete="off"
-               placeholder="جست‌وجوی محله، امکانات یا متن آگهی…"
-               data-short="جست‌وجو روی نقشه…">
-        <button id="mqClear" class="hide" aria-label="پاک کردن">✕</button>
-        <button id="mqGo" aria-label="جست‌وجو" title="جست‌وجو"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
-      </div>
-    </div>
-    <div class="legend"><span>کمترین قیمت</span><span class="bar"></span><span>بیشترین قیمت</span></div>
-    <p class="foot" id="mapNote"></p>
-  </div>
 
 </main>
 
@@ -114,10 +146,26 @@ const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلی
 const LOCATION_FUZZ_M = 400;
 const FUZZ_COLOR = '#D97706';
 let adsSort = 'new', shown = 60, solo = null;
-let map = null, layer = null, keepView = false;
+let map = null, layer = null, keepView = false, areaBounds = null, quietUntil = 0;
+
+function sampleScale(){
+  const bk = (CITY.byKind || {})[S.kind] || {};
+  const inFile = (CITY.listings || []).filter(ofKind).length;
+  return inFile && bk.n > inFile ? bk.n / inFile : 1;
+}
+function realCount(rows){
+  const bk = (CITY.byKind || {})[S.kind] || null;
+  if (!S.hood && activeFilterCount() === 0 && !S.q && bk && bk.n != null) return bk.n;
+  if (S.hood && activeFilterCount() === 0 && !S.q) {
+    const r = (CITY.rows || []).find(x => (x.k || 'apartment') === S.kind && x.hood === S.hood);
+    if (r && r.n) return r.n;
+  }
+  return Math.round(rows.length * sampleScale());
+}
 
 function rows(){
   let r = activeListings();
+  if (areaBounds && !solo) r = r.filter(l => l.y && l.x && areaBounds.contains([l.y, l.x]));
   if (solo) {
     const one = r.filter(l => l.t === solo);
     if (one.length) return one;
@@ -175,14 +223,26 @@ function drawAds(){
   document.getElementById('adsTitle').textContent =
     solo ? 'آگهی انتخاب‌شده' : `آگهی‌های ${kindLabel()} در ${S.hood || CITY.name}`;
 
+  document.getElementById('areaBar').classList.toggle('hide', !areaBounds || !!solo);
+  {
+    const total = typeof realCount === 'function' ? realCount(activeListings()) : activeListings().length;
+    const inFile = activeListings().length;
+    const sampled = total > inFile * 1.05;
+    document.getElementById('adsCount').innerHTML = solo ? '' :
+      `<b>${FA(all.length)}</b> آگهی` +
+      (areaBounds ? ' در محدوده نقشه' : '') +
+      (sampled ? ` — نمونه‌ای از حدود ${FA(total)} آگهی این انتخاب` : '');
+  }
   if (!all.length) {
-    body.innerHTML = '<tr><td colspan="7" class="loading">با این فیلترها آگهی‌ای نمانده است.</td></tr>';
+    body.innerHTML = `<tr><td colspan="7" class="loading">${areaBounds
+      ? 'در این محدوده نقشه آگهی‌ای نیست. نقشه را جابه‌جا کنید یا «نمایش همه آگهی‌ها» را بزنید.'
+      : 'با این فیلترها آگهی‌ای نمانده است.'}</td></tr>`;
     document.getElementById('adsMore').classList.add('hide');
     return;
   }
   const list = solo ? all : all.slice(0, shown);
   body.innerHTML = list.map(l => `
-    <tr${l.u ? ` data-url="${esc(l.u)}"` : ''} data-token="${esc(l.t)}">
+    <tr${l.u ? ` data-url="${esc(l.u)}"` : ''} data-token="${esc(l.t)}"${solo === l.t ? ' class="sel"' : ''}>
       <td data-l="عنوان">${esc(l.n || '—')}</td>
       <td data-l="محله">${esc(l.h || '')}</td>
       <td data-l="متراژ">${l.a ? FA(l.a) + ' متر' : '—'}</td>
@@ -213,7 +273,10 @@ document.getElementById('adsTabs').addEventListener('click', e => {
   drawAds();
 });
 document.getElementById('soloClear').addEventListener('click', () => {
-  solo = null; drawAds(); drawMap();
+  solo = null; keepView = true; drawAds(); drawMap();
+});
+document.getElementById('areaClear').addEventListener('click', () => {
+  areaBounds = null; shown = 60; drawAds(); drawMap();
 });
 
 /* The way back from one listing to all of them, on the map itself.
@@ -227,7 +290,7 @@ function syncMapReset(){
   b.textContent = 'نمایش همه روی نقشه';
   if (!b.dataset.wired) {
     b.dataset.wired = '1';
-    b.addEventListener('click', () => { solo = null; drawAds(); drawMap(); });
+    b.addEventListener('click', () => { solo = null; areaBounds = null; drawAds(); drawMap(); });
   }
 }
 
@@ -239,6 +302,12 @@ function drawMap(){
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
       { maxZoom:18, attribution:'© OpenStreetMap' }).addTo(map);
     layer = L.layerGroup().addTo(map);
+    map.on('moveend', () => {
+      if (Date.now() < quietUntil) return;
+      if (solo) return;
+      areaBounds = map.getBounds(); shown = 60; drawAds();
+      document.getElementById('mapNote').dataset.area = '1';
+    });
   }
   layer.clearLayers();
   document.getElementById('mapTitle').textContent =
@@ -248,7 +317,7 @@ function drawMap(){
   if (!pts.length) {
     note.textContent = 'هیچ‌کدام از آگهی‌های این انتخاب هنوز مختصات ندارند. ' +
       'مختصات در پس‌زمینه اضافه می‌شود و پوشش هر روز بیشتر می‌شود.';
-    map.setView([32.4, 53.7], 5);
+    quietUntil = Date.now() + 900; map.setView([32.4, 53.7], 5);
     return;
   }
   const draw = solo ? pts.filter(l => l.t === solo) : pts;
@@ -301,17 +370,19 @@ function drawMap(){
         style="color:${CSSVAR('--green')};font-weight:700">دیدن آگهی در ${
         SOURCE_NAME[l.s] || l.s} ↗</a>` : ''}</div>`);
     mk.on('click', () => { solo = l.t; keepView = true; drawAds(); drawMap();
-      document.getElementById('adsTitle').scrollIntoView({behavior:'smooth', block:'center'}); });
+      document.getElementById('adsTitle').scrollIntoView({behavior:'smooth', block:'start'}); });
     mk.addTo(layer);
   });
 
   note.textContent = solo
     ? 'دایره، محدوده تقریبی همین آگهی است — دیوار موقعیت دقیق را منتشر نمی‌کند. ' +
-      'برای دیدن بقیه دکمه بالای جدول را بزنید.'
-    : `${FA(pts.length)} آگهی روی نقشه از ${FA(activeListings().length)} آگهی این انتخاب. ` +
-      'موقعیت‌ها تقریبی است و ممکن است تا چند صد متر با محل واقعی فاصله داشته باشد.';
+      'آگهی زیر نقشه آمده است؛ برای دیدن بقیه «نمایش همه روی نقشه» را بزنید.'
+    : `${FA(pts.length)} آگهی مختصات دارند و روی نقشه‌اند. روی هر نقطه بزنید تا آگهی‌اش زیر نقشه بیاید؛ ` +
+      'نقشه را جابه‌جا یا بزرگ کنید تا فهرست فقط آگهی‌های همان محدوده را نشان دهد. ' +
+      'موقعیت‌ها تقریبی است.';
 
   if (keepView) { keepView = false; return; }
+  quietUntil = Date.now() + 900;
   // frame the circle, not the point inside it — at zoom 16 a 600 m circle is
   // wider than the map and the reader sees an arc with no context
   if (soloCircle) {
@@ -359,6 +430,7 @@ bootPage('ads.html', () => {
   // never overwrite what someone is in the middle of typing.
   if (mq && document.activeElement !== mq) mq.value = S.q || '';
   if (mq) document.getElementById('mqClear').classList.toggle('hide', !mq.value);
+  areaBounds = null; solo = null;
   shown = 60; drawAds(); drawMap();
 });
 </script>

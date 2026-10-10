@@ -9,6 +9,20 @@
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
+.mapwrap{position:relative;isolation:isolate}
+@media (max-width:600px){
+  .kpis{grid-template-columns:1fr 1fr!important;gap:10px}
+  .kpi{padding:12px 12px 10px}
+  .kpi .v{font-size:22px}
+  .kpi .k{font-size:11.5px}
+  .statrow{grid-template-columns:repeat(5,1fr)!important}
+  .statrow div{padding:8px 2px}
+  .statrow .v{font-size:13px}
+  .statrow .k{font-size:10px}
+  .shead h2{font-size:17px}
+  .panel header{flex-wrap:wrap;gap:8px}
+  .panel header h3{font-size:15px}
+}
 .notebtn{border:0;background:transparent;color:var(--green);font:inherit;font-weight:700;
   cursor:pointer;padding:0 4px;text-decoration:underline;text-underline-offset:3px}
 .notemore{display:inline}
@@ -338,6 +352,21 @@ function changeKpi(){
    or the neighbourhood that has been picked, with the filters applied. The
    name is on the row so nobody reads a city figure as a neighbourhood's or
    the other way round. */
+function sampleScale(){
+  const bk = (CITY.byKind || {})[S.kind] || {};
+  const inFile = (CITY.listings || []).filter(ofKind).length;
+  return inFile && bk.n > inFile ? bk.n / inFile : 1;
+}
+function realCount(rows){
+  const bk = (CITY.byKind || {})[S.kind] || null;
+  if (!S.hood && activeFilterCount() === 0 && !S.q && bk && bk.n != null) return bk.n;
+  if (S.hood && activeFilterCount() === 0 && !S.q) {
+    const r = (CITY.rows || []).find(x => (x.k || 'apartment') === S.kind && x.hood === S.hood);
+    if (r && r.n) return r.n;
+  }
+  return Math.round(rows.length * sampleScale());
+}
+
 function drawKpis(){
   const rows = activeListings();
   const vals = rows.map(l => l.m).filter(v => v > 0);
@@ -351,7 +380,8 @@ function drawKpis(){
   const bk = (CITY.byKind || {})[S.kind] || null;
   const med = whole && bk && bk.median != null ? bk.median
             : vals.length ? round1(median(vals)) : null;
-  const count = whole && bk && bk.n != null ? bk.n : rows.length;
+  const count = realCount(rows);
+  const approx = !whole && sampleScale() > 1.05;
   const chg = changeKpi();
   const scope = S.hood ? S.hood : `کل ${CITY.name}`;
   const filtered = activeFilterCount() > 0 || !!S.q;
@@ -362,7 +392,7 @@ function drawKpis(){
       <div class="u">میلیون تومان</div></div>
     <div class="kpi"><div class="k">تعداد آگهی</div>
       <div class="v">${FA(count)}</div>
-      <div class="u">در ${esc(scope)}</div></div>
+      <div class="u">${approx ? 'حدود، ' : ''}در ${esc(scope)}</div></div>
     <div class="kpi"><div class="k">${chg.label}</div>
       <div class="v ${chg.cls}">${chg.text}</div>
       <div class="u">${chg.sub}</div></div>

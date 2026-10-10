@@ -8,6 +8,28 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230C7A4F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <style>
+.mapwrap{position:relative;isolation:isolate}
+@media (max-width:600px){
+  .kpis{grid-template-columns:1fr 1fr!important;gap:10px}
+  .kpi{padding:12px 12px 10px}
+  .kpi .v{font-size:22px}
+  .kpi .k{font-size:11.5px}
+  .statrow{grid-template-columns:repeat(5,1fr)!important}
+  .statrow div{padding:8px 2px}
+  .statrow .v{font-size:13px}
+  .statrow .k{font-size:10px}
+  .shead h2{font-size:17px}
+  .panel header{flex-wrap:wrap;gap:8px}
+  .panel header h3{font-size:15px}
+}
+.sidebyside{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch;margin-bottom:16px}
+.sidebyside>.panel{display:flex;flex-direction:column;margin:0}
+.sidebyside>.panel>.foot{margin-top:auto}
+.sidebyside.single{grid-template-columns:1fr}
+@media (max-width:900px){.sidebyside{grid-template-columns:1fr}}
+.scopebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 12px;font-size:13px;color:var(--muted)}
+.scopebar b{color:var(--ink)}
+.scopebar .chip{background:var(--green-pale);color:var(--green);border-radius:999px;padding:3px 10px;font-weight:700}
 .notebtn{border:0;background:transparent;color:var(--green);font:inherit;font-weight:700;
   cursor:pointer;padding:0 4px;text-decoration:underline;text-underline-offset:3px}
 .notemore{display:inline}
@@ -25,49 +47,53 @@
 
   <div id="searchHost"></div>
 
+  <div class="scopebar" id="scopeBar"></div>
   <div class="kpis" id="kpis"></div>
 
-  <div class="panel">
-    <header><h3 id="hoodBarsTitle">مقایسه محله‌ها</h3></header>
-    <div class="chartbox"><div class="chart short"><canvas id="hoodBars"></canvas></div></div>
-    <p class="foot">میانه قیمت هر متر مربع در پرآگهی‌ترین محله‌های این شهر.
-      روی هر ستون بزنید تا همه صفحه‌ها به آن محله محدود شود.</p>
-  </div>
-
-  <div class="panel">
-    <header><h3 id="trendTitle">روند قیمت</h3>
-      <div class="tabs" id="trendTabs"></div></header>
+  <div class="shead"><h2 id="secTrend">روند بازار</h2></div>
+  <div class="sidebyside">
+    <div class="panel">
+      <header><h3 id="trendTitle">روند قیمت</h3>
+        <div class="tabs" id="trendTabs"></div></header>
       <div class="cmpbar" id="cmpBar"></div>
-    <div class="chartbox"><div class="chart">
-      <canvas id="trend"></canvas>
-    </div></div>
-    <p class="foot" id="trendNote"></p>
+      <div class="chartbox"><div class="chart"><canvas id="trend"></canvas></div></div>
+      <p class="foot" id="trendNote"></p>
+    </div>
+    <div class="panel">
+      <header><h3 id="actTitle">تعداد آگهی‌های فروش</h3></header>
+      <div class="chartbox"><div class="chart"><canvas id="act"></canvas>
+        <div class="loading hide" id="actEmpty"></div></div></div>
+      <p class="foot" id="actFoot"></p>
+    </div>
   </div>
 
-  <div class="panel">
-    <header><h3 id="distTitle">توزیع قیمت</h3></header>
-    <div class="chartbox"><div class="chart short"><canvas id="dist"></canvas></div></div>
-    <div class="statrow" id="distStats"></div>
-    <p class="foot">چند آگهی در هر بازه قیمتی قرار می‌گیرد. منحنی، توزیع نرمالِ
-      هم‌میانگین است تا کجی توزیع دیده شود. دو درصد ارزان‌ترین و دو درصد
-      گران‌ترین آگهی‌ها در این نمودار نمی‌آیند تا یک آگهی پرت شکل توزیع را
-      به هم نریزد؛ بنابراین صدک ۹۸ از گران‌ترین آگهی جدول پایین‌تر است.</p>
+  <div class="shead"><h2 id="secNow">قیمت‌ها در این انتخاب</h2></div>
+  <div class="sidebyside">
+    <div class="panel">
+      <header><h3 id="distTitle">توزیع قیمت</h3></header>
+      <div class="chartbox"><div class="chart"><canvas id="dist"></canvas></div></div>
+      <div class="statrow" id="distStats"></div>
+      <p class="foot" id="distFoot"></p>
+    </div>
+    <div class="panel">
+      <header><h3 id="hoodBarsTitle">مقایسه محله‌ها</h3></header>
+      <div class="chartbox"><div class="chart"><canvas id="hoodBars"></canvas></div></div>
+      <p class="foot" id="hoodBarsFoot"></p>
+    </div>
   </div>
 
-  <div class="panel">
-    <header><h3>قیمت بر پایه متراژ و سن بنا</h3></header>
-    <div class="chartbox"><div class="twochart">
-      <div><div class="chartlbl">میانه هر متر مربع بر پایه متراژ</div>
-        <div class="chart short"><canvas id="bySize"></canvas></div></div>
-      <div><div class="chartlbl">میانه هر متر مربع بر پایه سن بنا</div>
-        <div class="chart short"><canvas id="byAge"></canvas></div></div>
-    </div></div>
-    <p class="foot">ستون‌های کم‌رنگ کمتر از ۲۰ آگهی دارند و تعداد آگهی زیر هر
-      ستون نوشته شده است؛ در یک محله معمولاً چند بازه متراژ آگهی کافی ندارند.
-      این نمودار فقط می‌گوید در همین انتخاب، قیمت هر متر در هر بازه متراژ چقدر
-      بوده است — علت آن را نشان نمی‌دهد. متراژ بزرگ‌تر معمولاً با ساختمان
-      نوسازتر و باکیفیت‌تر همراه است، بنابراین بالاتر بودن قیمت هر متر در
-      متراژهای بزرگ لزوماً به خود متراژ مربوط نیست.</p>
+  <div class="shead"><h2 id="secDrivers">قیمت بر پایه ویژگی‌های ملک</h2></div>
+  <div class="sidebyside" id="driversRow">
+    <div class="panel">
+      <header><h3>میانه هر متر بر پایه متراژ</h3></header>
+      <div class="chartbox"><div class="chart short"><canvas id="bySize"></canvas></div></div>
+      <p class="foot" id="sizeFoot"></p>
+    </div>
+    <div class="panel" id="agePanel">
+      <header><h3>میانه هر متر بر پایه سن بنا</h3></header>
+      <div class="chartbox"><div class="chart short"><canvas id="byAge"></canvas></div></div>
+      <p class="foot" id="ageFoot"></p>
+    </div>
   </div>
 
 </main>
@@ -81,13 +107,86 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="app.js?v=20260925c"></script>
 <script>
-let trendChart=null, distChart=null, sizeChart=null, ageChart=null, hoodBars=null;
+let trendChart=null, distChart=null, sizeChart=null, ageChart=null, hoodBars=null, actChart=null;
 let period = 'all';
+
+function sampleScale(){
+  const bk = (CITY.byKind || {})[S.kind] || {};
+  const inFile = (CITY.listings || []).filter(ofKind).length;
+  return inFile && bk.n > inFile ? bk.n / inFile : 1;
+}
+function realCount(rows){
+  const bk = (CITY.byKind || {})[S.kind] || null;
+  if (!S.hood && activeFilterCount() === 0 && !S.q && bk && bk.n != null) return bk.n;
+  if (S.hood && activeFilterCount() === 0 && !S.q) {
+    const r = (CITY.rows || []).find(x => (x.k || 'apartment') === S.kind && x.hood === S.hood);
+    if (r && r.n) return r.n;
+  }
+  return Math.round(rows.length * sampleScale());
+}
+
+const pointLabels = {
+  id: 'pointLabels',
+  afterDatasetsDraw(chart){
+    if (chart.data.datasets.length !== 1) return;
+    const { ctx } = chart;
+    const meta = chart.getDatasetMeta(0);
+    const data = chart.data.datasets[0].data;
+    ctx.save();
+    ctx.font = '600 11px Vazirmatn, sans-serif';
+    ctx.fillStyle = CSSVAR('--ink');
+    ctx.textAlign = 'center';
+    meta.data.forEach((pt, i) => {
+      if (data[i] == null) return;
+      ctx.fillText(FA(data[i]), pt.x, pt.y - 10);
+    });
+    ctx.restore();
+  }
+};
+
+const isWhole = () => !S.hood && activeFilterCount() === 0 && !S.q;
+function headlineMedian(rows){
+  const bk = (CITY.byKind || {})[S.kind] || null;
+  if (isWhole() && bk && bk.median != null) return bk.median;
+  if (S.hood && activeFilterCount() === 0 && !S.q) {
+    const r = (CITY.rows || []).find(x => (x.k || 'apartment') === S.kind && x.hood === S.hood);
+    if (r && r.median) return r.median;
+  }
+  const v = rows.map(l => l.m).filter(x => x > 0);
+  return v.length ? round1(median(v)) : null;
+}
+const approxNote = () => sampleScale() > 1.05 && !isWhole();
+const scaled = n => Math.round(n * sampleScale());
+
+function scopeChips(){
+  const c = [];
+  if (S.rooms !== 'all') c.push(S.rooms === '0' ? 'بدون خواب' : `${FA(S.rooms)} خوابه`);
+  if (S.min || S.max) c.push(`متراژ ${S.min ? FA(S.min) : '۰'} تا ${S.max ? FA(S.max) : '∞'}`);
+  if (S.pmin || S.pmax) c.push(`قیمت کل ${S.pmin || '۰'} تا ${S.pmax || '∞'} میلیارد`);
+  if (S.mmin || S.mmax) c.push(`هر متر ${S.mmin || '۰'} تا ${S.mmax || '∞'} میلیون`);
+  if (S.age !== '999' || S.agelo) c.push('سن بنا');
+  if (S.date !== '0') c.push('تاریخ');
+  for (const f of featureSet()) c.push(f);
+  if (S.q) c.push(`«${S.q}»`);
+  return c;
+}
+function drawScope(){
+  const chips = scopeChips();
+  document.getElementById('scopeBar').innerHTML =
+    `همه ارقام این صفحه برای <b>${esc(kindLabel())}</b> در <b>${esc(S.hood ? S.hood + '، ' + CITY.name : CITY.name)}</b>` +
+    (chips.length ? ' با فیلتر ' + chips.map(x => `<span class="chip">${esc(x)}</span>`).join(' ') : ' است.');
+  const place = S.hood || CITY.name;
+  document.getElementById('secTrend').textContent = `روند بازار ${kindLabel()} در ${place}`;
+  document.getElementById('secNow').textContent = `قیمت‌ها در ${place}` + (chips.length ? ' با فیلترهای انتخاب‌شده' : '');
+  document.getElementById('secDrivers').textContent = `قیمت بر پایه ویژگی‌های ملک در ${place}`;
+}
 
 function drawKpis(){
   const rows = activeListings();
   const vals = rows.map(l => l.m).filter(v => v > 0);
-  const med = vals.length ? round1(median(vals)) : null;
+  const med = headlineMedian(rows);
+  const count = realCount(rows);
+  const approx = approxNote();
   // build.js writes `ours` keyed by kind, so this is an object, not an
   // array — calling .filter on it threw and took the whole page down with
   // it, since drawKpis is the first thing bootPage runs.
@@ -97,19 +196,26 @@ function drawKpis(){
     change = (mc.pct >= 0 ? '+' : '\u2212') + FA1(Math.abs(mc.pct)) + '\u066A';
     cls = mc.pct >= 0 ? 'up' : 'down';
   }
+  const chLabel = !mc ? 'تغییر قیمت' : mc.months >= 12 ? 'تغییر سالانه'
+    : mc.months === 1 ? 'تغییر ماهانه' : `تغییر ${FA(mc.months)} ماهه`;
+  const scope = S.hood ? S.hood : `کل ${CITY.name}`;
+  const filtered = activeFilterCount() > 0 || !!S.q;
   document.getElementById('kpis').innerHTML = `
-    <div class="kpi"><div class="k">میانه هر متر مربع</div>
+    <div class="kpi"><div class="k">میانه هر متر مربع
+        <span class="scope">${esc(scope)}${filtered ? ' · با فیلتر' : ''}</span></div>
       <div class="v">${med === null ? '—' : FA1(med)}</div>
       <div class="u">میلیون تومان</div></div>
-    <div class="kpi"><div class="k">تغییر در کل تاریخچه</div>
-      <div class="v ${cls}">${change}</div>
-      <div class="u">${mc ? 'از ' + jMonthLabel(mc.from) : 'داده کافی نیست'}</div></div>
     <div class="kpi"><div class="k">تعداد آگهی</div>
-      <div class="v">${FA(rows.length)}</div><div class="u">در این انتخاب</div></div>
-    <div class="kpi"><div class="k">اعتبار</div>
-      <div class="v" style="font-size:18px;padding-top:6px">${confBadge(rows.length)}</div>
+      <div class="v">${FA(count)}</div>
+      <div class="u">${approx ? 'حدود، ' : ''}در ${esc(scope)}</div></div>
+    <div class="kpi"><div class="k">${chLabel}</div>
+      <div class="v ${cls}">${change}</div>
+      <div class="u">${mc ? `از ${jMonthLabel(mc.from)} تا ${jMonthLabel(mc.to)}` : 'هنوز دو ماه کامل داده نیست'}</div></div>
+    <div class="kpi"><div class="k">اعتبار این رقم</div>
+      <div class="v" style="font-size:18px;padding-top:6px">${confBadge(count)}</div>
       <div class="u">بر پایه تعداد آگهی</div></div>`;
 }
+
 
 /* History is stored per kind. `ours` and `hood_hist` are objects keyed by
    apartment / villa / land, never one merged series — joining them would put
@@ -579,6 +685,85 @@ function jMonthKey(iso){
 }
 
 
+function drawCountTrend(){
+  actChart && actChart.destroy(); actChart = null;
+  const canvas = document.getElementById('act');
+  const empty = document.getElementById('actEmpty');
+  const foot = document.getElementById('actFoot');
+  const hood = mainHood();
+  const place = hood || CITY.name;
+  const filtered = trendFiltered();
+  document.getElementById('actTitle').textContent = filtered
+    ? `آگهی‌های فروش ${kindLabel()} ${filterLabel()} در هر ماه — ${place}`
+    : `آگهی‌های فروش ${kindLabel()} در هر ماه — ${place}`;
+
+  const months = TREND_MONTHS && TREND_MONTHS.length ? TREND_MONTHS : trendMonths();
+  const series = [{ name: place, by: monthlySeries(hood), color: LINE_COLORS[0], main: true }];
+  const missing = [];
+  cmpList().forEach((h, ci) => {
+    const by = monthlySeries(h);
+    if (!months.some(k => by.has(k))) { missing.push(h); return; }
+    series.push({ name: h, by, color: LINE_COLORS[(ci + 1) % LINE_COLORS.length] });
+  });
+
+  if (hideMain && series.length > 1) series.shift();
+  if (!months.length || !months.some(k => series[0].by.has(k))) {
+    canvas.style.display = 'none';
+    empty.classList.remove('hide');
+    empty.textContent = 'برای این انتخاب هنوز داده کافی نیست.';
+    setNote(foot, 'تعداد آگهی‌های هر ماه.', []);
+    return;
+  }
+  canvas.style.display = ''; empty.classList.add('hide');
+
+  const cityWithHoods = false;
+  const approx = filtered;
+  const axisFont = { family: 'Vazirmatn', size: 11 };
+  const yAxes = {
+    y: { position: 'right', beginAtZero: true, grid: { color: CSSVAR('--rule') },
+         ticks: { font: axisFont, color: CSSVAR('--muted'), precision: 0, callback: v => FA(v) } },
+  };
+  if (cityWithHoods) {
+    yAxes.y.title = { display: true, text: 'محله‌ها', font: axisFont, color: CSSVAR('--muted') };
+    yAxes.y2 = { position: 'left', beginAtZero: true, grid: { display: false },
+      title: { display: true, text: CITY.name, font: axisFont, color: LINE_COLORS[0] },
+      ticks: { font: axisFont, color: LINE_COLORS[0], precision: 0, callback: v => FA(v) } };
+  }
+
+  actChart = new Chart(canvas, {
+    type: 'line',
+    plugins: [preShade, pointLabels],
+    data: {
+      labels: months.map(jMonthLabel),
+      datasets: series.map(s => ({
+        label: s.name,
+        data: months.map(k => s.by.has(k) ? s.by.get(k).n : null),
+        yAxisID: cityWithHoods && s.main ? 'y2' : 'y',
+        borderColor: s.color, backgroundColor: s.color,
+        pointBackgroundColor: hollowPre(months, s.color),
+        borderWidth: s.main ? 3 : 2, tension: .3, spanGaps: true,
+        pointRadius: 4, pointHoverRadius: 6,
+        segment: dashLast(months),
+      })),
+    },
+    options: lineChartOptions(months,
+      c => `${c.dataset.label}: ${approx ? 'حدود ' : ''}${FA(c.parsed.y)} آگهی`, yAxes,
+      series.length > 1),
+  });
+
+  actChart.$months = months; actChart.update && actChart.update('none');
+  const cn = ['ماه‌های پیش از شهریور ۱۴۰۵ (پس‌زمینه خاکستری) ناقص‌اند: فقط آگهی‌هایی که تا شهریور هنوز روی دیوار بوده‌اند در آن‌ها شمرده شده‌اند.',
+    'تعداد آگهی‌هایی که در آن ماه روی دیوار بوده‌اند — همان آگهی‌هایی که قیمتشان در نمودار کناری آمده. آگهی‌ای که چند ماه روی دیوار مانده در هر یک از آن ماه‌ها یک بار شمرده می‌شود.',
+    'ماه جاری هنوز تمام نشده است.',
+    'آگهی‌هایی که هنوز تاریخ دیوار ندارند شمرده نمی‌شوند، پس ماه جاری تا چند روز کمتر از واقع دیده می‌شود.'];
+  if (!hood && series[0].main && series.length > 1)
+    cn.push(`برای دیدن بهتر محله‌ها، ${CITY.name} را با زدن ✕ کنار نامش در «مقایسه با» پنهان کنید.`);
+  if (filtered) cn.push('با فیلتر، تعداد از نمونه‌ای از آگهی‌ها برآورد می‌شود و تقریبی است.');
+  if (missing.length) cn.push(`برای ${missing.join('، ')} داده کافی نیست.`);
+  setNote(foot, 'تعداد آگهی‌هایی که در هر ماه روی دیوار بوده‌اند.', cn);
+}
+
+
 function drawDist(){
   const rows = activeListings();
   const vals = rows.map(l => l.m).filter(v => v > 0).sort((a,b)=>a-b);
@@ -603,7 +788,7 @@ function drawDist(){
     const x = lo + w*(i+.5);
     return peak * Math.exp(-((x-mean)**2)/(2*sd*sd));
   });
-  const med = round1(median(vals));
+  const med = headlineMedian(rows) ?? round1(median(vals));
 
   distChart = new Chart(document.getElementById('dist'), {
     data:{ labels: counts.map((_, i) => FA1(round1(lo + w*i))),
@@ -633,9 +818,15 @@ function drawDist(){
     // 2nd and 98th percentiles. Labelling them as the extremes made the page
     // contradict the ads table, which shows the real maximum — Hamadan read
     // 300 here and 419.9 there, and both were right.
-    ['صدک ۲', q(.02)], ['چارک اول', q(.25)], ['میانه امروز', med],
+    ['صدک ۲', q(.02)], ['چارک اول', q(.25)], ['میانه', med],
     ['چارک سوم', q(.75)], ['صدک ۹۸', q(.98)],
   ].map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${FA1(round1(v))}</div></div>`).join('');
+  setNote(document.getElementById('distFoot'),
+    `چند آگهی در هر بازه قیمت هر متر (میلیون تومان) قرار می‌گیرد.`,
+    ['منحنی خط‌چین توزیع نرمالِ هم‌میانگین است تا کجی توزیع دیده شود.',
+     'دو درصد ارزان‌ترین و دو درصد گران‌ترین آگهی‌ها در نمودار نمی‌آیند تا یک آگهی پرت شکل آن را به هم نریزد.',
+     '«میانه» همان عدد کارت بالای صفحه است.'].concat(approxNote()
+       ? ['تعداد ستون‌ها از نمونه‌ای از آگهی‌ها ساخته شده؛ شکل توزیع درست است ولی ارتفاع ستون‌ها تعداد واقعی نیست.'] : []));
 }
 
 function drawBreakdown(){
@@ -692,7 +883,7 @@ function drawBreakdown(){
       type:'bar',
       // the sample size goes on the axis, not only in the tooltip: a band of
       // six listings and one of six hundred otherwise look identical
-      data:{ labels: rows.map(r => [r.label, FA(r.n) + ' آگهی']),
+      data:{ labels: rows.map(r => [r.label, (approxNote() ? '~' : '') + FA(scaled(r.n)) + ' آگهی']),
         datasets:[{ data:meds, barPercentage:.78,
           backgroundColor: rows.map(r =>
             r.n < 20 ? CSSVAR('--rule') : heat(r.med, lo, hi)),
@@ -705,8 +896,8 @@ function drawBreakdown(){
         plugins:{ legend:{display:false},
           tooltip:{ rtl:true, displayColors:false,
             bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
-            callbacks:{ label: c => FA1(meds[c.dataIndex]) + ' م/متر — ' +
-                                    FA(rows[c.dataIndex].n) + ' آگهی' } } },
+            callbacks:{ label: c => FA1(meds[c.dataIndex]) + ' میلیون/متر — ' +
+                                    (approxNote() ? 'حدود ' : '') + FA(scaled(rows[c.dataIndex].n)) + ' آگهی' } } },
         scales:{ x:{ grid:{display:false},
                      ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
                             maxRotation:0} },
@@ -716,7 +907,14 @@ function drawBreakdown(){
     });
   };
   sizeChart = paint('bySize', sizes, sizeChart, pickSize, sizeOn);
-  ageChart  = paint('byAge',  ages,  ageChart,  pickAge,  ageOn);
+  const land = S.kind === 'land';
+  document.getElementById('agePanel').classList.toggle('hide', land);
+  ageChart = land ? (ageChart && ageChart.destroy(), null) : paint('byAge', ages, ageChart, pickAge, ageOn);
+  const common = ['ستون‌های کم‌رنگ کمتر از ۲۰ آگهی دارند.',
+    'روی هر ستون بزنید تا همه صفحه به همان بازه محدود شود؛ دوباره بزنید تا برداشته شود.',
+    'این نمودار علت را نشان نمی‌دهد: خانه‌های بزرگ‌تر یا نوسازتر معمولاً در محله‌های گران‌تر هم هستند.'];
+  setNote(document.getElementById('sizeFoot'), 'میانه قیمت هر متر در هر بازه متراژ، به میلیون تومان.', common);
+  setNote(document.getElementById('ageFoot'), 'میانه قیمت هر متر بر پایه سن بنا، به میلیون تومان.', common);
 }
 
 /* Moved here from the home page. It needs the same per-neighbourhood
@@ -724,12 +922,18 @@ function drawBreakdown(){
    rows are recomputed from the listings the same way cities.html does.
    The five-listing floor matches the neighbourhood lists elsewhere. */
 function hoodRowsForBars(){
+  if (activeFilterCount() === 0 && !S.q) {
+    const pre = ((CITY && CITY.rows) || [])
+      .filter(r => (r.k || 'apartment') === S.kind && r.n >= 5 && r.median > 0)
+      .map(r => ({ hood: r.hood, n: r.n, med: round1(r.median), exact: true }));
+    if (pre.length) return pre;
+  }
   const keep = S.hood; S.hood = '';
   const rows0 = activeListings(); S.hood = keep;
   const g = {};
   for (const l of rows0) if (l.h && l.m > 0) (g[l.h] ||= []).push(l.m);
   return Object.entries(g)
-    .map(([hood, v]) => ({ hood, n: v.length, med: round1(median(v)) }))
+    .map(([hood, v]) => ({ hood, n: scaled(v.length), med: round1(median(v)), exact: sampleScale() <= 1.05 }))
     .filter(r => r.n >= 5);
 }
 
@@ -741,16 +945,31 @@ function drawHoodBars(){
   panel.classList.remove('hide');
   document.getElementById('hoodBarsTitle').textContent =
     `مقایسه محله‌های ${CITY.name} — ${kindLabel()}`;
-  const top = [...rows].sort((a,b) => b.n - a.n).slice(0, 12)
-                       .sort((a,b) => b.med - a.med);
+  setNote(document.getElementById('hoodBarsFoot'),
+    'میانه قیمت هر متر در پرآگهی‌ترین محله‌ها، به میلیون تومان.',
+    ['روی هر ستون بزنید تا همه صفحه به آن محله محدود شود.',
+     'محله انتخاب‌شده سبز است و محله‌هایی که در «مقایسه با» آورده‌اید به رنگ خطشان در نمودار روند.',
+     'با فیلتر، ارقام از نمونه‌ای از آگهی‌ها حساب می‌شوند.']);
+  let top = [...rows].sort((a,b) => b.n - a.n).slice(0, 12);
+  if (S.hood && !top.some(r => r.hood === S.hood)) {
+    const sel = rows.find(r => r.hood === S.hood);
+    if (sel) top = [...top.slice(0, 11), sel];
+  }
+  for (const h of cmpList()) {
+    if (!top.some(r => r.hood === h)) { const r = rows.find(x => x.hood === h); if (r) top.push(r); }
+  }
+  top.sort((a,b) => b.med - a.med);
   const meds = top.map(r => r.med);
   const lo = Math.min(...meds), hi = Math.max(...meds);
   hoodBars = new Chart(document.getElementById('hoodBars'), {
     type:'bar',
     data:{ labels: top.map(r => r.hood),
       datasets:[{ data: meds, borderWidth:0, barPercentage:.8,
-        backgroundColor: top.map(r =>
-          r.hood === S.hood ? CSSVAR('--green') : heat(r.med, lo, hi)) }] },
+        backgroundColor: top.map(r => {
+          if (r.hood === S.hood) return CSSVAR('--green');
+          const ci = cmpList().indexOf(r.hood);
+          return ci >= 0 ? LINE_COLORS[(ci + 1) % LINE_COLORS.length] : heat(r.med, lo, hi);
+        }) }] },
     options:{ maintainAspectRatio:false,
       onClick: (e, hit) => {
         if (!hit.length) return;
@@ -762,7 +981,7 @@ function drawHoodBars(){
         tooltip:{ rtl:true, displayColors:false,
           bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
           callbacks:{ label: c => FA1(meds[c.dataIndex]) + ' میلیون/متر — ' +
-                                  FA(top[c.dataIndex].n) + ' آگهی' } } },
+                                  (top[c.dataIndex].exact ? '' : 'حدود ') + FA(top[c.dataIndex].n) + ' آگهی' } } },
       scales:{ x:{ grid:{display:false},
                    ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
                           maxRotation:0} },
@@ -772,14 +991,27 @@ function drawHoodBars(){
   });
 }
 
+function tidyRows(){
+  document.querySelectorAll('.sidebyside').forEach(row => {
+    const vis = [...row.children].filter(p => !p.classList.contains('hide'));
+    row.classList.toggle('single', vis.length === 1);
+    row.classList.toggle('hide', vis.length === 0);
+    const h = row.previousElementSibling;
+    if (h && h.classList.contains('shead')) h.classList.toggle('hide', vis.length === 0);
+  });
+}
+
 bootPage('stats.html', () => {
+  drawScope();
   drawKpis();
-  drawHoodBars();
   drawTrendTabs();
   drawCmpPicker();
   drawTrend();
+  drawCountTrend();
   drawDist();
+  drawHoodBars();
   drawBreakdown();
+  tidyRows();
 });
 </script>
 </body>

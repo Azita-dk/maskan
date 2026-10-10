@@ -21,9 +21,9 @@
     <div><div class="ic" id="i1"></div><b>حریم خصوصی</b>
       <span>هیچ اطلاعاتی از بازدیدکنندگان این سایت جمع‌آوری یا منتشر نمی‌شود.</span></div>
     <div><div class="ic" id="i2"></div><b>به‌روزرسانی منظم</b>
-      <span>آگهی‌های تازه هر چند دقیقه جمع‌آوری و آمار هر شبانه‌روز بازسازی می‌شود.</span></div>
+      <span>آگهی‌های تازه هر چند دقیقه جمع‌آوری و آمار هر چند دقیقه به‌روز می‌شود.</span></div>
     <div><div class="ic" id="i3"></div><b>داده‌های واقعی</b>
-      <span>تحلیل هزاران آگهی واقعی از دیوار، شیپور و کیلید در سراسر کشور.</span></div>
+      <span>تحلیل صدها هزار آگهی واقعی از دیوار در سراسر کشور.</span></div>
     <div><div class="ic" id="i4"></div><b>شفاف و قابل بررسی</b>
       <span>روش محاسبه پایین همین صفحه توضیح داده شده است.</span></div>
   </div>
@@ -32,7 +32,7 @@
     <header><h3>روش کار و منبع داده‌ها</h3></header>
     <div class="method">
       <div><b>داده از کجا می‌آید</b>
-        <p>آگهی‌های عمومی فروش آپارتمان در دیوار، شیپور و کیلید.</p></div>
+        <p>آگهی‌های عمومی فروش آپارتمان، خانه و ویلا، و زمین در دیوار. آگهی‌ای که دیوار حذف کرده یا سه هفته دیده نشده، از آمار امروز کنار گذاشته می‌شود.</p></div>
       <div><b>این چه نوع قیمتی است</b>
         <p>قیمت درخواستی فروشنده است، نه قیمت معامله‌شده. در ایران دفتر عمومی
            معاملات ثبت‌شده وجود ندارد. قیمت نهایی معمولاً پایین‌تر بسته می‌شود.</p></div>
@@ -47,8 +47,9 @@
         <p>هر رقم بر پایه تعداد آگهی‌های پشت آن نشان اعتبار دارد: زیر ۲۰ آگهی
            کم، تا ۱۰۰ متوسط، بالاتر از آن بالا.</p></div>
       <div><b>تاریخچه</b>
-        <p>ثبت تاریخچه از شهریور ۱۴۰۵ آغاز شده است. مقایسه‌های چندساله وقتی
-           در دسترس می‌شود که داده‌اش جمع شده باشد — ساختن آن از هیچ ممکن نیست.</p></div>
+        <p>جمع‌آوری از شهریور ۱۴۰۵ آغاز شده است. نمودارهای ماهانه هر آگهی را در همه
+           ماه‌هایی می‌شمارند که روی دیوار بوده است. مقایسه‌های چندساله وقتی در دسترس
+           می‌شود که داده‌اش جمع شده باشد.</p></div>
     </div>
   </div>
 
@@ -74,25 +75,23 @@ bootPage('about.html', () => {
   document.getElementById('i3').innerHTML = ICONS.data;
   document.getElementById('i4').innerHTML = ICONS.shield;
 
-  const totalAds = DB.cities.reduce((s, c) => s + c.n, 0);
+  const totalAds = DB.cities.reduce((s, c) => s + Object.values(c.byKind || {}).reduce((a, k) => a + (k.n || 0), 0) || c.n || 0, 0);
   const totalHoods = DB.cities.reduce((s, c) => s + (c.hoods || 0), 0);
   // `ours` is keyed by kind, not an array — see the same fix in stats.html
   const ours = CITY.ours || {};
   const series = Array.isArray(ours) ? ours : (ours[S.kind] || ours.apartment || []);
   const hist = series.filter(r => r.v > 0);
-  const days = hist.length > 1
-    ? Math.round((new Date(hist[hist.length-1].d) - new Date(hist[0].d))/864e5) : 0;
 
   document.getElementById('dataStats').innerHTML = [
     ['شهرها', FA(DB.cities.length)],
     ['محله‌ها', FA(totalHoods)],
     ['آگهی‌ها', FA(totalAds)],
-    ['روز تاریخچه', FA(days)],
     ['استان‌ها', FA(new Set(DB.cities.map(c => provinceOf(c.name))).size)],
   ].map(([k,v]) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`).join('');
 
   document.getElementById('dataNote').textContent =
     (DB.generated ? `آخرین بازسازی آمار: ${faDate(DB.generated.slice(0,10))}. ` : '') +
+    'تعداد آگهی‌ها همه نوع‌ها (آپارتمان، خانه و ویلا، زمین) را با هم می‌شمارد. ' +
     'مختصات آگهی‌ها به‌تدریج تکمیل می‌شود، بنابراین تعداد نقطه‌های نقشه هر روز بیشتر می‌شود.';
 });
 </script>

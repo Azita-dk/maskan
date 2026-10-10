@@ -84,7 +84,9 @@ function fillCities(){
 }
 function fillHoods(){
   const sel = document.getElementById('vHood');
-  const rows = ((CITY && CITY.rows) || []).filter(r => r.n >= 10)
+  const kind = document.getElementById('vKind').value || S.kind;
+  const rows = ((CITY && CITY.rows) || [])
+    .filter(r => (r.k || 'apartment') === kind && r.n >= 10)
     .sort((a,b) => byFa(a.hood, b.hood));
   sel.innerHTML = '<option value="">کل شهر</option>' +
     rows.map(r => `<option value="${esc(r.hood)}">${esc(r.hood)}</option>`).join('');
@@ -154,6 +156,7 @@ bootPage('value.html', () => {
   k.value = S.kind;
   k.addEventListener('change', () => {
     S.kind = k.value;
+    fillHoods();
     document.getElementById('vOut').classList.add('hide');
   });
   fillCities();
