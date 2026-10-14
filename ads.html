@@ -182,11 +182,11 @@ function rows(){
     return dir * (x - y);
   };
   if (adsSort === 'new')             r = [...r].sort((a,b) => (b.d||'').localeCompare(a.d||''));
-  else if (adsSort === 'cheap')      r = [...r].sort((a,b) => a.m - b.m);
-  else if (adsSort === 'dear')       r = [...r].sort((a,b) => b.m - a.m);
+  else if (adsSort === 'cheap')      r = [...r].sort((a,b) => (a.m > 0 ? a.m : Infinity) - (b.m > 0 ? b.m : Infinity));
+  else if (adsSort === 'dear')       r = [...r].sort((a,b) => (b.m || 0) - (a.m || 0));
   else if (adsSort === 'cheapTotal') r = [...r].sort(byTotal(1));
   else if (adsSort === 'dearTotal')  r = [...r].sort(byTotal(-1));
-  else                               r = [...r].sort((a,b) => b.m - a.m);
+  else                               r = [...r].sort((a,b) => (b.m || 0) - (a.m || 0));
   return r;
 }
 
@@ -247,7 +247,7 @@ function drawAds(){
       <td data-l="محله">${esc(l.h || '')}</td>
       <td data-l="متراژ">${l.a ? FA(l.a) + ' متر' : '—'}</td>
       <td data-l="قیمت کل">${l.p ? FA1(l.p/1000) + ' میلیارد' : '—'}</td>
-      <td data-l="هر متر">${FA1(l.m)} میلیون</td>
+      <td data-l="هر متر">${l.m > 0 ? FA1(l.m) + ' میلیون' : '—'}</td>
       <td data-l="تاریخ">${l.d ? faShortDate(l.d) : '—'}</td>
       <td data-l="منبع">${esc(SOURCE_NAME[l.s] || l.s || '')}${l.u ? ' ↗' : ''}</td>
     </tr>`).join('');
