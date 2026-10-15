@@ -1,0 +1,13 @@
+{
+  "name": "maskan",
+  "main": "seo.js",
+  "compatibility_date": "2026-09-17",
+  "observability": { "enabled": true },
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "kv_namespaces": [
+    { "binding": "SITE", "id": "435ef92702274deea775331b1dceffb0" }
+  ]
+}
