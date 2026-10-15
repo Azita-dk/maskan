@@ -22,7 +22,6 @@
       <a href="cities.html" data-page="cities.html">همه محله‌ها ↓</a>
     </div>
 
-    <div class="markets" id="markets"></div>
     <div class="kpis" id="kpis"></div>
 
     <div class="panel">
@@ -36,7 +35,8 @@
       </header>
       <div id="hoodGrid"><div class="loading">در حال بارگذاری…</div></div>
       <div class="scalekey"><span>ارزان‌ترین</span><span class="bar"></span>
-        <span>گران‌ترین</span><span>— رنگ هر خانه بر پایه قیمت هر متر مربع است</span></div>
+        <span>گران‌ترین</span><span>— عدد هر خانه میانه قیمت هر متر مربع آن محله است،
+          به میلیون تومان؛ رنگ هم بر پایه همان عدد است</span></div>
       <p class="foot" id="hoodFoot"></p>
     </div>
 
@@ -64,18 +64,6 @@
         نرمالِ هم‌میانگین است تا کجی توزیع دیده شود.</p>
     </div>
 
-    <div class="panel">
-      <header><h3>قیمت بر پایه متراژ و سن بنا</h3></header>
-      <div class="chartbox"><div class="twochart">
-        <div><div class="chartlbl">میانه هر متر مربع بر پایه متراژ</div>
-          <div class="chart short"><canvas id="bySize"></canvas></div></div>
-        <div><div class="chartlbl">میانه هر متر مربع بر پایه سن بنا</div>
-          <div class="chart short"><canvas id="byAge"></canvas></div></div>
-      </div></div>
-      <p class="foot">ستون‌های کم‌رنگ کمتر از ۲۰ آگهی دارند و تعداد آگهی زیر هر
-        ستون نوشته شده است. این نمودار فقط می‌گوید در همین انتخاب قیمت هر متر در
-        هر بازه چقدر بوده است، نه اینکه چرا.</p>
-    </div>
   </section>
 
   <section>
@@ -141,7 +129,7 @@
 <script src="app.js"></script>
 <script>
 let allOpen = false;
-let trendChart = null, distChart = null, sizeChart = null, ageChart = null;
+let trendChart = null, distChart = null;
 let period = 'all';
 
 const LANDMARKS = {
@@ -206,7 +194,7 @@ function drawCityCards(){
       <div class="top">
         <div><h3>${esc(c.name)}</h3>
           <div class="big">${cardMedian(c, filtered)}</div>
-          <div class="unit">میلیون تومان · هر متر مربع${
+          <div class="unit">میانه، میلیون تومان · هر متر مربع${
             filtered ? ' (با فیلترها)' : ''}</div></div>
         ${landmark(c.name)}
       </div>
@@ -279,33 +267,6 @@ function drawProvSummary(){
  * Shown together because the comparison between them is worth seeing, and
  * because a reader should know the other two exist.
  */
-function drawMarkets(){
-  const all = (CITY.listings || []);
-  const box = document.getElementById('markets');
-  box.innerHTML = KINDS.map(k => {
-    const rows = all.filter(l => (l.k || 'apartment') === k.id);
-    const vals = rows.map(l => l.m).filter(v => v > 0);
-    const med = vals.length ? round1(median(vals)) : null;
-    const on = k.id === S.kind;
-    return `<button class="market${on ? ' on' : ''}${med === null ? ' empty' : ''}"
-        data-k="${k.id}"${med === null ? ' disabled' : ''}>
-        <span class="lbl">${k.label}</span>
-        <span class="num">${med === null ? '—' : FA1(med)}</span>
-        <span class="sub">${med === null
-          ? 'هنوز جمع‌آوری نشده'
-          : 'میلیون تومان بر متر · ' + FA(rows.length) + ' آگهی'}</span>
-      </button>`;
-  }).join('');
-
-  box.querySelectorAll('button').forEach(b =>
-    b.addEventListener('click', () => {
-      if (b.disabled || b.dataset.k === S.kind) return;
-      S.kind = b.dataset.k;
-      if (S.kind === 'land') { S.rooms = 'all'; S.age = '999'; }
-      fillKindSelect(); fillHoodSelect(); commit();
-    }));
-}
-
 /**
  * Change over whatever history exists, labelled with the real span.
  *
@@ -337,19 +298,25 @@ function changeKpi(){
   };
 }
 
+/* The headline figures for whatever is being looked at — the whole city,
+   or the neighbourhood that has been picked, with the filters applied. The
+   name is on the row so nobody reads a city figure as a neighbourhood's or
+   the other way round. */
 function drawKpis(){
   const rows = activeListings();
   const vals = rows.map(l => l.m).filter(v => v > 0);
   const med = vals.length ? round1(median(vals)) : null;
-  const areas = new Set(rows.map(l => l.h).filter(Boolean));
   const chg = changeKpi();
+  const scope = S.hood ? S.hood : `کل ${CITY.name}`;
+  const filtered = activeFilterCount() > 0 || !!S.q;
   document.getElementById('kpis').innerHTML = `
-    <div class="kpi"><div class="k">میانه هر متر مربع</div>
+    <div class="kpi"><div class="k">میانه هر متر مربع
+        <span class="scope">${esc(scope)}${filtered ? ' · با فیلتر' : ''}</span></div>
       <div class="v">${med === null ? '—' : FA1(med)}</div>
       <div class="u">میلیون تومان</div></div>
     <div class="kpi"><div class="k">تعداد آگهی</div>
       <div class="v">${FA(rows.length)}</div>
-      <div class="u">در این انتخاب</div></div>
+      <div class="u">در ${esc(scope)}</div></div>
     <div class="kpi"><div class="k">${chg.label}</div>
       <div class="v ${chg.cls}">${chg.text}</div>
       <div class="u">${chg.sub}</div></div>
@@ -429,7 +396,7 @@ function drawHoods(){
     box.innerHTML = `<div class="gcell on" data-hood="${esc(r.hood)}"
       style="background:${color};color:${ink}">
       <div class="grow"><span class="gname">${esc(r.hood)}</span></div>
-      <div class="grow"><span class="gval">${FA1(r.med)}</span>
+      <div class="grow"><span class="gval"><span class="glbl">میانه</span> ${FA1(r.med)}</span>
         <span class="gcount">${FA(r.n)} آگهی</span></div>
     </div>`;
     box.querySelector('[data-hood]').addEventListener('click', () => {
@@ -454,11 +421,10 @@ function drawHoods(){
     const color = heat(r.med, lo, hi);
     const ink = heatIsLight(r.med, lo, hi) ? '#1a1a1a' : '#fff';
     return `<div class="gcell${r.hood === S.hood ? ' on' : ''}" data-hood="${esc(r.hood)}"
-      title="${esc(r.hood)} — ${FA1(r.med)} میلیون/متر — ${FA(r.n)} آگهی — ${confLevel(r.n).label}"
+      title="${esc(r.hood)} — میانه ${FA1(r.med)} میلیون تومان بر متر — ${FA(r.n)} آگهی — ${confLevel(r.n).label}"
       style="background:${color};color:${ink}">
-      <div class="grow"><span class="gname">${esc(r.hood)}</span>
-        <span class="grank">${FA(i + 1)}</span></div>
-      <div class="grow"><span class="gval">${FA1(r.med)}</span>
+      <div class="grow"><span class="gname">${esc(r.hood)}</span></div>
+      <div class="grow"><span class="gval"><span class="glbl">میانه</span> ${FA1(r.med)}</span>
         <span class="gcount">${FA(r.n)} آگهی</span></div>
     </div>`;
   }).join('');
@@ -490,11 +456,11 @@ document.getElementById('hoodTabs').addEventListener('click', e => {
 function historySeries(){
   if (S.hood) {
     const byKind = (CITY.hood_hist || {})[S.kind] || {};
-    return (byKind[S.hood] || []).filter(r => r.v > 0);
+    return (byKind[S.hood] || []).filter(r => r.v > 0 && r.d >= HISTORY_START);
   }
   const ours = CITY.ours || {};
   const series = Array.isArray(ours) ? ours : (ours[S.kind] || []);
-  return series.filter(r => r.v > 0);
+  return series.filter(r => r.v > 0 && r.d >= HISTORY_START);
 }
 function historyDays(h){
   if (h.length < 2) return 0;
@@ -642,55 +608,6 @@ function drawDist(){
     ['کمترین', q(.02)], ['چارک اول', q(.25)], ['میانه', med],
     ['چارک سوم', q(.75)], ['بیشترین', q(.98)],
   ].map(([k, v]) => `<div><div class="k">${k}</div><div class="v">${FA1(round1(v))}</div></div>`).join('');
-}
-
-function drawBreakdown(){
-  const SIZE = [
-    { label:'زیر ۵۰', t:a => a < 50 }, { label:'۵۰ تا ۷۵', t:a => a>=50&&a<75 },
-    { label:'۷۵ تا ۱۰۰', t:a => a>=75&&a<100 }, { label:'۱۰۰ تا ۱۵۰', t:a => a>=100&&a<150 },
-    { label:'۱۵۰ تا ۲۰۰', t:a => a>=150&&a<200 }, { label:'بالای ۲۰۰', t:a => a>=200 } ];
-  const AGE = [
-    { label:'نوساز', t:g => g <= 1 }, { label:'۲ تا ۵', t:g => g>1&&g<=5 },
-    { label:'۶ تا ۱۰', t:g => g>5&&g<=10 }, { label:'۱۱ تا ۲۰', t:g => g>10&&g<=20 },
-    { label:'بالای ۲۰', t:g => g>20 } ];
-
-  const bucket = (rows, bands, pick) => bands.map(b => {
-    const v = rows.filter(l => pick(l) != null && b.t(pick(l))).map(l => l.m).filter(x => x>0);
-    return { label:b.label, n:v.length, med: v.length ? round1(median(v)) : null };
-  }).filter(x => x.n > 0);
-
-  const sizes = bucket(activeListings('area'), SIZE, l => l.a);
-  const ages  = bucket(activeListings('age'),  AGE,  l => l.g);
-
-  const paint = (id, rows, prev) => {
-    prev && prev.destroy();
-    if (!rows.length) return null;
-    const meds = rows.map(r => r.med);
-    const lo = Math.min(...meds), hi = Math.max(...meds);
-    return new Chart(document.getElementById(id), {
-      type:'bar',
-      // the sample size goes on the axis, not only in the tooltip: a band of
-      // six listings and one of six hundred otherwise look identical
-      data:{ labels: rows.map(r => [r.label, FA(r.n) + ' آگهی']),
-        datasets:[{ data:meds, borderWidth:0, barPercentage:.78,
-          backgroundColor: rows.map(r =>
-            r.n < 20 ? CSSVAR('--rule') : heat(r.med, lo, hi)) }] },
-      options:{ maintainAspectRatio:false,
-        plugins:{ legend:{display:false},
-          tooltip:{ rtl:true, displayColors:false,
-            bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
-            callbacks:{ label: c => FA1(meds[c.dataIndex]) + ' م/متر — ' +
-                                    FA(rows[c.dataIndex].n) + ' آگهی' } } },
-        scales:{ x:{ grid:{display:false},
-                     ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
-                            maxRotation:0} },
-                 y:{ position:'right', grid:{color:CSSVAR('--rule')},
-                     ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
-                            callback:v=>FA(v)} } } }
-    });
-  };
-  sizeChart = paint('bySize', sizes, sizeChart);
-  ageChart  = paint('byAge',  ages,  ageChart);
 }
 
 const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };
@@ -940,7 +857,6 @@ bootPage('index.html', () => {
     + ` — ${kindLabel()}`;
   document.getElementById('hoodTitle').textContent =
     `محله‌های ${CITY.name} — ${kindLabel()}`;
-  drawMarkets();
   drawKpis();
   drawHoods();
   document.getElementById('statsHead').textContent =
@@ -948,7 +864,6 @@ bootPage('index.html', () => {
   drawTrendTabs();
   drawTrend();
   drawDist();
-  drawBreakdown();
   document.getElementById('adsHead').textContent =
     `آگهی‌های ${kindLabel()} در ${S.hood || CITY.name}`;
   shown = 24;

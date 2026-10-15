@@ -13,6 +13,14 @@ const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
    which is exactly what it did on 7 September. */
 const APP_VERSION = '2026-09-07 12:30';
 
+/* The price history starts here.
+   Before mid-September the data came from a much smaller sample — one search
+   per city, capped at Divar's 215-page ceiling, before price bands reached
+   the rest of each market. The medians from that period measure a different
+   slice of the market, and the step up in the line around 10 Shahrivar is
+   the collection changing, not prices. Move this date to show more or less. */
+const HISTORY_START = '2026-09-15';
+
 /* ------------------------------------------------------------- numbers */
 const FA_DIGITS = t => String(t).replace(/[0-9]/g, d => '۰۱۲۳۴۵۶۷۸۹'[+d]);
 const FA  = n => Number(n).toLocaleString('fa-IR').replace(/,/g, '\u066C');
@@ -67,6 +75,13 @@ function faMonth(iso){
 }
 
 const PROVINCE = {
+ // from the National Cartographic Center gazetteer; these five were missing
+ // and each showed up in the province list as a province of its own
+ "قرچک": "تهران",
+ "رودهن": "تهران",
+ "شهرجدیدهشتگرد": "البرز",
+ "چهارباغ": "البرز",
+ "آسارا": "البرز",
  "کرج": "البرز",
  "فردیس": "البرز",
  "نظرآباد": "البرز",
@@ -353,10 +368,15 @@ const KINDS = [
   { id:'land',      label:'زمین و کلنگی' },
 ];
 
-const DEFAULTS = { kind:'apartment', prov:'', city:'', hood:'', min:'0', max:'9999',
-                   rooms:'all', age:'999', date:'0', sample:'20', q:'', feat:'' };
+const DEFAULTS = { kind:'apartment', prov:'', city:'', hood:'', min:'', max:'',
+                   pmin:'', pmax:'', mmin:'', mmax:'',
+                   rooms:'all', age:'999', agelo:'', agehi:'', date:'0', sample:'20',
+                   q:'', feat:'' };
 
-const S = { ...DEFAULTS };          // current filter state
+const S = { ...DEFAULTS };
+
+// every filter control and the state key it drives
+const FILTER_INPUTS = [['fMin','min'],['fMax','max'],['fPmin','pmin'],['fPmax','pmax'],['fMmin','mmin'],['fMmax','mmax'],['fRooms','rooms'],['fAge','age']];          // current filter state
 let DB = null, CITY = null;
 
 function readState(){
@@ -389,6 +409,12 @@ const featureSet = () => new Set(S.feat ? S.feat.split(',').filter(Boolean) : []
 
 /* ------------------------------------------------------------ filtering */
 function ageOk(l, age){
+  // a range picked by clicking a bar in the age chart
+  if (S.agelo !== '' && S.agelo != null) {
+    if (l.g == null) return false;
+    const lo = +S.agelo, hi = S.agehi === '' ? Infinity : +S.agehi;
+    return l.g >= lo && l.g <= hi;
+  }
   if (age === 999) return true;
   if (l.g == null) return false;
   if (age === 0) return l.g <= 1;
@@ -402,12 +428,29 @@ function ageOk(l, age){
  * `except` leaves a single control out, so a chart can show the choice the
  * reader made in the context of what they narrowed away from.
  */
+/* A typed limit, or no limit. Persian digits are accepted, since that is
+   what a phone keyboard set to Persian produces. */
+const num = (v, none) => {
+  if (v === '' || v == null) return none;
+  const n = Number(String(v).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+                            .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+                            .replace(/[,،٬\s]/g, '').replace('٫', '.'));
+  return isFinite(n) ? n : none;
+};
+
 function passes(l, except){
-  const minA = +S.min, maxA = +S.max, age = +S.age, days = +S.date;
+  const minA = num(S.min, 0), maxA = num(S.max, Infinity);
+  // total price is stored in million toman and typed in billion
+  const minP = num(S.pmin, 0) * 1000, maxP = num(S.pmax, Infinity) * 1000;
+  const minM = num(S.mmin, 0), maxM = num(S.mmax, Infinity);
+  const age = +S.age, days = +S.date;
   const feats = featureSet();
   const cutoff = days
     ? new Date(Date.now() - days*864e5).toISOString().slice(0,10) : null;
   return (except === 'area' || (l.a >= minA && l.a <= maxA))
+    && (except === 'price' || (!(l.p > 0) && !S.pmin && !S.pmax)
+        || (l.p >= minP && l.p <= maxP))
+    && (except === 'm2'    || (l.m >= minM && l.m <= maxM))
     && (except === 'rooms' || S.rooms === 'all' || String(l.r) === S.rooms)
     && (except === 'age'   || ageOk(l, age))
     && (!cutoff || (l.d && l.d >= cutoff))
@@ -437,10 +480,11 @@ function activeFilterCount(){
   let n = 0;
   if (S.prov !== DEFAULTS.prov) n++;   // kind is deliberately not counted:
                                        // it always has a value
-  if (S.min !== DEFAULTS.min) n++;
-  if (S.max !== DEFAULTS.max) n++;
+  if (S.min !== DEFAULTS.min || S.max !== DEFAULTS.max) n++;
+  if (S.pmin !== DEFAULTS.pmin || S.pmax !== DEFAULTS.pmax) n++;
+  if (S.mmin !== DEFAULTS.mmin || S.mmax !== DEFAULTS.mmax) n++;
   if (S.rooms !== DEFAULTS.rooms) n++;
-  if (S.age !== DEFAULTS.age) n++;
+  if (S.age !== DEFAULTS.age || S.agelo !== DEFAULTS.agelo) n++;
   if (S.date !== DEFAULTS.date) n++;
   return n + featureSet().size;
 }
@@ -585,6 +629,7 @@ function renderSearchBar(host){
   host.innerHTML = `
     <div class="searchbar">
       <div class="kindtabs" id="kindTabs"></div>
+      <p class="note hide" id="kindNote"></p>
 
       <div class="search">
         <span class="go">${ICONS.search}</span>
@@ -600,14 +645,6 @@ function renderSearchBar(host){
         <label><span>استان</span><select id="fProv"></select></label>
         <label><span>شهر</span><select id="fCity"></select></label>
         <label><span>محله</span><select id="fHood"></select></label>
-        <label><span>حداقل متراژ</span><select id="fMin">
-          <option value="0">بدون حد</option><option value="50">۵۰ متر</option>
-          <option value="70">۷۰ متر</option><option value="90">۹۰ متر</option>
-          <option value="120">۱۲۰ متر</option></select></label>
-        <label><span>حداکثر متراژ</span><select id="fMax">
-          <option value="70">۷۰ متر</option><option value="90">۹۰ متر</option>
-          <option value="120">۱۲۰ متر</option><option value="150">۱۵۰ متر</option>
-          <option value="9999">بدون حد</option></select></label>
         <label><span>اتاق خواب</span><select id="fRooms">
           <option value="all">همه</option><option value="1">۱ خوابه</option>
           <option value="2">۲ خوابه</option><option value="3">۳ خوابه</option>
@@ -617,6 +654,21 @@ function renderSearchBar(host){
           <option value="5">تا ۵ سال</option><option value="10">تا ۱۰ سال</option>
           <option value="20">تا ۲۰ سال</option><option value="21">بالای ۲۰ سال</option>
           </select></label>
+        <div class="range"><span>متراژ <small>(متر)</small></span>
+          <div class="pair">
+            <input id="fMin" type="text" inputmode="numeric" placeholder="از">
+            <input id="fMax" type="text" inputmode="numeric" placeholder="تا">
+          </div></div>
+        <div class="range"><span>قیمت کل <small>(میلیارد تومان)</small></span>
+          <div class="pair">
+            <input id="fPmin" type="text" inputmode="decimal" placeholder="از">
+            <input id="fPmax" type="text" inputmode="decimal" placeholder="تا">
+          </div></div>
+        <div class="range"><span>قیمت هر متر <small>(میلیون تومان)</small></span>
+          <div class="pair">
+            <input id="fMmin" type="text" inputmode="decimal" placeholder="از">
+            <input id="fMmax" type="text" inputmode="decimal" placeholder="تا">
+          </div></div>
       </div>
 
       <div class="chips" id="chips"></div>
@@ -631,8 +683,10 @@ function renderSearchBar(host){
   fillProvSelect();
   fillCitySelect();
   fillHoodSelect();
-  for (const [id, key] of [['fMin','min'],['fMax','max'],['fRooms','rooms'],['fAge','age']])
-    document.getElementById(id).value = S[key];
+  for (const [id, key] of FILTER_INPUTS) {
+    const el = document.getElementById(id);
+    if (el) el.value = S[key];
+  }
 
   document.getElementById('fProv').addEventListener('change', async e => {
     S.prov = e.target.value;
@@ -667,10 +721,24 @@ function renderSearchBar(host){
   document.getElementById('fHood').addEventListener('change', e => {
     S.hood = e.target.value; commit();
   });
-  for (const [id, key] of [['fMin','min'],['fMax','max'],['fRooms','rooms'],['fAge','age']])
-    document.getElementById(id).addEventListener('change', e => {
-      S[key] = e.target.value; commit();
-    });
+  /* The typed boxes apply as you type, after a short pause, so a number is
+     not applied one digit at a time; the dropdowns apply on change. */
+  for (const [id, key] of FILTER_INPUTS) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    if (el.tagName === 'SELECT') {
+      el.addEventListener('change', e => { S[key] = e.target.value; commit(); });
+    } else {
+      let t = null;
+      el.addEventListener('input', e => {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          if (S[key] === e.target.value.trim()) return;
+          S[key] = e.target.value.trim(); commit();
+        }, 450);
+      });
+    }
+  }
 
   document.getElementById('filterBtn').addEventListener('click', () =>
     document.getElementById('filters').classList.toggle('open'));
@@ -702,6 +770,9 @@ function fillCitySelect(){
      figure, so with زمین و کلنگی selected Tabriz read "4,525 آگهی" beside a
      page showing its 1,233 plots. Cities with none of this market are left
      out rather than listed as empty. */
+  const kn = document.getElementById('kindNote');
+  if (kn && (((DB.cities.find(c => c.id === S.city) || {}).byKind
+              || {})[S.kind] || {}).n) kn.classList.add('hide');
   const countOf = (c) => ((c.byKind || {})[S.kind] || {}).n
                          ?? (S.kind === 'apartment' ? c.n : 0);
   const groups = {};
@@ -757,24 +828,37 @@ function fillKindSelect(){
         if (el) el.value = S[key];
       }
 
-      /* Go where the market exists.
-         Each market is collected city by city, so زمین و کلنگی can have
-         hundreds of listings nationally and none in the city being viewed.
-         Choosing the tab then emptied the page while its own figure said
-         919. Move to the city that has the most of it instead, and say so. */
-      const hasHere = (((DB.cities.find(c => c.id === S.city) || {}).byKind
-                        || {})[S.kind] || {}).n || 0;
-      if (!hasHere) {
-        const best = DB.cities
-          .filter(c => ((c.byKind || {})[S.kind] || {}).n > 0)
-          .sort((x, y) => (y.byKind[S.kind].n || 0) - (x.byKind[S.kind].n || 0))[0];
-        if (best) {
-          S.city = best.id; S.hood = ''; S.prov = '';
-          await loadCity(S.city);
-          fillProvSelect(); fillCitySelect();
+      /* Stay where the reader is.
+         This used to jump to whichever city had most of the chosen market —
+         click زمین و کلنگی in تهران and land in قم. Being moved to another
+         city for pressing a tab is disorienting, and the empty tab is honest:
+         that market has not been collected here yet. Say so instead. */
+      const here = DB.cities.find(c => c.id === S.city);
+      const hasHere = (((here || {}).byKind || {})[S.kind] || {}).n || 0;
+      const note = document.getElementById('kindNote');
+      if (note) {
+        if (hasHere) note.classList.add('hide');
+        else {
+          const best = DB.cities
+            .filter(c => ((c.byKind || {})[S.kind] || {}).n > 0)
+            .sort((x, y) => y.byKind[S.kind].n - x.byKind[S.kind].n)[0];
+          note.innerHTML = `${esc(kindLabel())} هنوز در ${esc((here || {}).name || '')}` +
+            ` جمع‌آوری نشده است.` +
+            (best ? ` <button class="reset" id="goBest">دیدن در ${esc(best.name)}` +
+                    ` (${FA(best.byKind[S.kind].n)} آگهی)</button>` : '');
+          note.classList.remove('hide');
+          const go = document.getElementById('goBest');
+          if (go) go.addEventListener('click', async () => {
+            S.city = best.id; S.hood = ''; S.prov = '';
+            await loadCity(S.city);
+            fillProvSelect(); fillCitySelect(); fillHoodSelect(); commit();
+          });
         }
       }
-      fillKindSelect(); fillHoodSelect(); commit();
+
+      // the city list counts the market being viewed, so it has to be
+      // redrawn when the market changes — not only when the city does
+      fillCitySelect(); fillKindSelect(); fillHoodSelect(); commit();
     }));
 
   const land = S.kind === 'land';
@@ -953,8 +1037,10 @@ function drawSummary(){
     const city = S.city;
     Object.assign(S, DEFAULTS, { city });
     const q = document.getElementById('q'); if (q) q.value = '';
-    for (const [id, key] of [['fMin','min'],['fMax','max'],['fRooms','rooms'],['fAge','age']])
-      document.getElementById(id).value = S[key];
+    for (const [id, key] of FILTER_INPUTS) {
+      const el = document.getElementById(id);
+      if (el) el.value = S[key];
+    }
     fillProvSelect(); fillCitySelect(); fillHoodSelect();
     commit();
   });
@@ -1023,7 +1109,15 @@ async function bootPage(currentFile, render){
       '<div class="loading">داده‌ها بارگذاری نشد. اتصال را بررسی کنید و صفحه را دوباره باز کنید.</div>';
     return;
   }
-  if (!S.city || !DB.cities.some(c => c.id === S.city)) S.city = DB.cities[0].id;
+  /* Tehran by default, not whichever city happens to be first in the file.
+     The order there follows how the build worker grouped its work, so a
+     first visit could land in قم. Tehran is the market most people arrive
+     looking for; the largest city is the fallback if it is ever absent. */
+  if (!S.city || !DB.cities.some(c => c.id === S.city)) {
+    const tehran = DB.cities.find(c => c.name === 'تهران');
+    S.city = (tehran || [...DB.cities].sort((a, b) => (b.n || 0) - (a.n || 0))[0]
+              || DB.cities[0]).id;
+  }
   try { await loadCity(S.city); } catch (e) {}
 
   const host = document.getElementById('searchHost');

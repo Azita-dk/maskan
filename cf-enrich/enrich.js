@@ -39,10 +39,41 @@ const PER_RUN_DEFAULT = 15;  // CPU-bound on the free plan, not subrequest-bound
 const PAUSE_MS = 250;
 const LAT = [24, 40.5];      // Iran's bounding box
 const LNG = [43, 64];
-const LISTING_LIFETIME_DAYS = 28;
 const WRAP_EVERY_MS = 6 * 3600000;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function jalaliYearNow() {
+  const d = new Date();
+  let gy = d.getUTCFullYear();
+  const gm = d.getUTCMonth() + 1, gd = d.getUTCDate();
+  const g_d_m = [0,31,59,90,120,151,181,212,243,273,304,334];
+  let jy = gy <= 1600 ? 0 : 979;
+  gy -= gy <= 1600 ? 621 : 1600;
+  const gy2 = gm > 2 ? gy + 1 : gy;
+  let days = 365 * gy + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100)
+           + Math.floor((gy2 + 399) / 400) - 80 + gd + g_d_m[gm - 1];
+  jy += 33 * Math.floor(days / 12053);
+  days %= 12053;
+  jy += 4 * Math.floor(days / 1461);
+  days %= 1461;
+  if (days > 365) jy += Math.floor((days - 1) / 365);
+  return jy;
+}
+
+function areaForKind(pairs, kind, generic) {
+  if (kind !== "villa" && kind !== "land") return generic;
+  let building = null, land = null;
+  for (const label in pairs) {
+    const v = toInt(pairs[label]);
+    if (v == null) continue;
+    if (/زمین|عرصه/.test(label)) { if (land == null) land = v; }
+    else if (/زیربنا|متراژ|مساحت|بنا/.test(label)) { if (building == null) building = v; }
+  }
+  const a = kind === "land" ? (land ?? building) : building;
+  const max = kind === "land" ? 100000 : 20000;
+  return a != null && a >= 15 && a <= max ? a : null;
+}
 
 function toInt(v) {
   if (v == null) return null;
@@ -71,7 +102,9 @@ const LABELS = {
 };
 const LABEL_KEYS = Object.keys(LABELS);
 
-const AGE_RE = /(?:(\d+)\s*)?(لحظاتی|دقیقه|ساعت|روز|هفته|ماه)\s*پیش/;
+// Persian and Arabic digits too: \d alone missed the count in "۳ هفته پیش",
+// which then read as one week
+const AGE_RE = /(?:([\d۰-۹٠-٩]+)\s*)?(لحظاتی|دقیقه|ساعت|روز|هفته|ماه)\s*پیش/;
 const ADDR_RE = /پیش\s+در\s+(.{3,80})$/;
 const AGE_DAYS = { "لحظاتی": 0, "دقیقه": 0, "ساعت": 0,
                    "روز": 1, "هفته": 7, "ماه": 30 };
@@ -220,7 +253,7 @@ function extract(blob) {
   let year = toInt(out.year);
   if (year != null && (year < 1250 || year > 1500)) year = null;   // a floor number
   let area = toInt(out.area);
-  if (area != null && (area < 15 || area > 2000)) area = null;
+  if (area != null && (area < 15 || area > 20000)) area = null;
   let rooms = toInt(out.rooms);
   if (out.rooms && String(out.rooms).indexOf("بدون") !== -1) rooms = 0;
   if (rooms != null && rooms > 10) rooms = null;
@@ -231,12 +264,13 @@ function extract(blob) {
   // Two independent signals. The expiry timestamp is precise; the relative
   // text is coarse but always present, so it is the fallback.
   let posted = null;
-  if (expires) {
-    const exp = new Date(expires.split(".")[0] + "Z");
-    if (!isNaN(exp)) posted = new Date(exp.getTime() -
-      LISTING_LIFETIME_DAYS * 864e5).toISOString().slice(0, 10);
-  }
-  if (posted === null && rawText) {
+  /* Divar's own words first: "۲ روز پیش", "هفته پیش". It is what the site
+     shows and it cannot land in the future.
+     The expiry was being used first, with the posting date taken as 28 days
+     before it — but Divar's expiry is not always 28 days out, so listings
+     came out dated ۸ مهر when the day was ۲ مهر. It stays as the fallback,
+     for listings whose age text is missing. */
+  if (rawText) {
     const m = rawText.match(AGE_RE);
     if (m) {
       const n = toInt(m[1]) ?? (m[2] === "لحظاتی" ? 0 : 1);
@@ -244,6 +278,13 @@ function extract(blob) {
         .toISOString().slice(0, 10);
     }
   }
+  /* No guess from the expiry date. A Divar advert stays up until its seller
+     removes it, so there is no lifetime to subtract — the old calculation
+     put listings in the future. Without the age text the posting date is
+     simply unknown, and unknown is recorded as unknown. */
+  // whatever the source, a listing cannot have been posted after today
+  const todayIso = new Date().toISOString().slice(0, 10);
+  if (posted && posted > todayIso) posted = todayIso;
 
   return { lat, lng, posted, address,
     f: { area, rooms, year, floor: out.floor,
@@ -293,6 +334,12 @@ export async function enrichChunk(env) {
   const today = new Date().toISOString().slice(0, 10);
   const PER_RUN = Number(env.PER_RUN) || PER_RUN_DEFAULT;
   const hoodCache = new Map();   // city -> known neighbourhoods, for this run
+  let hasFirstPosted = false, hasRemoved = false;
+  try {
+    const cols = await db.prepare("PRAGMA table_info(listings)").all();
+    hasFirstPosted = cols.results.some((c) => c.name === "first_posted_at");
+    hasRemoved = cols.results.some((c) => c.name === "removed_at");
+  } catch (e) { /* run without it */ }
 
   const SHARDS = Math.max(1, Math.trunc(Number(env.SHARDS)) || 1);
   const SHARD = Math.min(SHARDS - 1, Math.max(0, Math.trunc(Number(env.SHARD)) || 0));
@@ -338,7 +385,8 @@ export async function enrichChunk(env) {
   let results = [];
   if (watermark > cursor) {
     ({ results } = await db.prepare(`
-      SELECT rowid AS rid, source_id, title, raw_text, city
+      SELECT rowid AS rid, source_id, title, raw_text, city,
+             COALESCE(kind,'apartment') AS kind
       FROM listings
       WHERE rowid > ? AND enriched_at IS NULL AND COALESCE(enrich_tries, 0) < 3
         ${shardSql}
@@ -354,7 +402,8 @@ export async function enrichChunk(env) {
     lastWrap = Date.now();
     cursor = 0;
     ({ results } = await db.prepare(`
-      SELECT rowid AS rid, source_id, title, raw_text, city
+      SELECT rowid AS rid, source_id, title, raw_text, city,
+             COALESCE(kind,'apartment') AS kind
       FROM listings
       WHERE enriched_at IS NULL AND COALESCE(enrich_tries, 0) < 3
         ${shardSql}
@@ -385,7 +434,8 @@ export async function enrichChunk(env) {
    * in turn, so Mashhad's week-old rows are reached on the same pass as
    * yesterday's. There is no back of the queue to be stuck at.
    */
-  let coords = 0, dated = 0, failed = 0;
+  let coords = 0, dated = 0, failed = 0, removed = 0;
+  const jyNow = jalaliYearNow();
 
   /* Divar refuses roughly a quarter of detail requests — rate limiting, or a
    * listing pulled between the scrape and now. A refusal used to leave the
@@ -407,12 +457,23 @@ export async function enrichChunk(env) {
       if (res.status === 404 || res.status === 410) {
         // the listing is gone; mark it so it is not retried forever
         stmts.push(db.prepare(
-          "UPDATE listings SET enriched_at=? WHERE source='divar' AND source_id=?")
-          .bind(today, row.source_id));
+          `UPDATE listings SET enriched_at=?${hasRemoved ? ", removed_at=COALESCE(removed_at, ?)" : ""}
+           WHERE source='divar' AND source_id=?`)
+          .bind(today, ...(hasRemoved ? [today] : []), row.source_id));
+        removed++;
         continue;
       }
       if (!res.ok) { failed++; giveUp.push(row.source_id); continue; }
-      blob = await res.json();
+      const bodyText = await res.text();
+      if (REMOVED_RE.test(bodyText)) {
+        stmts.push(db.prepare(
+          `UPDATE listings SET enriched_at=?${hasRemoved ? ", removed_at=COALESCE(removed_at, ?)" : ""}
+           WHERE source='divar' AND source_id=?`)
+          .bind(today, ...(hasRemoved ? [today] : []), row.source_id));
+        removed++;
+        continue;
+      }
+      blob = JSON.parse(bodyText);
     } catch (e) {
       failed++;
       giveUp.push(row.source_id);
@@ -420,6 +481,7 @@ export async function enrichChunk(env) {
     }
 
     const { lat, lng, posted, address, f } = extract(blob);
+    const area = areaForKind(f.pairs, row.kind, f.area);
     if (lat) coords++;
     if (posted) dated++;
 
@@ -445,14 +507,15 @@ export async function enrichChunk(env) {
                         THEN CAST(price_toman / ? AS INTEGER) ELSE price_m2 END,
         rooms = COALESCE(?, rooms),
         age_years = COALESCE(?, age_years),
-        posted_at = COALESCE(?, posted_at),
+        posted_at = COALESCE(posted_at, ?),${hasFirstPosted
+          ? "\n        first_posted_at = COALESCE(first_posted_at, posted_at, ?)," : ""}
         address = COALESCE(?, address),
         features = ?,
         enriched_at = ?
       WHERE source = 'divar' AND source_id = ?`)
-      .bind(derivedHood, lat, lng, f.area, f.area, f.area, f.rooms,
-            f.year ? Math.max(0, 1405 - f.year) : null,
-            posted, address ? address.slice(0, 80) : null,
+      .bind(derivedHood, lat, lng, area, area, area, f.rooms,
+            f.year ? Math.max(0, jyNow - f.year) : null,
+            posted, ...(hasFirstPosted ? [posted] : []), address ? address.slice(0, 80) : null,
             feats.join(",") || null, today, row.source_id));
 
     await sleep(PAUSE_MS);
@@ -500,12 +563,71 @@ export async function enrichChunk(env) {
   return {
     log: [`${results.length} fetched from rowid ${cursor} ` +
           `· ${coords} with coordinates · ` +
-          `${dated} with a date · ${failed} failed` +
+          `${dated} with a date · ${removed} removed from Divar · ${failed} failed` +
           (remaining === null ? "" : ` · ${remaining} still to do`)],
-    done: results.length, coords, failed, remaining,
+    done: results.length, coords, removed, failed, remaining,
   };
 }
 
+
+const RECHECK_DEFAULT = 120;
+const REMOVED_RE = /آگهی\s*(?:حذف\s*شده|منقضی\s*شده|غیرفعال|دیگر\s*در\s*دسترس\s*نیست)|این\s*آگهی\s*(?:حذف|منقضی)/;
+
+export async function recheckChunk(env) {
+  const db = env.DB;
+  const N = Number(env.RECHECK_PER_RUN) || RECHECK_DEFAULT;
+  const today = new Date().toISOString().slice(0, 10);
+  let hasRemoved = false;
+  try {
+    const cols = await db.prepare("PRAGMA table_info(listings)").all();
+    hasRemoved = cols.results.some((c) => c.name === "removed_at");
+  } catch (e) { /* no column, nothing to do */ }
+  if (!hasRemoved) return { log: ["recheck skipped: run the removed_at SQL first"] };
+
+  let cursor = 0;
+  try {
+    const c = await env.SITE?.get("recheck:cursor", { type: "json" });
+    if (c && Number.isFinite(c.rowid)) cursor = c.rowid;
+  } catch (e) { /* start over */ }
+
+  const { results } = await db.prepare(`
+    SELECT rowid AS rid, source_id FROM listings
+    WHERE rowid > ? AND source = 'divar' AND removed_at IS NULL
+      AND enriched_at IS NOT NULL
+      AND COALESCE(last_seen, scraped_at) >= date('now', '-21 days')
+    ORDER BY rowid LIMIT ?`).bind(cursor, N).all();
+
+  const gone = [];
+  let ok = 0, failed = 0;
+  for (const r of results) {
+    try {
+      const res = await fetch(DETAIL + r.source_id, { headers: HEADERS });
+      if (res.status === 404 || res.status === 410) { gone.push(r.source_id); continue; }
+      if (!res.ok) { failed++; continue; }
+      const text = await res.text();
+      if (REMOVED_RE.test(text)) gone.push(r.source_id); else ok++;
+    } catch (e) { failed++; }
+    await sleep(PAUSE_MS);
+  }
+
+  if (results.length >= 20 && gone.length > results.length * 0.6) {
+    return { log: [`recheck: ${gone.length} of ${results.length} looked removed — too many to be real, ` +
+                   'nothing written. Divar may have changed its page; check /raw?token=…'],
+             checked: results.length, removed: 0 };
+  }
+  if (gone.length) {
+    await db.batch(gone.map((id) => db.prepare(
+      "UPDATE listings SET removed_at = COALESCE(removed_at, ?) WHERE source='divar' AND source_id=?")
+      .bind(today, id)));
+  }
+  const next = results.length < N ? 0 : results[results.length - 1].rid;
+  try { await env.SITE?.put("recheck:cursor", JSON.stringify({ rowid: next })); } catch (e) { /* retry */ }
+
+  return { log: [`recheck: ${results.length} checked from rowid ${cursor} · ` +
+                 `${gone.length} removed from Divar · ${ok} still up · ${failed} failed` +
+                 (next === 0 ? " · pass complete, starting again" : "")],
+           checked: results.length, removed: gone.length };
+}
 
 /* Counting rows costs one read per row, so a status page that scans the whole
    listings table costs about 113,000 reads every time it is opened. Checking
@@ -545,6 +667,8 @@ export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(enrichChunk(env)
       .then((r) => console.log(r.log.join("\n")))
+      .then(() => recheckChunk(env))
+      .then((r) => console.log(r.log.join("\n")))
       .catch((e) => {
         if (isLimitError(e)) {
           console.log("daily limit reached; skipping until it resets at midnight UTC");
@@ -557,6 +681,26 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/run") return json(await enrichChunk(env));
+    if (url.pathname === "/recheck") return json(await recheckChunk(env));
+    if (url.pathname === "/raw") {
+      const token = (url.searchParams.get("token") || "").trim();
+      if (!/^[A-Za-z0-9_-]{4,20}$/.test(token)) return json({ error: "add ?token=CODE" });
+      const res = await fetch(DETAIL + token, { headers: HEADERS });
+      const text = await res.text();
+      const dates = [];
+      const walk = (node, path) => {
+        if (node && typeof node === "object") {
+          for (const k in node) walk(node[k], path ? `${path}.${k}` : k);
+        } else if (/date|time|created|updated|publish|sort|expire|unavailable/i.test(path)
+                   || (typeof node === "string" && AGE_RE.test(node) && node.length < 120)) {
+          dates.push({ path, value: node });
+        }
+      };
+      try { walk(JSON.parse(text), ""); } catch (e) {}
+      return new Response(JSON.stringify({ status: res.status, date_like_fields: dates,
+        raw: text.slice(0, 60000) }, null, 2),
+        { headers: { "content-type": "application/json; charset=utf-8" } });
+    }
     if (url.pathname === "/status") {
       const fresh = url.searchParams.get("fresh") === "1";
       const out = await cachedStatus(env, "status:enrich", async () => {
@@ -575,7 +719,7 @@ export default {
       }, 600000, fresh);
       return json(out);
     }
-    return json({ routes: ["/run — enrich one chunk now", "/status"] });
+    return json({ routes: ["/run — enrich one chunk now", "/status", "/raw?token=CODE"] });
   },
 };
 

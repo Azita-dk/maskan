@@ -16,19 +16,11 @@
  */
 
 const MIN_SAMPLE = 20;            // below this a neighbourhood median is noise
-const MIN_CITY_LISTINGS = 30;     // below this a "city" is a rounding error
+const MIN_CITY_LISTINGS = 1;
 const HISTORY_DAYS = 180;         // how much per-neighbourhood history to ship
 const MAD_CUTOFF = 3.5;
-
-/* The sanity band, as a multiple of the city's own median for that kind.
- *
- * It exists to drop values that cannot be a price — a rial figure entered as
- * toman, an area field of 1 m² — not to decide what is expensive. At 4x it
- * was doing the second thing: a 900 m² new-build in زعفرانیه at 1,800
- * million/m² is 7.5x Tehran's median and entirely real, and the site was
- * discarding it along with every other top-end listing. Tehran's upper tail
- * is wide and genuine, so the band has to be wide enough to hold it. */
-const CITY_BAND = [0.05, 40];
+const CITY_BAND = [0.25, 12.0];
+const HOOD_MIN_FOR_BAND = 20;    // relative to the city's own median
 
 
 /* Listings written into each city file, per kind. 12,000 x 3 kinds is about
@@ -39,8 +31,10 @@ const PER_KIND_CAP = 12000;
 /* How far back the history is recomputed. Listings that expired before the
    scraper first ran are not in the database, so days beyond this rest on too
    few of them to mean anything. */
-const BACKFILL_DAYS = 30;
+const BACKFILL_DAYS = 0;
 const BACKFILL_PER_RUN = 2;
+
+const ACTIVE_DAYS = 21;
 
 /**
  * A matching key for place names — never for display.
@@ -181,6 +175,69 @@ function monthLabels(n, jy, jm) {
  */
 const SLICE_DEFAULT = 8;
 
+
+const ADDR_HOOD_MIN = 5;
+const ADDR_STREET = ["خیابان", "خ ", "کوچه", "بلوار", "بزرگراه", "اتوبان", "میدان", "جاده",
+                     "نبش", "بین ", "پلاک", "فاز ", "متری", "کیلومتر", "روبروی", "جنب"];
+function hoodFromAddress(address, city) {
+  if (!address) return null;
+  const parts = String(address).split(/[،,]/).map((x) => x.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  const start = parts[0] === city ? 1 : 0;
+  const cand = parts[start];
+  if (!cand || cand === city || cand.length < 2 || cand.length > 40) return null;
+  if (/^[\d۰-۹٠-٩]/.test(cand)) return null;
+  if (ADDR_STREET.some((w) => cand.startsWith(w))) return null;
+  return cand;
+}
+const MONTHS_BACK = 12;
+
+function jKey(iso) {
+  const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const [a, b] = gregorianToJalali(y, m, d);
+  return a * 12 + b - 1;
+}
+
+/* Each advert counts once in every month it was on the market: from the
+   month of its first Divar date to the month it was last seen (or this
+   month, while it is still up). In each month it carries the price it had
+   by the end of that month. */
+function monthlyOf(list, jyNow, jmNow, activeFrom, history) {
+  const nowK = jyNow * 12 + jmNow - 1;
+  const fromK = nowK - MONTHS_BACK + 1;
+  const g = new Map();
+  for (const r of list) {
+    if (r.dup) continue;
+    const start = r.first_posted || r.posted_at;
+    if (!start) continue;
+    const sK = jKey(start);
+    if (sK == null) continue;
+    const seen = String(r.seen || "").slice(0, 10);
+    const eK = r.removed ? jKey(r.removed)
+      : !seen || seen >= activeFrom ? nowK : jKey(seen);
+    if (eK == null || eK < fromK) continue;
+    const h = history && history.get(r.source_id);
+    for (let k = Math.max(sK, fromK); k <= Math.min(eK, nowK); k++) {
+      let p = r.price_m2;
+      if (h && h.length && r.area_m2 > 0) {
+        let pick = null;
+        for (const e of h) if (e.k <= k) pick = e;
+        p = Math.round((pick || h[0]).price / r.area_m2);
+      }
+      if (!g.has(k)) g.set(k, []);
+      g.get(k).push(p > 0 ? p : null);
+    }
+  }
+  const out = [];
+  for (const [k, all] of [...g].sort((x, y) => x[0] - y[0])) {
+    const vals = all.filter((v) => v > 0);
+    const kept = trimOutliers(vals);
+    out.push([k, all.length, kept.length ? Math.round(median(kept) / 1e5) / 10 : null]);
+  }
+  return out;
+}
+
 export async function build(env, log = [], from = 0, self = null) {
   const SLICE = Number(env.SLICE) || SLICE_DEFAULT;
   /* Which cities this slice covers, decided before a single listing is read.
@@ -197,7 +254,7 @@ export async function build(env, log = [], from = 0, self = null) {
    * — forty-eight rows rather than a hundred and fifty thousand — and the
    * listings query then asks only for those cities. */
   const cityRows = await env.DB.prepare(
-    "SELECT DISTINCT city FROM scrape_state WHERE source='divar' ORDER BY rowid").all();
+    "SELECT city FROM scrape_state WHERE source='divar' GROUP BY city ORDER BY MIN(rowid)").all();
   const everyCity = cityRows.results.map((r) => r.city);
   const sliceCities = everyCity.slice(from, from + SLICE);
   if (!sliceCities.length) {
@@ -215,16 +272,54 @@ export async function build(env, log = [], from = 0, self = null) {
   // One pass. The previous version read every listing twice — once to work
   // out each city's median and again for the aggregation — which is 172,000
   // row reads for no reason. The medians come from the same rows.
+  let hasLastSeen = false, hasPriceChanged = false, hasFirstPosted = false, hasPriceHistory = false;
+  let hasRemoved = false;
+  try {
+    const cols = await db.prepare("PRAGMA table_info(listings)").all();
+    hasRemoved = cols.results.some((c) => c.name === "removed_at");
+    hasLastSeen = cols.results.some((c) => c.name === "last_seen");
+    hasPriceChanged = cols.results.some((c) => c.name === "price_changed_at");
+    hasFirstPosted = cols.results.some((c) => c.name === "first_posted_at");
+    const t = await db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='price_history'").all();
+    hasPriceHistory = t.results.length > 0;
+  } catch (e) { /* treat every listing as active */ }
+  const activeFrom = new Date(Date.now() - ACTIVE_DAYS * 864e5).toISOString().slice(0, 10);
+
   const all = await db.prepare(`
     SELECT source, source_id, city, hood, title, url, price_toman, area_m2,
            price_m2, rooms, age_years, lat, lng, address, posted_at,
-           features, dedupe_key, COALESCE(kind,'apartment') AS kind
+           features, dedupe_key, COALESCE(kind,'apartment') AS kind,
+           ${hasLastSeen ? "COALESCE(last_seen, scraped_at)" : "scraped_at"} AS seen,
+           ${hasPriceChanged
+             ? "CASE WHEN price_changed_at > COALESCE(posted_at, '') THEN price_changed_at ELSE posted_at END"
+             : "posted_at"} AS eff,
+           ${hasFirstPosted ? "first_posted_at" : "posted_at"} AS first_posted,
+           ${hasRemoved ? "removed_at" : "NULL"} AS removed
     FROM listings
-    WHERE price_m2 IS NOT NULL AND price_m2 > 0
+    WHERE price_toman IS NOT NULL AND price_toman > 0
       AND city IN (${sliceCities.map(() => "?").join(",")})`)
     .bind(...sliceCities).all();
 
   log.push(`${all.results.length} listings read`);
+
+  const priceHistory = new Map();
+  if (hasPriceHistory) {
+    try {
+      const ph = await db.prepare(`
+        SELECT h.source_id, h.day, h.price_toman FROM price_history h
+        JOIN listings l ON l.source = h.source AND l.source_id = h.source_id
+        WHERE l.city IN (${sliceCities.map(() => "?").join(",")})
+        ORDER BY h.day`).bind(...sliceCities).all();
+      for (const r of ph.results) {
+        const k = r.day.startsWith("0000") ? -1 : jKey(r.day);
+        if (k == null) continue;
+        if (!priceHistory.has(r.source_id)) priceHistory.set(r.source_id, []);
+        priceHistory.get(r.source_id).push({ k, price: Number(r.price_toman) });
+      }
+      log.push(`${ph.results.length} price changes read`);
+    } catch (e) { log.push(`price history not read: ${e.message}`); }
+  }
 
   /* A listing's city comes from text — Divar's label, or a town named in the
    * title — and text is wrong often enough: a بنگاه's address, a road called
@@ -254,6 +349,9 @@ export async function build(env, log = [], from = 0, self = null) {
   let misplaced = 0;
   // only a city this build processes can receive a listing — one filed
   // anywhere else would sit in the database and never reach the site
+  for (const r of all.results) {
+    if (!(r.area_m2 > 0) || (r.kind !== "apartment" && r.area_m2 < 30)) r.price_m2 = null;
+  }
   const built = new Set(everyCity);
   all.results = all.results.filter(r => {
     if (!r.lat || !r.lng || !CITY_POS[r.city]) return true;   // cannot check
@@ -270,44 +368,47 @@ export async function build(env, log = [], from = 0, self = null) {
       misplaced++;
       return false;                 // it belongs to another city's build
     }
-    if (own > FAR_KM) { misplaced++; return false; }
+    if (own > FAR_KM) misplaced++;
     return true;
   });
 
-  // The sanity band is computed per city AND per kind. A single city median
-  // across all three would treat every plot of land as an outlier, since land
-  // runs many times the price per metre of a flat in the same street.
-  const cityMedians = new Map();
-  {
-    const byCityAll = new Map();
-    for (const r of all.results) {
-      const k = `${r.city}|${r.kind}`;
-      if (!byCityAll.has(k)) byCityAll.set(k, []);
-      byCityAll.get(k).push(r.price_m2);
-    }
-    for (const [k, vals] of byCityAll) cityMedians.set(k, median(vals));
-  }
-
   const seen = new Set();
   const cities = new Map();
-  let outOfBand = 0, dupes = 0;
+  let dupes = 0;
 
   for (const r of all.results) {
-    const cm = cityMedians.get(`${r.city}|${r.kind}`);
-    if (cm && (r.price_m2 < CITY_BAND[0] * cm || r.price_m2 > CITY_BAND[1] * cm)) {
-      outOfBand++;
-      continue;
-    }
     if (r.dedupe_key) {
-      if (seen.has(r.dedupe_key)) { dupes++; continue; }
-      seen.add(r.dedupe_key);
+      if (seen.has(r.dedupe_key)) { dupes++; r.dup = true; }
+      else seen.add(r.dedupe_key);
     }
     const gk = `${r.city}|${r.kind}`;
     if (!cities.has(gk)) cities.set(gk, []);
     cities.get(gk).push(r);
   }
 
-  log.push(`${outOfBand} dropped outside their city's range, ${dupes} duplicate reposts, ` +
+  const hoodFills = [];
+  for (const [gk, list] of cities) {
+    const city = gk.split("|")[0];
+    const known = new Set(list.filter((r) => r.hood).map((r) => canonicalPlace(r.hood)));
+    const counts = new Map();
+    const cand = new Map();
+    for (const r of list) {
+      if (r.hood) continue;
+      const h = hoodFromAddress(r.address, city);
+      if (!h) continue;
+      cand.set(r, h);
+      const k = canonicalPlace(h);
+      counts.set(k, (counts.get(k) || 0) + 1);
+    }
+    for (const [r, h] of cand) {
+      const k = canonicalPlace(h);
+      if (known.has(k) || counts.get(k) >= ADDR_HOOD_MIN) {
+        r.hood = h;
+        hoodFills.push({ source: r.source, source_id: r.source_id, hood: h });
+      }
+    }
+  }
+  log.push(`${dupes} duplicate reposts (shown, not counted twice in statistics), ` +
            `${misplaced} whose map position is in another town ` +
            `(${moves.length} moved to it)`);
 
@@ -382,9 +483,29 @@ export async function build(env, log = [], from = 0, self = null) {
 
   for (const [city, kinds] of slice) {
     const cityFile = { name: city, rows: [], listings: [],
-                       ours: {}, hood_hist: {}, byKind: {} };
+                       ours: {}, hood_hist: {}, byKind: {},
+                       monthly: {}, hood_monthly: {} };
 
-   for (const [kind, rows] of kinds) {
+   for (const [kind, allRows] of kinds) {
+    cityFile.monthly[kind] = monthlyOf(allRows, jy, jm, activeFrom, priceHistory);
+    {
+      const hg = new Map(), hn = new Map();
+      for (const r of allRows) {
+        const raw = r.hood || "نامشخص";
+        const key = canonicalPlace(raw) || "نامشخص";
+        if (!hg.has(key)) { hg.set(key, []); hn.set(key, raw); }
+        hg.get(key).push(r);
+      }
+      const hm = {};
+      for (const [key, members] of hg) {
+        const m = monthlyOf(members, jy, jm, activeFrom, priceHistory);
+        if (m.some((x) => x[1] >= 3)) hm[hn.get(key)] = m;
+      }
+      cityFile.hood_monthly[kind] = hm;
+    }
+    const activeRows = allRows.filter((r) => !r.removed &&
+      (!hasLastSeen || String(r.seen || "").slice(0, 10) >= activeFrom));
+    const rows = activeRows.length >= 5 ? activeRows : allRows.filter((r) => !r.removed);
     // per neighbourhood
     // group by the folded name, display the first spelling seen
     const groups = new Map();
@@ -399,10 +520,11 @@ export async function build(env, log = [], from = 0, self = null) {
     const hoodRows = [];
     for (const [key, members] of groups) {
       const hood = display.get(key);
-      const kept = trimOutliers(members.map((m) => m.price_m2));
+      const priced = members.filter((m) => !m.dup && m.price_m2 > 0);
+      const kept = trimOutliers(priced.map((m) => m.price_m2));
       if (!kept.length) continue;
       const keptSet = new Set(kept);
-      const inliers = members.filter((m) => keptSet.has(m.price_m2));
+      const inliers = priced.filter((m) => keptSet.has(m.price_m2));
       const med = Math.round(median(kept) / 1e5) / 10;   // million toman, 1dp
 
       const pts = inliers.filter((m) => m.lat && m.lng);
@@ -411,7 +533,7 @@ export async function build(env, log = [], from = 0, self = null) {
         // pushed into one cityFile.rows, and without it the site cannot tell
         // an apartment neighbourhood from a villa one
         k: kind,
-        hood, m: 35, median: med, n: kept.length,
+        hood, m: 35, median: med, n: members.filter((x) => !x.dup).length,
         area: Math.round(median(inliers.map((m) => m.area_m2).filter(Boolean)) || 0),
         rooms: Math.round(median(inliers.map((m) => m.rooms).filter((v) => v != null)) || 2),
         age: Math.round(median(inliers.map((m) => m.age_years).filter((v) => v != null)) || 10),
@@ -456,19 +578,22 @@ export async function build(env, log = [], from = 0, self = null) {
         n: (r.title || "").slice(0, 70),
         a: Math.round(r.area_m2 || 0),
         p: Math.round((r.price_toman || 0) / 1e6),
-        m: Math.round(r.price_m2 / 1e5) / 10,
+        m: r.price_m2 > 0 ? Math.round(r.price_m2 / 1e5) / 10 : null,
         s: r.source, u: r.url || "", k: kind,
       };
       if (r.rooms != null) o.r = r.rooms;
       if (r.age_years != null) o.g = r.age_years;
       if (r.lat) { o.y = +r.lat.toFixed(5); o.x = +r.lng.toFixed(5); }
-      if (r.posted_at) o.d = r.posted_at;
+      if (r.eff || r.posted_at) o.d = String(r.eff || r.posted_at).slice(0, 10);
+      if (r.first_posted && o.d && String(r.first_posted).slice(0, 10) < o.d)
+        o.d0 = String(r.first_posted).slice(0, 10);
       if (r.address) o.ad = r.address;
       if (r.features) o.f = r.features.split(",");
       return o;
-    }).sort((a, b) => b.m - a.m);
+    }).sort((a, b) => (b.m || 0) - (a.m || 0));
 
-    const cityMed = Math.round(median(rows.map((r) => r.price_m2)) / 1e5) / 10;
+    const statVals = rows.filter((r) => !r.dup && r.price_m2 > 0).map((r) => r.price_m2);
+    const cityMed = statVals.length ? Math.round(median(statVals) / 1e5) / 10 : null;
 
     /* The history, recomputed from today's listings.
      *
@@ -493,7 +618,7 @@ export async function build(env, log = [], from = 0, self = null) {
        since each is remembered for the day once done. */
     const backfillKey = `backfill:${city}|${kind}:${today}`;
     let doneToday = true;
-    if (backfilled < BACKFILL_PER_RUN) {
+    if (BACKFILL_DAYS > 0 && backfilled < BACKFILL_PER_RUN) {
       try { doneToday = !!(await env.SITE.get(backfillKey)); } catch (e) { doneToday = false; }
     }
     if (!doneToday) {
@@ -508,7 +633,8 @@ export async function build(env, log = [], from = 0, self = null) {
       for (const r of rows) {
         if (!r.posted_at || !(r.price_m2 > 0)) continue;
         const t = Date.parse(r.posted_at);
-        if (isFinite(t)) dated.push({ t, p: r.price_m2 });
+        const s = hasLastSeen && r.seen ? Date.parse(String(r.seen).slice(0, 10)) : Infinity;
+        if (isFinite(t)) dated.push({ t, s: isFinite(s) ? s : Infinity, p: r.price_m2 });
       }
 
       for (let back = BACKFILL_DAYS; back >= 1; back--) {
@@ -520,7 +646,7 @@ export async function build(env, log = [], from = 0, self = null) {
            after which to drop it — cutting at 28 days was throwing away most
            of what was genuinely for sale. */
         for (const r of dated) {
-          if (r.t > dayT) continue;
+          if (r.t > dayT || r.s < dayT) continue;
           live.push(r.p);
         }
         if (live.length < 30) continue;                        // too few to trust
@@ -588,7 +714,7 @@ export async function build(env, log = [], from = 0, self = null) {
                               shown: Math.min(rows.length, PER_KIND_CAP) };
    }   // end of kinds
 
-    cityFile.listings.sort((a, b) => b.m - a.m);
+    cityFile.listings.sort((a, b) => (b.m || 0) - (a.m || 0));
     const apt = cityFile.byKind.apartment || Object.values(cityFile.byKind)[0] || {};
 
     /* The id is the city's fixed place in the full city list, not how many
@@ -612,6 +738,8 @@ export async function build(env, log = [], from = 0, self = null) {
     const at = index.cities.findIndex((c) => c.name === city);
     if (at >= 0) index.cities[at] = entry; else index.cities.push(entry);
   }
+
+  index.cities = index.cities.filter((c) => !sliceCities.includes(c.name) || byCity.has(c.name));
 
   // record the day's measurements before writing any files — the history is
   // the part that cannot be recreated
@@ -677,6 +805,7 @@ export async function build(env, log = [], from = 0, self = null) {
       JSON.stringify({ day: today, cities: index.cities, next: null }),
       { expirationTtl: 86400 });
     log.push(`stats.json written with ${index.cities.length} cities — pass complete`);
+
   }
 
   log.push(`${files.length} city files written`);
@@ -687,6 +816,13 @@ export async function build(env, log = [], from = 0, self = null) {
      on every build. The neighbourhood goes too — it came from the wrong
      city. Capped per run so a first pass over a large backlog cannot become
      one enormous write. */
+  if (hoodFills.length) {
+    const fb = hoodFills.slice(0, 3000).map((m) => db.prepare(
+      `UPDATE listings SET hood = ? WHERE source = ? AND source_id = ? AND (hood IS NULL OR hood = '')`)
+      .bind(m.hood, m.source, m.source_id));
+    for (let i = 0; i < fb.length; i += 50) await db.batch(fb.slice(i, i + 50));
+    log.push(`${fb.length} listings given a neighbourhood from their address`);
+  }
   if (moves.length) {
     const batch = moves.slice(0, 2000).map(m => db.prepare(
       `UPDATE listings SET city = ?, hood = '' WHERE source = ? AND source_id = ?`)
@@ -947,6 +1083,12 @@ export default {
       } catch (e) { /* start from the beginning */ }
       try {
         const r = await build(env, [], from);
+        if (r.more === false && r.cities === 0) {
+          const p = await env.SITE.get("build:index", { type: "json" });
+          await env.SITE.put("build:index",
+            JSON.stringify({ day: today, cities: (p && p.cities) || [], next: null }),
+            { expirationTtl: 86400 });
+        }
         console.log(r.log.join("\n"));
       } catch (e) {
         /* A slice that throws must not be retried on the next tick. Before
@@ -957,9 +1099,9 @@ export default {
          * better than costing every city its update. */
         await env.SITE.put("build:index", JSON.stringify({
           day: today, cities: (await env.SITE.get("build:index", { type: "json" }))?.cities || [],
-          next: from + 8, lastError: String(e.message).slice(0, 200),
+          next: from + (Number(env.SLICE) || SLICE_DEFAULT), lastError: String(e.message).slice(0, 200),
         }), { expirationTtl: 86400 });
-        console.log(`slice from ${from} failed, skipping to ${from + 8}: ${e.message}`);
+        console.log(`slice from ${from} failed, skipping ahead: ${e.message}`);
         if (isLimitError(e)) throw e;
       }
     })().catch((e) => {

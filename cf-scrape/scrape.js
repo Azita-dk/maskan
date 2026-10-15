@@ -72,21 +72,129 @@ const CITY_NAMES = ["تهران","مشهد","اصفهان","کرج","شیراز"
   "نیشابور","بجنورد","ورامین","پاکدشت","بوشهر","بیرجند","سیرجان","بروجرد",
   "ایلام","مرودشت","شهرکرد","خوی","مراغه","سقز","رفسنجان","لاهیجان","یاسوج",
   "اندیشه","هشتگرد","فردیس","پردیس","پرند","نظرآباد","محمدشهر","صالحیه",
-  "قرچک","بومهن","رودهن","شهرجدیدهشتگرد"];
+  "قرچک","بومهن","رودهن","شهرجدیدهشتگرد",
+  // Alborz villages that turn up constantly in Karaj and Tehran titles
+  "تهراندشت","کردان","سهیلیه","چهارباغ","ماهدشت","کمال‌شهر","مشکین‌دشت",
+  "شهرک وحدت","گرمدره","آسارا","طالقان"];
 
+/* What a plot advert says about itself.
+ *
+ * Divar rejects every name tried for the land category but accepts the
+ * parent, which returns apartments, villas and plots together. Sorting them
+ * by each post's own category slug failed — the posts carry none — and
+ * treating "unrecognised" as land filled the land tab with flats.
+ *
+ * So the title decides, and it has to say so positively. A plot advert names
+ * itself: زمین, کلنگی, باغ, قواره, عرصه. A post that says none of those is
+ * not kept, whatever else it is. The second list rejects the obvious
+ * not-land even when a land word appears, so "آپارتمان نزدیک باغ" is left
+ * alone.
+ *
+ * Being strict costs coverage — a plot advertised without any of these words
+ * is missed — and that is the right trade. A missing plot is a gap; an
+ * apartment filed as a plot is a wrong median. */
+const LAND_WORDS = ["زمین", "کلنگی", "قواره", "عرصه", "باغ", "باغچه",
+                    "زمین مسکونی", "محوطه", "پلاک ثبتی", "مزروعی"];
+/* Words that describe a building, so the advert is not a plot. A plot has
+   no bedrooms, no parking space and no lift, and nobody calls bare land
+   نوساز. These kept arriving under زمین و کلنگی. */
+const NOT_LAND_WORDS = ["آپارتمان", "واحد", "طبقه", "ویلا", "دوبلکس",
+                        "پنت هاوس", "پنت‌هاوس", "سوئیت", "مغازه", "دفتر",
+                        "خواب", "پارکینگ", "نوساز", "آسانسور", "انباری",
+                        "تکواحدی", "تک واحدی", "فول", "بازسازی", "مشاعات",
+                        "کلیدنخورده", "کلید نخورده", "صفر"];
+/* Phrases that mean land whatever else the title says. A plot sold for
+   building a garden villa names the villa — "۱۰۰۰متر حصارشده برای ساخت باغ
+   ویلا" is land, and the word ویلا would otherwise reject it. */
+const LAND_ANYWAY = ["برای ساخت", "قابل ساخت", "جهت ساخت", "حصارشده",
+                     "حصار شده", "کلنگی", "قواره", "زمین مسکونی",
+                     "مجوز ساخت", "پروانه ساخت"];
+function titleSaysLand(title) {
+  if (!title) return false;
+  const t = normalizeText(title);
+  if (LAND_ANYWAY.some((w) => t.includes(normalizeText(w)))) return true;
+  if (NOT_LAND_WORDS.some((w) => t.includes(normalizeText(w)))) return false;
+  return LAND_WORDS.some((w) => t.includes(normalizeText(w)));
+}
+
+/* The neighbourhood named in the title beats the one Divar filed it under.
+ *
+ * Same problem as the city, one level down. An agency in گوهردشت posts a
+ * flat whose title reads "۴۰۰ متر ویلا باغ تهراندشت" and Divar files it in
+ * گوهردشت, because that is where the agency is. Both are in Karaj, so the
+ * city rule never fires and the neighbourhood stays wrong.
+ *
+ * Only a name the city is already known to have is accepted, learned from
+ * the listings where Divar did supply one. An invented word, a street name
+ * or a neighbourhood of some other city all fail that test — names repeat
+ * across cities, so a match is only trusted inside the city being scraped.
+ *
+ * Five characters again: titles run words together, so the match cannot
+ * require a boundary, and a short name would fire inside ordinary words. */
+const HOOD_MIN_LEN = 5;
+function hoodFromTitle(title, knownHoods) {
+  if (!title || !knownHoods || !knownHoods.size) return null;
+  const t = normalizeText(title);
+  let best = null;
+  for (const h of knownHoods) {
+    if (!h || h.replace(/\s/g, "").length < HOOD_MIN_LEN) continue;
+    if (!t.includes(normalizeText(h))) continue;
+    // the longest match wins: "شهرک غرب" over "غرب"
+    if (!best || h.length > best.length) best = h;
+  }
+  return best;
+}
+
+// a Persian letter, or the zero-width non-joiner that glues one word together
+const PERSIAN_LETTER = /[\u0620-\u064A\u066E-\u06D3\u06FA-\u06FF\u200C]/;
+
+/* A city name used as a road name is not a location.
+ *
+ * Most Iranian cities have a خیابان تهران or a جاده تهران, and an Isfahan
+ * plot whose title mentions one was relocated to Tehran — then plotted at its
+ * real Isfahan coordinates, a dot on its own hundreds of kilometres from the
+ * rest. If one of these words comes immediately before the name, the name is
+ * describing a road. */
+const ROAD_WORDS = ["خیابان", "خ ", "جاده", "بلوار", "اتوبان", "بزرگراه",
+                    "کمربندی", "میدان", "پل ", "ترمینال", "مسیر", "سمت",
+                    "نزدیک", "حوالی", "راه "];
 const RELOCATE_MIN_LEN = 5;
 let RELOCATE = null;
-function relocateTarget(title, currentCity) {
+function relocateTarget(title, currentCity, localHoods) {
   if (!title) return null;
   if (!RELOCATE) {
     RELOCATE = CITY_NAMES.filter((n) => n.replace(/\s/g, "").length >= RELOCATE_MIN_LEN);
   }
   const t = normalizeText(title);
+  /* The longest match wins, and a match that runs into more letters is not a
+     match at all.
+     تهراندشت contains تهران, so plots in تهراندشت — an Alborz village — were
+     relocated to Tehran and plotted on Tehran's map. تهرانپارس and کرجی would
+     do the same. A trailing Persian letter means the word carries on, so it
+     is a different place. Letters before the name are fine: Persian titles
+     run words together, and "فروش64متراندیشه" is genuinely اندیشه. */
+  let best = null;
   for (const name of RELOCATE) {
     if (name === currentCity) continue;
-    if (t.includes(normalizeText(name))) return name;
+    /* A town that is also a neighbourhood here is the neighbourhood. Tehran
+       has its own اندیشه, so "۹۰ متری اندیشه" in a Tehran listing means that
+       district, not the town of Andisheh 30 km away — and the town had grown
+       from 11 listings to 13,484 by being handed Tehran's. */
+    if (localHoods && localHoods.has(name)) continue;
+    const n = normalizeText(name);
+    let i = t.indexOf(n);
+    while (i !== -1) {
+      const after = t[i + n.length];
+      const before = t.slice(Math.max(0, i - 14), i);
+      const isRoad = ROAD_WORDS.some((w) => before.includes(normalizeText(w)));
+      if (!isRoad && (after === undefined || !PERSIAN_LETTER.test(after))) {
+        if (!best || name.length > best.length) best = name;
+        break;
+      }
+      i = t.indexOf(n, i + 1);
+    }
   }
-  return null;
+  return best;
 }
 
 const BANDS = [
@@ -94,12 +202,59 @@ const BANDS = [
   [4e9, 6e9], [6e9, 8e9], [8e9, 12e9], [12e9, 18e9],
   [18e9, 30e9], [30e9, 50e9], [50e9, 100e9], [100e9, null],
 ];
-const bandId = (i) => `b${i}`;
-const bandOf = (id) => BANDS[Number(String(id).slice(1))] || [null, null];
+/* Finer bands for the cities that fill the coarse ones.
+ *
+ * Twelve bands at about 5,600 listings each cap a city near 67,000. Tehran
+ * reached 59,000 against Divar's 177,125 — its bands were nearly all full,
+ * and everything past page 215 in each was out of reach. Thirty-six narrower
+ * bands lift the ceiling to around 200,000.
+ *
+ * Only the four big markets get them. A town with a few thousand listings
+ * never fills a coarse band, and giving it thirty-six would spend thirty-six
+ * runs where twelve already reach everything.
+ *
+ * Tight where the listings are: most of Tehran sells between 5 and 40bn. */
+const FINE_BANDS = [
+  [0, 1.5e9], [1.5e9, 2.5e9], [2.5e9, 3.5e9], [3.5e9, 4.5e9], [4.5e9, 5.5e9],
+  [5.5e9, 6.5e9], [6.5e9, 7.5e9], [7.5e9, 8.5e9], [8.5e9, 9.5e9], [9.5e9, 10.5e9],
+  [10.5e9, 11.5e9], [11.5e9, 12.5e9], [12.5e9, 13.5e9], [13.5e9, 14.5e9],
+  [14.5e9, 15.5e9], [15.5e9, 16.5e9], [16.5e9, 17.5e9], [17.5e9, 18.5e9],
+  [18.5e9, 20e9], [20e9, 22e9], [22e9, 24e9], [24e9, 26e9], [26e9, 28e9],
+  [28e9, 30e9], [30e9, 33e9], [33e9, 36e9], [36e9, 40e9], [40e9, 45e9],
+  [45e9, 50e9], [50e9, 60e9], [60e9, 75e9], [75e9, 90e9], [90e9, 110e9],
+  [110e9, 140e9], [140e9, 200e9], [200e9, null],
+];
+const BIG_CITIES = new Set(["تهران", "مشهد", "کرج", "اصفهان"]);
+const bandsFor = (city) => (BIG_CITIES.has(city) ? FINE_BANDS : BANDS);
+
+/* A band id carries which list it belongs to: b3 is coarse band 3, f3 is
+   fine band 3. The old ids stay valid, so nothing already seeded breaks. */
+const bandId = (i, fine) => `${fine ? "f" : "b"}${i}`;
+const bandOf = (id) => {
+  const s = String(id), list = s[0] === "f" ? FINE_BANDS : BANDS;
+  return list[Number(s.slice(1))] || [null, null];
+};
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ── text helpers, ported from normalize.py ─────────────────────────── */
+
+const AGE_RE = /(?:([\d۰-۹٠-٩]+)\s*)?(لحظاتی|دقایقی|دقیقه|ساعت|روز|هفته|ماه)\s*پیش/;
+const AGE_DAYS = { "لحظاتی": 0, "دقایقی": 0, "دقیقه": 0, "ساعت": 0, "روز": 1, "هفته": 7, "ماه": 30 };
+const AGE_PRECISE = new Set(["لحظاتی", "دقایقی", "دقیقه", "ساعت", "روز"]);
+
+function divarAge(strings) {
+  for (const x of strings) {
+    if (!x || x.length > 120) continue;
+    const m = normalizeText(x).match(AGE_RE);
+    if (!m) continue;
+    const n = m[1] ? Number(m[1]) : (AGE_DAYS[m[2]] === 0 ? 0 : 1);
+    const days = n * (AGE_DAYS[m[2]] ?? 1);
+    const date = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+    return { date, precise: AGE_PRECISE.has(m[2]) };
+  }
+  return null;
+}
 
 const FA_DIGITS = "۰۱۲۳۴۵۶۷۸۹";
 const AR_DIGITS = "٠١٢٣٤٥٦٧٨٩";
@@ -143,7 +298,7 @@ export function parsePrice(text) {
   const m = t.match(/\d+(?:\.\d+)?/);
   if (!m) return null;
   let v = parseFloat(m[0]) * scale;
-  if (isRial || v >= 1e12) v /= 10;     // some sites quote rial
+  if (isRial || (!/تومان/.test(t0) && v >= 1e14)) v /= 10;
   return Math.round(v);
 }
 
@@ -158,6 +313,7 @@ const NOT_THE_FLAT = ["گذر", "کوچه", "بالکن", "پاسیو", "حیا�
 // What the number in front of these words measures.
 const SAYS_LAND     = ["زمین", "عرصه", "قواره", "ملک کلنگی", "کلنگی"];
 const SAYS_BUILDING = ["زیربنا", "زیر بنا", "اعیان", "بنا", "متراژ بنا"];
+const STREET_WIDTH  = ["بلوار", "خیابان", "گذر", "کوچه", "معبر", "عرض", "بر ", "دونبش", "اتوبان", "بزرگراه"];
 
 /**
  * Building area and land area, told apart by the word in front of them.
@@ -185,10 +341,13 @@ export function parseAreaByLabel(sources) {
         const v = parseFloat(m[1]);
         if (!(v > 0)) continue;
         const before = t.slice(Math.max(0, m.index - 18), m.index);
+        const near = t.slice(Math.max(0, m.index - 10), m.index);
+        const after = t.slice(m.index + m[0].length, m.index + m[0].length + 12);
+        if (STREET_WIDTH.some((w) => near.includes(w))) continue;
         if (SAYS_BUILDING.some((w) => before.includes(w))) {
           if (building === null || v < building) building = v;
-        } else if (SAYS_LAND.some((w) => before.includes(w))) {
-          if (land === null || v > land) land = v;
+        } else if (SAYS_LAND.some((w) => before.includes(w) || after.includes(w))) {
+          if (v >= 30 && (land === null || v > land)) land = v;
         }
       }
     }
@@ -445,10 +604,11 @@ async function fetchPage(cityId, category, pagination, band) {
  * scraped still comes first, so the first pass completes before any city
  * starts repeating.
  */
+const sqlList = (xs) => xs.map((x) => `'${x}'`).join(",");
 const REVISIT_DAYS = `
   CASE
-    WHEN rowid <= 6  THEN 2      -- Tehran, Mashhad, Isfahan, Karaj, Shiraz, Tabriz
-    WHEN rowid <= 20 THEN 4
+    WHEN city IN (${sqlList(CITY_NAMES.slice(0, 6))}) THEN 2
+    WHEN city IN (${sqlList(CITY_NAMES.slice(6, 20))}) THEN 4
     ELSE 7
   END`;
 
@@ -479,12 +639,22 @@ async function pickCity(db) {
    * else is due. Apartments still get 18 runs a day, enough to keep the
    * country fresh; villa and land get 6, which is slow but is not never.
    */
-  const hour = new Date().getUTCHours();
-  /* The shared hour alternates between villa and land, because "anything but
-     apartment" let villa take all six and land starve exactly as before —
-     starvation one level down. Each gets three runs a day. */
-  const firstChoice = hour % 4 !== 3 ? "kind = 'apartment'"
-    : hour % 8 === 3 ? "kind = 'villa'"
+  /* Equal shares, rotating every run.
+   *
+   * Three hours in four went to apartments, and the fourth alternated
+   * between villa and land. That was right when apartments were starved and
+   * there were 144 city-and-kind combinations. Price bands multiplied the
+   * work twelvefold — 696 combinations per kind — and the split then meant
+   * apartments finishing in a day and a half while villa and land needed
+   * eight days each.
+   *
+   * Apartments are caught up, so all three now take turns evenly: 240 runs a
+   * day each, every kind swept in about three days. The rotation is by the
+   * clock rather than remembered, so nothing needs storing and a missed run
+   * costs one turn instead of putting the order out permanently. */
+  const slot = Math.floor(Date.now() / 120000) % 3;   // one per 2-minute tick
+  const firstChoice = slot === 0 ? "kind = 'apartment'"
+    : slot === 1 ? "kind = 'villa'"
     : "kind = 'land'";
 
   const row = await db.prepare(`
@@ -510,7 +680,8 @@ export async function scrapeChunk(env, log = []) {
   let loggedRejectSample = 0;          // land yields nothing; see the note at the reject point
   let loggedAreaSample = 0;            // confirm villa/land pick the right area
   let loggedNewSlug = false, otherKind = 0;
-  let relocated = 0, loggedRelocate = false;
+  let relocated = 0, loggedRelocate = false, loggedParentPost = false;
+  let hoodFixed = 0, loggedHoodFix = false;
   let skippedNoArea = 0, skippedNoPrice = 0, examined = 0;
   const state = await pickCity(db);
   if (!state) {
@@ -549,6 +720,37 @@ export async function scrapeChunk(env, log = []) {
   /* No usable leaf name: read the parent and filter. Wasteful — apartments
      and villas come back too and are thrown away — but it is the difference
      between collecting land and not collecting it. */
+  /* The neighbourhoods this city is known to have, for checking titles
+     against. Read from hood_snapshots — one row per neighbourhood per day
+     rather than one per listing — and cached in KV, because this runs every
+     two minutes and the list changes slowly. */
+  let knownHoods = new Set();
+  try {
+    const hit = await env.SITE?.get(`hoods:${city}`, { type: "json" });
+    if (Array.isArray(hit)) knownHoods = new Set(hit);
+    else {
+      const { results } = await db.prepare(
+        `SELECT DISTINCT hood FROM hood_snapshots
+         WHERE city = ? AND hood IS NOT NULL AND hood <> ''`).bind(city).all();
+      knownHoods = new Set(results.map((r) => r.hood));
+      await env.SITE?.put(`hoods:${city}`, JSON.stringify([...knownHoods]),
+                          { expirationTtl: 86400 });
+    }
+  } catch (e) { /* no list: titles are simply not consulted */ }
+
+  let hasLastSeen = false, hasPriceChanged = false, hasFirstPosted = false, hasPriceHistory = false;
+  let hasRemoved = false;
+  try {
+    const cols = await db.prepare("PRAGMA table_info(listings)").all();
+    hasLastSeen = cols.results.some((c) => c.name === "last_seen");
+    hasPriceChanged = cols.results.some((c) => c.name === "price_changed_at");
+    hasFirstPosted = cols.results.some((c) => c.name === "first_posted_at");
+    hasRemoved = cols.results.some((c) => c.name === "removed_at");
+    const t = await db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='price_history'").all();
+    hasPriceHistory = t.results.length > 0;
+  } catch (e) { /* column check failed: run without the new columns */ }
+
   let viaParent = false;
   if (kindDef.parents && kindDef.parents.length) {
     const cached = await env.SITE?.get(`cat:${kind}`).catch(() => null);
@@ -653,7 +855,10 @@ export async function scrapeChunk(env, log = []) {
     if (tokens.length) {
       const q = tokens.map(() => "?").join(",");
       const rows = await db.prepare(
-        `SELECT source_id, price_toman FROM listings
+        `SELECT source_id, price_toman, city, hood, posted_at, area_m2,
+                ${hasRemoved ? "removed_at" : "NULL"} AS removed,
+                ${hasFirstPosted ? "first_posted_at" : "posted_at"} AS first_posted,
+                COALESCE(kind,'apartment') AS kind FROM listings
          WHERE source='divar' AND source_id IN (${q})`).bind(...tokens).all();
       /* Number() on both sides, not ===.
        *
@@ -666,16 +871,26 @@ export async function scrapeChunk(env, log = []) {
        *
        * Whether that is what has been happening is not yet confirmed; the
        * counts below will say. Coercing is correct either way. */
-      for (const r of rows.results) known.set(r.source_id, Number(r.price_toman));
+      for (const r of rows.results) {
+        known.set(r.source_id, { price: Number(r.price_toman),
+                                 city: r.city, hood: r.hood || "", kind: r.kind,
+                                 posted: r.posted_at || null,
+                                 first: r.first_posted || null,
+                                 area: Number(r.area_m2) || null, removed: r.removed || null });
+      }
     }
 
+    const stillThere = [];
     for (const p of posts) {
       const payloadObj = p;
       const token = ((p.action || {}).payload || {}).token;
       if (!token) continue;
       const info = ((p.action || {}).payload || {}).web_info || {};
       const title = p.title || info.title || "";
-      if (!acceptTitle(title, kind)) continue;
+      if (viaParent) {
+        const had = known.get(token);
+        if ((had && had.kind !== kind) || !titleSaysLand(title)) { otherKind++; continue; }
+      }
 
       const strings = collectStrings(payloadObj);
       const priceText = findPriceText(strings);
@@ -740,7 +955,7 @@ export async function scrapeChunk(env, log = []) {
       examined++;
       if (!price) skippedNoPrice++;
       else if (!area) skippedNoArea++;
-      if (!price || !area) continue;
+      if (!price) continue;
 
       const cityFa = info.city_persian || city;
       const hood = info.district_persian || "";
@@ -754,14 +969,11 @@ export async function scrapeChunk(env, log = []) {
         console.log(`empty hood sample for ${cityFa}: ${JSON.stringify(info)}`);
       }
       // already stored at this price — nothing to write
-      if (known.has(token) && known.get(token) === Number(price)) {
-        unchanged++; continue;
-      }
-
       /* The title wins over the agency's address. A relocated listing loses
          its neighbourhood as well — that came from the same wrong place. */
+      const prev = known.get(token);
       let rowCity = cityFa, rowHood = hood;
-      const elsewhere = relocateTarget(title, cityFa);
+      const elsewhere = relocateTarget(title, cityFa, knownHoods);
       if (elsewhere) {
         rowCity = elsewhere;
         rowHood = "";
@@ -770,23 +982,103 @@ export async function scrapeChunk(env, log = []) {
           loggedRelocate = true;
           console.log(`relocated by title: ${cityFa} -> ${elsewhere} | ${title}`);
         }
+      } else if (prev && prev.city !== cityFa) {
+        rowCity = prev.city;
+        rowHood = prev.hood || "";
+      } else {
+        /* Still in this city, but the title may name a different
+           neighbourhood than the agency's. */
+        const titleHood = hoodFromTitle(title, knownHoods);
+        if (titleHood && titleHood !== rowHood) {
+          if (!loggedHoodFix) {
+            loggedHoodFix = true;
+            console.log(`hood from title: ${rowHood || "—"} -> ${titleHood} | ${title}`);
+          }
+          rowHood = titleHood;
+          hoodFixed++;
+        }
       }
 
-      const key = await dedupeKey(rowCity, rowHood, area, price);
+      /* Skip only when nothing has changed — price and location.
+       *
+       * The skip used to compare the price alone, so a listing whose price
+       * was steady was never rewritten, and the corrected city and
+       * neighbourhood never reached it. Most listings hold their price for
+       * weeks, so most corrections went nowhere. */
+      const keptHood = rowHood || (prev && prev.city === rowCity ? prev.hood || "" : "");
+      const age = divarAge(strings);
+      let posted = prev ? prev.posted : null;
+      if (age && (!posted || (age.precise && age.date > posted))) posted = age.date;
+      if (prev && prev.price === Number(price) && prev.kind === kind &&
+          prev.city === rowCity && (prev.hood || "") === keptHood &&
+          (prev.posted || null) === posted && !prev.removed &&
+          (kind === "apartment" || area == null || prev.area === area)) {
+        unchanged++; stillThere.push(token); continue;
+      }
+
+      const key = area ? await dedupeKey(rowCity, rowHood, area, price) : null;
       const rawText = [title, priceText, areaText].filter(Boolean).join(" | ").slice(0, 300);
+
+      const seenCol = hasLastSeen ? ", last_seen" : "";
+      const seenVal = hasLastSeen ? ",?" : "";
+      const seenSet = hasLastSeen ? ", last_seen=excluded.last_seen" : "";
+      const priceSet = hasPriceChanged
+        ? `, price_changed_at=CASE WHEN listings.price_toman <> excluded.price_toman
+                                   AND listings.price_toman * 10 <> excluded.price_toman
+                                  THEN excluded.scraped_at ELSE listings.price_changed_at END`
+        : "";
+      const firstCol = hasFirstPosted ? ", first_posted_at" : "";
+      const firstVal = hasFirstPosted ? ",?" : "";
+      const firstSet = hasFirstPosted
+        ? ", first_posted_at=COALESCE(listings.first_posted_at, excluded.first_posted_at)" : "";
+      const binds = [token, rowCity, rowHood, title.slice(0, 120),
+                     `https://divar.ir/v/${token}`, price, area,
+                     area ? Math.round(price / area) : null, rawText, key, today, kind, posted];
+      if (hasLastSeen) binds.push(today);
+      if (hasFirstPosted) binds.push(posted);
+
+      if (hasPriceHistory) {
+        if (prev && prev.price !== Number(price) && prev.price * 10 !== Number(price)) {
+          stmts.push(db.prepare(
+            `INSERT OR IGNORE INTO price_history (source, source_id, day, price_toman)
+             VALUES ('divar', ?, ?, ?)`).bind(token, prev.first || prev.posted || "0000-00-00", prev.price));
+          stmts.push(db.prepare(
+            `INSERT OR REPLACE INTO price_history (source, source_id, day, price_toman)
+             VALUES ('divar', ?, ?, ?)`).bind(token, today, price));
+        }
+      }
 
       stmts.push(db.prepare(`
         INSERT INTO listings (source, source_id, city, hood, title, url,
-          price_toman, area_m2, price_m2, raw_text, dedupe_key, scraped_at, kind)
-        VALUES ('divar',?,?,?,?,?,?,?,?,?,?,?,?)
+          price_toman, area_m2, price_m2, raw_text, dedupe_key, scraped_at, kind, posted_at${seenCol}${firstCol})
+        VALUES ('divar',?,?,?,?,?,?,?,?,?,?,?,?,?${seenVal}${firstVal})
         ON CONFLICT(source, source_id) DO UPDATE SET
-          price_toman=excluded.price_toman, area_m2=excluded.area_m2,
-          price_m2=excluded.price_m2, scraped_at=excluded.scraped_at,
-          kind=excluded.kind`)
-        .bind(token, rowCity, rowHood, title.slice(0, 120),
-              `https://divar.ir/v/${token}`, price, area,
-              Math.round(price / area), rawText, key, today, kind));
+          posted_at=COALESCE(excluded.posted_at, listings.posted_at)${priceSet}${firstSet},
+          price_toman=excluded.price_toman,
+          area_m2=CASE WHEN listings.enriched_at IS NULL OR listings.area_m2 IS NULL
+                         OR (excluded.kind <> 'apartment' AND listings.area_m2 < 30)
+                       THEN COALESCE(excluded.area_m2, listings.area_m2) ELSE listings.area_m2 END,
+          price_m2=CAST(excluded.price_toman /
+                   CASE WHEN listings.enriched_at IS NULL OR listings.area_m2 IS NULL
+                          OR (excluded.kind <> 'apartment' AND listings.area_m2 < 30)
+                        THEN COALESCE(excluded.area_m2, listings.area_m2) ELSE listings.area_m2 END AS INTEGER),${
+            hasRemoved ? "\n          removed_at=NULL," : ""}
+          city=excluded.city,
+          hood=CASE WHEN excluded.hood <> '' THEN excluded.hood
+                    WHEN excluded.city <> listings.city THEN ''
+                    ELSE listings.hood END,
+          dedupe_key=COALESCE(excluded.dedupe_key, listings.dedupe_key),
+          scraped_at=excluded.scraped_at,
+          kind=excluded.kind${seenSet}`)
+        .bind(...binds));
       saved++;
+    }
+
+    if (hasLastSeen && stillThere.length) {
+      stmts.push(db.prepare(
+        `UPDATE listings SET last_seen = ?
+         WHERE source='divar' AND source_id IN (${stillThere.map(() => "?").join(",")})
+           AND (last_seen IS NULL OR last_seen < ?)`).bind(today, ...stillThere, today));
     }
 
     pag = (payload.pagination || {}).data || null;
@@ -806,6 +1098,10 @@ export async function scrapeChunk(env, log = []) {
     .run();
 
   const seen = saved + unchanged;
+  if (hoodFixed) {
+    log.push(`${city} / ${kind}: ${hoodFixed} listings took the neighbourhood ` +
+             `named in their title instead of the agency's`);
+  }
   if (relocated) {
     log.push(`${city} / ${kind}: ${relocated} listings moved to the town ` +
              `named in their title (agency address, not the property's)`);
@@ -816,8 +1112,8 @@ export async function scrapeChunk(env, log = []) {
   }
   if (examined && (skippedNoArea || skippedNoPrice)) {
     log.push(`${city} / ${kind}: of ${examined} listings, ` +
-      `${skippedNoArea} had no area and ${skippedNoPrice} no price ` +
-      `(${Math.round((skippedNoArea + skippedNoPrice) / examined * 100)}% never stored)`);
+      `${skippedNoArea} had no area (stored, waiting for the enricher) and ` +
+      `${skippedNoPrice} no price (${Math.round(skippedNoPrice / examined * 100)}% never stored)`);
   }
   log.push(`${city} / ${kind} / ${band}: ${pages} pages, ${saved} written, ` +
     `${unchanged} unchanged (${seen ? Math.round(unchanged / seen * 100) : 0}% skipped)` +
@@ -854,10 +1150,12 @@ export async function seedCities(env) {
     const id = found.get(name);
     if (!id) continue;
     for (const k of KINDS) {
-      for (let b = 0; b < BANDS.length; b++) {
+      const fine = BIG_CITIES.has(name);
+      const list = bandsFor(name);
+      for (let b = 0; b < list.length; b++) {
         stmts.push(env.DB.prepare(
           "INSERT OR IGNORE INTO scrape_state (source, city, kind, band, city_id, page) " +
-          "VALUES ('divar',?,?,?,?,0)").bind(name, k.id, bandId(b), id));
+          "VALUES ('divar',?,?,?,?,0)").bind(name, k.id, bandId(b, fine), id));
       }
     }
   }
