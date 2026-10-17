@@ -183,7 +183,7 @@ button{font:inherit;font-family:inherit;cursor:pointer}
 section{padding:8px 0 0}
 .shead{display:flex;align-items:baseline;justify-content:space-between;
   gap:16px;margin:26px 0 14px}
-.shead h2{font-size:21px;font-weight:800;margin:0}
+.shead h2{font-size:24px;font-weight:800;margin:0}
 .shead a,.shead button{font-size:14.5px;color:var(--green);font-weight:700;
   background:none;border:0;padding:0}
 
@@ -191,7 +191,7 @@ section{padding:8px 0 0}
   box-shadow:var(--shadow);overflow:hidden;margin-bottom:16px}
 .panel > header{display:flex;align-items:center;justify-content:space-between;
   gap:12px;padding:14px 16px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
-.panel h3{margin:0;font-size:17px;font-weight:800}
+.panel h3{margin:0;font-size:20px;font-weight:800}
 .panel .note{padding:12px 16px 0;margin:0;font-size:13.5px;color:var(--muted)}
 .panel .foot{padding:12px 16px;font-size:13.5px;color:var(--muted);margin:0}
 
@@ -616,10 +616,10 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .callout .n{font-size:16px}
   .callout .d{font-size:11.5px}
   .panel > header{padding:12px 14px;gap:8px}
-  .panel h3{font-size:16px}
+  .panel h3{font-size:18px}
   .tabs button{padding:9px 12px;font-size:13.5px;min-height:38px}
   .shead{margin:20px 0 12px}
-  .shead h2{font-size:19px}
+  .shead h2{font-size:21px}
   .statrow{grid-template-columns:repeat(3,1fr)}
 }
 @media (max-width:720px){
@@ -647,7 +647,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   .wrap{padding:0 10px}
   .panel{margin-bottom:12px;border-radius:10px}
   .panel > header{padding:11px 12px}
-  .panel h3{font-size:15.5px}
+  .panel h3{font-size:17px}
   .chartbox{padding:10px 8px}
   .foot{padding:10px 12px;font-size:12px}
 
