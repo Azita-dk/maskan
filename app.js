@@ -520,10 +520,41 @@ function areaFill(color, alpha = .22){
   };
 }
 
+function miniBars(vals, color){
+  const v = vals.filter(x => x != null).slice(-8);
+  if (v.length < 2) return '';
+  const w = 9, gap = 4, h = 40, max = Math.max(...v), min = Math.min(...v) * .85;
+  const bars = v.map((x, i) => {
+    const bh = Math.max(4, (x - min) / ((max - min) || 1) * (h - 4));
+    return `<rect x="${i * (w + gap)}" y="${h - bh}" width="${w}" height="${bh}" rx="2.5"
+      fill="${color}" opacity="${i === v.length - 1 ? 1 : .32}"/>`;
+  }).join('');
+  return `<svg width="${v.length * (w + gap) - gap}" height="${h}" aria-hidden="true">${bars}</svg>`;
+}
+function miniRing(frac, color){
+  const r = 17, c = 2 * Math.PI * r, f = Math.max(0, Math.min(1, frac));
+  return `<svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true">
+    <circle cx="22" cy="22" r="${r}" fill="none" stroke="var(--rule)" stroke-width="6"/>
+    <circle cx="22" cy="22" r="${r}" fill="none" stroke="${color}" stroke-width="6" stroke-linecap="round"
+      stroke-dasharray="${(c * f).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 22 22)"/></svg>`;
+}
+function kpiCard(o){
+  return `<div class="kpi"><div class="kb"><div>
+      <div class="k">${o.k}${o.scope ? `<span class="scope">${o.scope}</span>` : ''}</div>
+      <div class="v ${o.cls || ''}">${o.v}</div>
+      <div class="u">${o.u || ''}</div></div>
+      ${o.viz ? `<div class="kviz">${o.viz}</div>` : ''}</div>
+    <div class="kf"><span>${o.foot || ''}</span>${o.link ? `<a href="${o.link[0]}">${o.link[1]}</a>` : ''}</div></div>`;
+}
+function freshCount(rows, days = 7){
+  const cut = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+  return rows.filter(l => (l.d0 || l.d || '') >= cut).length;
+}
+
 /* ------------------------------------------------------------ price heat */
 function heat(v, lo, hi){
-  if (!isFinite(v) || hi <= lo) return '#1F9AA0';
-  const stops = [[42,157,159],[233,196,106],[240,127,94],[192,72,52]];
+  if (!isFinite(v) || hi <= lo) return '#1B8A8F';
+  const stops = [[27,138,143],[242,193,78],[240,138,75],[214,84,52]];
   const x = Math.max(0, Math.min(1, (v-lo)/(hi-lo))) * (stops.length-1);
   const i = Math.min(stops.length-2, Math.floor(x)), f = x - i;
   const c = k => Math.round(stops[i][k] + (stops[i+1][k]-stops[i][k])*f);
@@ -582,7 +613,7 @@ const ICONS = {
              + '<path d="M8.5 12l2.5 2.5 4.5-5"/>'),
 };
 
-const LOGO = `<rect width="64" height="64" rx="14" fill="#0F6E73"/>
+const LOGO = `<rect width="64" height="64" rx="14" fill="#0D5C63"/>
   <path d="M14 30L32 16l18 14" stroke="#fff" stroke-width="5" fill="none"
         stroke-linecap="round" stroke-linejoin="round"/>
   <rect x="18" y="36" width="7" height="12" rx="2" fill="#fff" opacity=".55"/>

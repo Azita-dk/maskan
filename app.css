@@ -2,16 +2,18 @@
    within a week; one cannot. */
 
 :root{
-  --paper:#EDF3F3;
+  --paper:#F4F7F7;
   --card:#FFFFFF;
   --ink:#0F1419;
   --muted:#5A6472;
-  --rule:#D6E2E2;
+  --rule:#E1E8E8;
 
-  --green:#0F6E73;       /* primary — text, links, values */
-  --green-mid:#1F9AA0;
-  --accent:#F07F5E;   /* lines and fills, never text */
-  --green-pale:#E2F1F1;
+  --green:#0D5C63;       /* primary — text, links, values */
+  --green-mid:#1B8A8F;
+  --accent:#F08A4B;
+  --sun:#F2C14E;
+  --frame:linear-gradient(160deg,#0A3B40 0%,#115E64 45%,#0A3A3F 100%);   /* lines and fills, never text */
+  --green-pale:#E3F0F0;
 
   --rise:#B3261E;        /* a price rise is bad news for a buyer */
   --fall:#1D5FA8;
@@ -22,14 +24,16 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme=light]){
     --paper:#0F1517; --card:#172024; --ink:#E6EEEE; --muted:#97A6A8;
-    --rule:#26343A; --green:#2A9FA3; --green-mid:#3FB8BC; --green-pale:#10292A; --accent:#F4977A;
+    --rule:#26343A; --green:#2A9FA3; --green-mid:#3FB8BC; --green-pale:#10292A; --accent:#F4A06B; --sun:#F2C14E;
+    --frame:linear-gradient(160deg,#04181A 0%,#0A2C30 50%,#04181A 100%);
     --rise:#E4867F; --fall:#6FA8E8; --amber:#E0B463;
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.3);
   }
 }
 :root[data-theme=dark]{
   --paper:#0F1517; --card:#172024; --ink:#E6EEEE; --muted:#97A6A8;
-  --rule:#26343A; --green:#2A9FA3; --green-mid:#3FB8BC; --green-pale:#10292A; --accent:#F4977A;
+  --rule:#26343A; --green:#2A9FA3; --green-mid:#3FB8BC; --green-pale:#10292A; --accent:#F4A06B; --sun:#F2C14E;
+    --frame:linear-gradient(160deg,#04181A 0%,#0A2C30 50%,#04181A 100%);
   --rise:#E4867F; --fall:#6FA8E8; --amber:#E0B463;
   --shadow:0 1px 2px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.3);
 }
@@ -249,7 +253,7 @@ section{padding:8px 0 0}
 .scalerow{display:flex;align-items:center;gap:9px}
 .scalenote{margin:7px 0 0;line-height:1.7}
 .scalekey .bar{flex:0 0 130px;height:8px;border-radius:99px;
-  background:linear-gradient(to left,#2A9D9F,#E9C46A,#F07F5E,#C04834)}
+  background:linear-gradient(to left,#1B8A8F,#F2C14E,#F08A4B,#D65434)}
 .hval,.hhead span:nth-child(4){flex:0 0 82px;font-size:14.5px;font-weight:700;
   font-variant-numeric:tabular-nums;text-align:start}
 .hcount,.hhead span:nth-child(5){flex:0 0 52px;color:var(--muted);
@@ -532,7 +536,7 @@ tbody tr.provhead td{font-size:14px;padding:9px 14px;
 .legend{display:flex;align-items:center;gap:10px;padding:11px 16px;
   font-size:13px;color:var(--muted);border-top:1px solid var(--rule)}
 .legend .bar{flex:1;height:8px;border-radius:99px;
-  background:linear-gradient(to left,#2A9D9F,#E9C46A,#F07F5E,#C04834)}
+  background:linear-gradient(to left,#1B8A8F,#F2C14E,#F08A4B,#D65434)}
 
 /* ------------------------------------------------------------ valuation */
 .value{background:var(--card);border:1px solid var(--rule);border-radius:12px;
@@ -681,3 +685,45 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 /* Nothing should ever need the phone turned sideways; if a stray element
    does overflow, the page clips rather than scrolling horizontally. */
 @media (max-width:720px){ body{overflow-x:hidden} }
+
+/* ---------------------------------------------------------------- dashboard look */
+.kpi{display:flex;flex-direction:column;padding:0;overflow:hidden}
+.kpi .kb{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:16px 18px 12px;flex:1}
+.kpi .kviz{flex:0 0 auto;margin-top:22px}
+.kpi .kviz svg{display:block}
+.kpi .kf{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 18px;
+  background:var(--paper);border-top:1px solid var(--rule);font-size:12.5px;color:var(--muted);min-height:40px}
+.kpi .kf b{font-weight:800}
+.kpi .kf b.up{color:var(--rise)} .kpi .kf b.down{color:var(--fall)} .kpi .kf b.new{color:var(--green)}
+.kpi .kf a{color:var(--green);font-weight:700;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+.pulse{display:flex;align-items:center;gap:16px;margin:0 0 16px;padding:16px 20px;border-radius:16px;
+  color:#fff;background:linear-gradient(110deg,#0D5C63 0%,#13757C 60%,#1B8A8F 100%);position:relative;overflow:hidden}
+.pulse::after{content:"";position:absolute;inset-inline-start:-40px;top:-60px;width:220px;height:220px;
+  border-radius:40px;transform:rotate(45deg);background:rgba(255,255,255,.06)}
+.pulse .pi{flex:0 0 48px;height:48px;border-radius:12px;background:rgba(255,255,255,.14);display:grid;place-items:center}
+.pulse .pi svg{width:26px;height:26px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.pulse .pt{flex:1;min-width:0;position:relative;z-index:1}
+.pulse .pt b{display:block;font-size:17px;font-weight:800;line-height:1.5}
+.pulse .pt small{display:block;font-size:13px;opacity:.85}
+.pulse a{position:relative;z-index:1;flex:0 0 auto;background:#fff;color:#0D5C63;font-weight:800;font-size:14px;
+  padding:9px 16px;border-radius:10px}
+@media (max-width:600px){
+  .pulse{flex-wrap:wrap;padding:14px}
+  .pulse .pi{display:none}
+  .pulse a{width:100%;text-align:center}
+  .kpi .kb{padding:12px 12px 8px}
+  .kpi .kviz{display:none}
+  .kpi .kf{padding:7px 12px;font-size:11.5px;flex-wrap:wrap}
+}
+
+@media (min-width:1100px){
+  html{background:#0A3B40}
+  body{background:var(--frame);background-attachment:fixed;min-height:100vh}
+  .nav{background:var(--frame);background-attachment:fixed;border-bottom:0;padding-top:20px}
+  .nav .wrap,main.wrap,footer .wrap{width:min(1440px,calc(100% - 56px))}
+  .nav .wrap{background:var(--card);border-radius:22px 22px 0 0;border-bottom:1px solid var(--rule)}
+  main.wrap{background:var(--paper);padding-top:6px;padding-bottom:28px}
+  footer{background:transparent;border-top:0;padding:0 0 28px}
+  footer .wrap{background:var(--card);border-radius:0 0 22px 22px;border-top:1px solid var(--rule);padding-top:18px;padding-bottom:18px}
+}
+.kpi .v.conf-v{font-size:19px;padding-top:6px}

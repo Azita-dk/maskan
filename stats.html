@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>آمار و نمودارها — تحلیل بازار مسکن</title>
 <meta name="description" content="روند قیمت، توزیع قیمت، و قیمت بر پایه متراژ و سن بنا.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F6E73'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230D5C63'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <style>
 .mapwrap{position:relative;isolation:isolate}
@@ -200,20 +200,24 @@ function drawKpis(){
     : mc.months === 1 ? 'تغییر ماهانه' : `تغییر ${FA(mc.months)} ماهه`;
   const scope = S.hood ? S.hood : `کل ${CITY.name}`;
   const filtered = activeFilterCount() > 0 || !!S.q;
-  document.getElementById('kpis').innerHTML = `
-    <div class="kpi"><div class="k">میانه هر متر مربع
-        <span class="scope">${esc(scope)}${filtered ? ' · با فیلتر' : ''}</span></div>
-      <div class="v">${med === null ? '—' : FA1(med)}</div>
-      <div class="u">میلیون تومان</div></div>
-    <div class="kpi"><div class="k">تعداد آگهی</div>
-      <div class="v">${FA(count)}</div>
-      <div class="u">${approx ? 'حدود، ' : ''}در ${esc(scope)}</div></div>
-    <div class="kpi"><div class="k">${chLabel}</div>
-      <div class="v ${cls}">${change}</div>
-      <div class="u">${mc ? `از ${jMonthLabel(mc.from)} تا ${jMonthLabel(mc.to)}` : 'هنوز دو ماه کامل داده نیست'}</div></div>
-    <div class="kpi"><div class="k">اعتبار این رقم</div>
-      <div class="v" style="font-size:19px;padding-top:6px">${confBadge(count)}</div>
-      <div class="u">بر پایه تعداد آگهی</div></div>`;
+  const mon = [...monthlyBase(S.hood).entries()].sort((x, y) => x[0] - y[0]).map(e => e[1]);
+  const fresh = Math.round(freshCount(rows) * (rows.length ? count / rows.length : 1));
+  document.getElementById('kpis').innerHTML =
+    kpiCard({ k: 'میانه هر متر مربع', scope: esc(scope) + (filtered ? ' · با فیلتر' : ''),
+      v: med === null ? '—' : FA1(med), u: 'میلیون تومان',
+      viz: miniBars(mon.map(m => m.v), CSSVAR('--green-mid')),
+      foot: 'میانه ماه جاری', link: ['#trendTitle', 'روند قیمت'] }) +
+    kpiCard({ k: 'تعداد آگهی', v: FA(count), u: `${approx ? 'حدود، ' : ''}در ${esc(scope)}`,
+      viz: miniBars(mon.map(m => m.n), CSSVAR('--accent')),
+      foot: fresh ? `<b class="new">+${FA(fresh)}</b> آگهی در ۷ روز گذشته` : 'آگهی‌های فعال دیوار',
+      link: [linkTo('ads.html'), 'دیدن آگهی‌ها'] }) +
+    kpiCard({ k: chLabel, v: change, cls,
+      u: mc ? `از ${jMonthLabel(mc.from)} تا ${jMonthLabel(mc.to)}` : 'هنوز دو ماه کامل داده نیست',
+      viz: miniBars(mon.map(m => m.v), CSSVAR('--sun')),
+      foot: 'میانه قیمت هر متر', link: ['#trendTitle', 'نمودار'] }) +
+    kpiCard({ k: 'اعتبار این رقم', v: confBadge(count), cls: 'conf-v', u: 'بر پایه تعداد آگهی',
+      viz: miniRing(Math.min(1, count / 100), CSSVAR('--green')),
+      foot: `${FA(count)} آگهی`, link: ['about.html', 'روش کار'] });
 }
 
 
@@ -298,7 +302,7 @@ function historyDays(h){
 
 const MIN_TREND_DAYS = 7;
 const HOOD_LINES = 5;
-const LINE_COLORS = ['#0F6E73','#F07F5E','#1D5FA8','#7A3E9D','#D9A21B','#4B5563'];
+const LINE_COLORS = ['#0D5C63','#F08A4B','#E0A82E','#1D5FA8','#7A3E9D','#4B5563'];
 
 /* Monthly points, not daily.
    A daily median of a market this size is mostly noise — the same flats,
@@ -635,8 +639,8 @@ function drawTrend(){
         backgroundColor: s.ref ? CSSVAR('--muted') : i === 0 ? areaFill(s.color) : s.color,
         fill: i === 0 && !s.ref ? 'start' : false,
         pointBackgroundColor: s.ref ? CSSVAR('--muted') : hollowPre(months, s.color),
-        borderWidth: s.wide ? 3 : 2, tension: .3, spanGaps: true,
-        pointRadius: s.ref ? 0 : 4, pointHoverRadius: 6,
+        borderWidth: s.wide ? 3 : 2, tension: .42, spanGaps: true,
+        pointRadius: s.ref ? 0 : 3, pointHoverRadius: 6,
         segment: dashLast(months),
         _by: s.by,
       })),
@@ -743,7 +747,7 @@ function drawCountTrend(){
         borderColor: s.color, backgroundColor: i === 0 ? areaFill(s.color) : s.color,
         fill: i === 0 ? 'start' : false,
         pointBackgroundColor: hollowPre(months, s.color),
-        borderWidth: s.main ? 3 : 2, tension: .3, spanGaps: true,
+        borderWidth: s.main ? 3 : 2, tension: .42, spanGaps: true,
         pointRadius: 4, pointHoverRadius: 6,
         segment: dashLast(months),
       })),
