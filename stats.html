@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>آمار و نمودارها — تحلیل بازار مسکن</title>
 <meta name="description" content="روند قیمت، توزیع قیمت، و قیمت بر پایه متراژ و سن بنا.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23A84A24'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F6E73'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <style>
 .mapwrap{position:relative;isolation:isolate}
@@ -298,7 +298,7 @@ function historyDays(h){
 
 const MIN_TREND_DAYS = 7;
 const HOOD_LINES = 5;
-const LINE_COLORS = ['#B4532A','#1D5FA8','#7A3E9D','#0E7490','#D97706','#4B5563'];
+const LINE_COLORS = ['#0F6E73','#F07F5E','#1D5FA8','#7A3E9D','#D9A21B','#4B5563'];
 
 /* Monthly points, not daily.
    A daily median of a market this size is mostly noise — the same flats,
@@ -628,11 +628,12 @@ function drawTrend(){
     plugins: [preShade],
     data: {
       labels: months.map(jMonthLabel),
-      datasets: series.map(s => ({
+      datasets: series.map((s, i) => ({
         label: s.name,
         data: months.map(k => (s.by.get(k) || {}).v ?? null),
         borderColor: s.ref ? CSSVAR('--muted') : s.color,
-        backgroundColor: s.ref ? CSSVAR('--muted') : s.color,
+        backgroundColor: s.ref ? CSSVAR('--muted') : i === 0 ? areaFill(s.color) : s.color,
+        fill: i === 0 && !s.ref ? 'start' : false,
         pointBackgroundColor: s.ref ? CSSVAR('--muted') : hollowPre(months, s.color),
         borderWidth: s.wide ? 3 : 2, tension: .3, spanGaps: true,
         pointRadius: s.ref ? 0 : 4, pointHoverRadius: 6,
@@ -735,11 +736,12 @@ function drawCountTrend(){
     plugins: [preShade, pointLabels],
     data: {
       labels: months.map(jMonthLabel),
-      datasets: series.map(s => ({
+      datasets: series.map((s, i) => ({
         label: s.name,
         data: months.map(k => s.by.has(k) ? s.by.get(k).n : null),
         yAxisID: cityWithHoods && s.main ? 'y2' : 'y',
-        borderColor: s.color, backgroundColor: s.color,
+        borderColor: s.color, backgroundColor: i === 0 ? areaFill(s.color) : s.color,
+        fill: i === 0 ? 'start' : false,
         pointBackgroundColor: hollowPre(months, s.color),
         borderWidth: s.main ? 3 : 2, tension: .3, spanGaps: true,
         pointRadius: 4, pointHoverRadius: 6,

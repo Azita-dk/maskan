@@ -506,10 +506,24 @@ function confBadge(n, short){
   return `<span class="conf ${c.cls}"><i></i><b>${short ? c.short : c.label}</b></span>`;
 }
 
+function areaFill(color, alpha = .22){
+  const rgba = a => {
+    const h = color.replace('#', '');
+    return `rgba(${parseInt(h.slice(0,2),16)},${parseInt(h.slice(2,4),16)},${parseInt(h.slice(4,6),16)},${a})`;
+  };
+  return c => {
+    const a = c.chart.chartArea;
+    if (!a || !/^#[0-9a-f]{6}$/i.test(color)) return color;
+    const g = c.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom);
+    g.addColorStop(0, rgba(alpha)); g.addColorStop(1, rgba(0));
+    return g;
+  };
+}
+
 /* ------------------------------------------------------------ price heat */
 function heat(v, lo, hi){
-  if (!isFinite(v) || hi <= lo) return '#C8643A';
-  const stops = [[233,196,106],[224,138,60],[180,83,42],[107,30,30]];
+  if (!isFinite(v) || hi <= lo) return '#1F9AA0';
+  const stops = [[42,157,159],[233,196,106],[240,127,94],[192,72,52]];
   const x = Math.max(0, Math.min(1, (v-lo)/(hi-lo))) * (stops.length-1);
   const i = Math.min(stops.length-2, Math.floor(x)), f = x - i;
   const c = k => Math.round(stops[i][k] + (stops[i+1][k]-stops[i][k])*f);
@@ -568,7 +582,7 @@ const ICONS = {
              + '<path d="M8.5 12l2.5 2.5 4.5-5"/>'),
 };
 
-const LOGO = `<rect width="64" height="64" rx="14" fill="#A84A24"/>
+const LOGO = `<rect width="64" height="64" rx="14" fill="#0F6E73"/>
   <path d="M14 30L32 16l18 14" stroke="#fff" stroke-width="5" fill="none"
         stroke-linecap="round" stroke-linejoin="round"/>
   <rect x="18" y="36" width="7" height="12" rx="2" fill="#fff" opacity=".55"/>

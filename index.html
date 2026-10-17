@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>تحلیل بازار مسکن — قیمت‌ها و روند بازار در ایران</title>
 <meta name="description" content="میانه قیمت درخواستی آگهی‌های فروش آپارتمان در شهرها و محله‌های ایران.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23A84A24'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F6E73'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
@@ -245,7 +245,7 @@ const LANDMARKS = {
   'تهران': { c:'#D97706', svg:`<path d="M31 58V26l2-5h2l2 5v32z"/><path d="M25 22h18l-3 10H28z"/>
     <ellipse cx="34" cy="18" rx="12" ry="6"/><path d="M31 5h6l-1 12h-4z"/>
     <rect x="14" y="42" width="9" height="16" rx="1"/><rect x="45" y="38" width="9" height="20" rx="1"/>` },
-  'مشهد': { c:'#0E7490', svg:`<path d="M34 6c6 8 10 13 10 19a10 10 0 0 1-20 0c0-6 4-11 10-19z"/>
+  'مشهد': { c:'#C04834', svg:`<path d="M34 6c6 8 10 13 10 19a10 10 0 0 1-20 0c0-6 4-11 10-19z"/>
     <rect x="22" y="34" width="24" height="24" rx="2"/><rect x="12" y="28" width="7" height="30" rx="3"/>
     <rect x="49" y="28" width="7" height="30" rx="3"/><circle cx="15.5" cy="25" r="3.5"/>
     <circle cx="52.5" cy="25" r="3.5"/><rect x="30" y="44" width="8" height="14" rx="4"/>` },
@@ -494,7 +494,7 @@ function hoodStats(){
    than either the green or the red end. */
 function heatIsLight(v, lo, hi){
   if (!isFinite(v) || hi <= lo) return false;
-  const stops = [[233,196,106],[224,138,60],[180,83,42],[107,30,30]];
+  const stops = [[42,157,159],[233,196,106],[240,127,94],[192,72,52]];
   const x = Math.max(0, Math.min(1, (v-lo)/(hi-lo))) * (stops.length-1);
   const i = Math.min(stops.length-2, Math.floor(x)), f = x - i;
   const c = k => stops[i][k] + (stops[i+1][k]-stops[i][k])*f;
@@ -717,7 +717,7 @@ function historyDays(h){
 const MIN_TREND_DAYS = 7;
 let TREND_MONTHS = null;
 const HOOD_LINES = 5;
-const LINE_COLORS = ['#B4532A','#1D5FA8','#7A3E9D','#0E7490','#D97706','#4B5563'];
+const LINE_COLORS = ['#0F6E73','#F07F5E','#1D5FA8','#7A3E9D','#D9A21B','#4B5563'];
 
 /* Monthly points, not daily.
    A daily median of a market this size is mostly noise — the same flats,
@@ -1061,11 +1061,12 @@ function drawTrend(){
     plugins: [preShade],
     data: {
       labels: months.map(jMonthLabel),
-      datasets: series.map(s => ({
+      datasets: series.map((s, i) => ({
         label: s.name,
         data: months.map(k => (s.by.get(k) || {}).v ?? null),
         borderColor: s.ref ? CSSVAR('--muted') : s.color,
-        backgroundColor: s.ref ? CSSVAR('--muted') : s.color,
+        backgroundColor: s.ref ? CSSVAR('--muted') : i === 0 ? areaFill(s.color) : s.color,
+        fill: i === 0 && !s.ref ? 'start' : false,
         pointBackgroundColor: s.ref ? CSSVAR('--muted') : hollowPre(months, s.color),
         borderWidth: s.wide ? 3 : 2, tension: .3, spanGaps: true,
         pointRadius: s.ref ? 0 : 4, pointHoverRadius: 6,
@@ -1172,11 +1173,12 @@ function drawCountTrend(){
     plugins: [preShade, pointLabels],
     data: {
       labels: months.map(jMonthLabel),
-      datasets: series.map(s => ({
+      datasets: series.map((s, i) => ({
         label: s.name,
         data: months.map(k => s.by.has(k) ? s.by.get(k).n : null),
         yAxisID: cityWithHoods && s.main ? 'y2' : 'y',
-        borderColor: s.color, backgroundColor: s.color,
+        borderColor: s.color, backgroundColor: i === 0 ? areaFill(s.color) : s.color,
+        fill: i === 0 ? 'start' : false,
         pointBackgroundColor: hollowPre(months, s.color),
         borderWidth: s.main ? 3 : 2, tension: .3, spanGaps: true,
         pointRadius: 4, pointHoverRadius: 6,
