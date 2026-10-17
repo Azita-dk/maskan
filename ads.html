@@ -13,22 +13,22 @@
 @media (max-width:600px){
   .kpis{grid-template-columns:1fr 1fr!important;gap:10px}
   .kpi{padding:12px 12px 10px}
-  .kpi .v{font-size:22px}
-  .kpi .k{font-size:11.5px}
+  .kpi .v{font-size:24px}
+  .kpi .k{font-size:12.5px}
   .statrow{grid-template-columns:repeat(5,1fr)!important}
   .statrow div{padding:8px 2px}
-  .statrow .v{font-size:13px}
-  .statrow .k{font-size:10px}
-  .shead h2{font-size:17px}
+  .statrow .v{font-size:14px}
+  .statrow .k{font-size:11px}
+  .shead h2{font-size:18px}
   .panel header{flex-wrap:wrap;gap:8px}
-  .panel header h3{font-size:15px}
+  .panel header h3{font-size:16px}
 }
-.adscount{padding:10px 16px 0;font-size:13px;color:var(--muted)}
+.adscount{padding:10px 16px 0;font-size:14px;color:var(--muted)}
 .adscount b{color:var(--ink)}
 .areabar{padding:10px 16px;border-bottom:1px solid var(--rule);display:flex;gap:10px;
-  align-items:center;flex-wrap:wrap;font-size:13.5px;background:var(--green-pale)}
+  align-items:center;flex-wrap:wrap;font-size:14.5px;background:var(--green-pale)}
 .areabar .reset,#soloBar .reset{border:1px solid var(--rule);background:var(--card);color:var(--ink);
-  border-radius:8px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}
+  border-radius:8px;padding:5px 12px;font:inherit;font-size:14px;cursor:pointer}
 #adsBody tr.sel{background:var(--green-pale)}
 @media (max-width:720px){
   #map{height:340px}
@@ -48,10 +48,10 @@ table.cards td:first-child{white-space:normal;min-width:160px}
   table.cards tr:last-child{border-bottom:0}
   table.cards td:first-child, table.cards td.loading{grid-column:1/-1}
   table.cards td{border:0;padding:3px 0;display:flex;justify-content:space-between;
-    align-items:baseline;gap:14px;font-size:13.5px;white-space:normal;text-align:end}
-  table.cards td::before{content:attr(data-l);color:var(--muted);font-size:12px;
+    align-items:baseline;gap:14px;font-size:14.5px;white-space:normal;text-align:end}
+  table.cards td::before{content:attr(data-l);color:var(--muted);font-size:13px;
     flex:0 0 auto;text-align:start}
-  table.cards td:first-child{display:block;font-weight:700;font-size:14.5px;
+  table.cards td:first-child{display:block;font-weight:700;font-size:15.5px;
     margin-bottom:5px;line-height:1.6;min-width:0;text-align:start}
   table.cards td:first-child::before{content:none}
   table.cards td:empty{display:none}
@@ -111,7 +111,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
       <button class="reset" id="areaClear">نمایش همه آگهی‌ها</button>
     </div>
     <div id="soloBar" class="hide" style="padding:11px 16px;border-bottom:1px solid var(--rule);
-      display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13.5px">
+      display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14.5px">
       <span>آگهی انتخاب‌شده روی نقشه</span>
       <button class="reset" id="soloClear" style="border:1px solid var(--rule);
         background:transparent;color:var(--muted);border-radius:8px;padding:4px 11px">
@@ -347,7 +347,7 @@ function drawMap(){
           <span style="color:#5A6472">${esc(l.h || '')}</span><br>
           ${FA1(l.m)} میلیون تومان بر متر مربع${l.a ? ' · ' + FA(l.a) + ' متر' : ''}
           ${l.p ? '<br>قیمت کل: ' + FA1(l.p/1000) + ' میلیارد تومان' : ''}
-          <br><span style="color:#5A6472;font-size:12px">موقعیت تقریبی — جایی در این محدوده</span>
+          <br><span style="color:#5A6472;font-size:13px">موقعیت تقریبی — جایی در این محدوده</span>
           ${l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener"
             style="color:${CSSVAR('--green')};font-weight:700">دیدن آگهی ↗</a>` : ''}</div>`);
     }

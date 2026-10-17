@@ -12,22 +12,22 @@
 @media (max-width:600px){
   .kpis{grid-template-columns:1fr 1fr!important;gap:10px}
   .kpi{padding:12px 12px 10px}
-  .kpi .v{font-size:22px}
-  .kpi .k{font-size:11.5px}
+  .kpi .v{font-size:24px}
+  .kpi .k{font-size:12.5px}
   .statrow{grid-template-columns:repeat(5,1fr)!important}
   .statrow div{padding:8px 2px}
-  .statrow .v{font-size:13px}
-  .statrow .k{font-size:10px}
-  .shead h2{font-size:17px}
+  .statrow .v{font-size:14px}
+  .statrow .k{font-size:11px}
+  .shead h2{font-size:18px}
   .panel header{flex-wrap:wrap;gap:8px}
-  .panel header h3{font-size:15px}
+  .panel header h3{font-size:16px}
 }
 .sidebyside{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:stretch;margin-bottom:16px}
 .sidebyside>.panel{display:flex;flex-direction:column;margin:0}
 .sidebyside>.panel>.foot{margin-top:auto}
 .sidebyside.single{grid-template-columns:1fr}
 @media (max-width:900px){.sidebyside{grid-template-columns:1fr}}
-.scopebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 12px;font-size:13px;color:var(--muted)}
+.scopebar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 12px;font-size:14px;color:var(--muted)}
 .scopebar b{color:var(--ink)}
 .scopebar .chip{background:var(--green-pale);color:var(--green);border-radius:999px;padding:3px 10px;font-weight:700}
 .notebtn{border:0;background:transparent;color:var(--green);font:inherit;font-weight:700;
@@ -212,7 +212,7 @@ function drawKpis(){
       <div class="v ${cls}">${change}</div>
       <div class="u">${mc ? `از ${jMonthLabel(mc.from)} تا ${jMonthLabel(mc.to)}` : 'هنوز دو ماه کامل داده نیست'}</div></div>
     <div class="kpi"><div class="k">اعتبار این رقم</div>
-      <div class="v" style="font-size:18px;padding-top:6px">${confBadge(count)}</div>
+      <div class="v" style="font-size:19px;padding-top:6px">${confBadge(count)}</div>
       <div class="u">بر پایه تعداد آگهی</div></div>`;
 }
 
@@ -558,7 +558,7 @@ function monthlyChange(){
 }
 
 function lineChartOptions(months, fmt, extraY, showLegend){
-  const axisFont = { family: 'Vazirmatn', size: 11 };
+  const axisFont = { family: 'Vazirmatn', size: 12 };
   const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
   return {
     maintainAspectRatio: false,
@@ -566,7 +566,7 @@ function lineChartOptions(months, fmt, extraY, showLegend){
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { display: !!showLegend, rtl: true,
-        labels: { font: { family: 'Vazirmatn', size: 12 }, color: CSSVAR('--ink'),
+        labels: { font: { family: 'Vazirmatn', size: 13 }, color: CSSVAR('--ink'),
                   usePointStyle: true, pointStyle: 'line', boxWidth: 24 } },
       tooltip: { rtl: true, titleFont: { family: 'Vazirmatn' }, bodyFont: { family: 'Vazirmatn' },
         filter: item => item.parsed.y != null,
@@ -621,7 +621,7 @@ function drawTrend(){
   const vals = series.flatMap(s => months.map(k => s.by.get(k)).filter(r => r && r.v != null).map(r => r.v));
   const lo = Math.min(...vals), hi = Math.max(...vals);
   const pad = Math.max((hi - lo) * .15, hi * .04);
-  const axisFont = { family: 'Vazirmatn', size: 11 };
+  const axisFont = { family: 'Vazirmatn', size: 12 };
 
   trendChart = new Chart(ctx, {
     type: 'line',
@@ -718,7 +718,7 @@ function drawCountTrend(){
 
   const cityWithHoods = false;
   const approx = filtered;
-  const axisFont = { family: 'Vazirmatn', size: 11 };
+  const axisFont = { family: 'Vazirmatn', size: 12 };
   const yAxes = {
     y: { position: 'right', beginAtZero: true, grid: { color: CSSVAR('--rule') },
          ticks: { font: axisFont, color: CSSVAR('--muted'), precision: 0, callback: v => FA(v) } },
@@ -801,14 +801,14 @@ function drawDist(){
           pointRadius:0, fill:false, tension:.4 }] },
     options:{ maintainAspectRatio:false,
       plugins:{ legend:{ position:'bottom',
-          labels:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
+          labels:{font:{family:'Vazirmatn',size:13}, color:CSSVAR('--muted'),
                   boxWidth:12, usePointStyle:true} },
         tooltip:{ rtl:true, bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'} } },
       scales:{ x:{ grid:{display:false},
-                   ticks:{font:{family:'Vazirmatn',size:10}, color:CSSVAR('--muted'),
+                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
                           maxTicksLimit:9, maxRotation:0} },
                y:{ position:'right', grid:{color:CSSVAR('--rule')},
-                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                   ticks:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
                           callback:v=>FA(v)} } } }
   });
 
@@ -899,10 +899,10 @@ function drawBreakdown(){
             callbacks:{ label: c => FA1(meds[c.dataIndex]) + ' میلیون/متر — ' +
                                     (approxNote() ? 'حدود ' : '') + FA(scaled(rows[c.dataIndex].n)) + ' آگهی' } } },
         scales:{ x:{ grid:{display:false},
-                     ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                     ticks:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
                             maxRotation:0} },
                  y:{ position:'right', grid:{color:CSSVAR('--rule')},
-                     ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                     ticks:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
                             callback:v=>FA(v)} } } }
     });
   };
@@ -983,10 +983,10 @@ function drawHoodBars(){
           callbacks:{ label: c => FA1(meds[c.dataIndex]) + ' میلیون/متر — ' +
                                   (top[c.dataIndex].exact ? '' : 'حدود ') + FA(top[c.dataIndex].n) + ' آگهی' } } },
       scales:{ x:{ grid:{display:false},
-                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                   ticks:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
                           maxRotation:0} },
                y:{ position:'right', grid:{color:CSSVAR('--rule')},
-                   ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
+                   ticks:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
                           callback:v=>FA(v)} } } }
   });
 }

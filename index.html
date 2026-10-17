@@ -11,7 +11,7 @@
 <style>
 .hl-view{display:inline-flex;padding:4px;border-radius:12px;background:var(--paper);gap:4px;border:1px solid var(--rule)}
 .hl-view button{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;color:var(--ink);
-  font:inherit;font-size:14px;font-weight:700;padding:8px 18px;border-radius:9px;cursor:pointer}
+  font:inherit;font-size:15px;font-weight:700;padding:8px 18px;border-radius:9px;cursor:pointer}
 .hl-view button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .hl-view button.on{background:var(--green);color:#fff}
 @media (max-width:600px){
@@ -21,23 +21,23 @@
 .hl-tools{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;
   padding:12px 16px;border-bottom:1px solid var(--rule)}
 .hl-tools input{flex:0 1 220px;min-width:140px;height:36px;border:1px solid var(--rule);border-radius:9px;
-  padding:0 12px;font:inherit;font-size:13.5px;background:var(--card);color:var(--ink)}
+  padding:0 12px;font:inherit;font-size:14.5px;background:var(--card);color:var(--ink)}
 .panel #hoodGrid{display:block;padding:0;grid-template-columns:none}
 .hl-list{list-style:none;margin:0;padding:6px 0}
 .hl-row{display:grid;grid-template-columns:24px 112px 1fr 56px 72px;align-items:center;
   gap:10px;padding:7px 16px;cursor:pointer;border-bottom:1px solid transparent}
 .hl-row:hover{background:var(--paper)}
 .hl-row.on{background:var(--green-pale);box-shadow:inset 3px 0 0 var(--green)}
-.hl-row .rk{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;text-align:center}
-.hl-row .nm{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hl-row .few{display:inline-block;margin-inline-start:6px;font-size:10.5px;font-weight:600;color:var(--muted);
+.hl-row .rk{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;text-align:center}
+.hl-row .nm{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl-row .few{display:inline-block;margin-inline-start:6px;font-size:11.5px;font-weight:600;color:var(--muted);
   border:1px solid var(--rule);border-radius:999px;padding:0 6px;vertical-align:middle}
 .hl-row.thin .nm,.hl-row.thin .vl{opacity:.6}
 .hl-row.thin .fill{opacity:.45}
-.hl-row .trk{height:20px;border-radius:7px;background:var(--paper);overflow:hidden}
+.hl-row .trk{height:18px;border-radius:7px;background:var(--paper);overflow:hidden}
 .hl-row .fill{height:100%;border-radius:7px}
-.hl-row .vl{font-weight:800;font-size:15px;font-variant-numeric:tabular-nums;text-align:start}
-.hl-row .ct{color:var(--muted);font-size:12px;text-align:end;font-variant-numeric:tabular-nums}
+.hl-row .vl{font-weight:800;font-size:16px;font-variant-numeric:tabular-nums;text-align:start}
+.hl-row .ct{color:var(--muted);font-size:13px;text-align:end;font-variant-numeric:tabular-nums}
 .hl-more{display:block;width:100%;padding:12px;border:0;border-top:1px solid var(--rule);background:transparent;
   color:var(--green);font:inherit;font-weight:700;cursor:pointer}
 #hoodMap{height:420px}
@@ -56,15 +56,15 @@
 @media (max-width:600px){
   .kpis{grid-template-columns:1fr 1fr!important;gap:10px}
   .kpi{padding:12px 12px 10px}
-  .kpi .v{font-size:22px}
-  .kpi .k{font-size:11.5px}
+  .kpi .v{font-size:24px}
+  .kpi .k{font-size:12.5px}
   .statrow{grid-template-columns:repeat(5,1fr)!important}
   .statrow div{padding:8px 2px}
-  .statrow .v{font-size:13px}
-  .statrow .k{font-size:10px}
-  .shead h2{font-size:17px}
+  .statrow .v{font-size:14px}
+  .statrow .k{font-size:11px}
+  .shead h2{font-size:18px}
   .panel header{flex-wrap:wrap;gap:8px}
-  .panel header h3{font-size:15px}
+  .panel header h3{font-size:16px}
 }
 .notebtn{border:0;background:transparent;color:var(--green);font:inherit;font-weight:700;
   cursor:pointer;padding:0 4px;text-decoration:underline;text-underline-offset:3px}
@@ -83,10 +83,10 @@ table.cards td:first-child{white-space:normal;min-width:160px}
   table.cards tr:last-child{border-bottom:0}
   table.cards td:first-child, table.cards td.loading{grid-column:1/-1}
   table.cards td{border:0;padding:3px 0;display:flex;justify-content:space-between;
-    align-items:baseline;gap:14px;font-size:13.5px;white-space:normal;text-align:end}
-  table.cards td::before{content:attr(data-l);color:var(--muted);font-size:12px;
+    align-items:baseline;gap:14px;font-size:14.5px;white-space:normal;text-align:end}
+  table.cards td::before{content:attr(data-l);color:var(--muted);font-size:13px;
     flex:0 0 auto;text-align:start}
-  table.cards td:first-child{display:block;font-weight:700;font-size:14.5px;
+  table.cards td:first-child{display:block;font-weight:700;font-size:15.5px;
     margin-bottom:5px;line-height:1.6;min-width:0;text-align:start}
   table.cards td:first-child::before{content:none}
   table.cards td:empty{display:none}
@@ -184,7 +184,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
       </div>
 
       <div id="soloBar" class="hide" style="padding:11px 16px;border-bottom:1px solid var(--rule);
-        display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13.5px">
+        display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14.5px">
         <span>یک آگهی از روی نقشه انتخاب شده است</span>
         <button class="reset" id="soloClear" style="border:1px solid var(--rule);
           background:transparent;color:var(--muted);border-radius:8px;padding:4px 11px">
@@ -446,7 +446,7 @@ function drawKpis(){
       <div class="v ${chg.cls}">${chg.text}</div>
       <div class="u">${chg.sub}</div></div>
     <div class="kpi"><div class="k">اعتبار این رقم</div>
-      <div class="v" style="font-size:18px;padding-top:6px">${confBadge(count)}</div>
+      <div class="v" style="font-size:19px;padding-top:6px">${confBadge(count)}</div>
       <div class="u">بر پایه تعداد آگهی</div></div>`;
 }
 
@@ -983,7 +983,7 @@ function monthlyChange(){
 }
 
 function lineChartOptions(months, fmt, extraY, showLegend){
-  const axisFont = { family: 'Vazirmatn', size: 11 };
+  const axisFont = { family: 'Vazirmatn', size: 12 };
   const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
   return {
     maintainAspectRatio: false,
@@ -991,7 +991,7 @@ function lineChartOptions(months, fmt, extraY, showLegend){
     interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: { display: !!showLegend, rtl: true,
-        labels: { font: { family: 'Vazirmatn', size: 12 }, color: CSSVAR('--ink'),
+        labels: { font: { family: 'Vazirmatn', size: 13 }, color: CSSVAR('--ink'),
                   usePointStyle: true, pointStyle: 'line', boxWidth: 24 } },
       tooltip: { rtl: true, titleFont: { family: 'Vazirmatn' }, bodyFont: { family: 'Vazirmatn' },
         filter: item => item.parsed.y != null,
@@ -1054,7 +1054,7 @@ function drawTrend(){
   const vals = series.flatMap(s => months.map(k => s.by.get(k)).filter(r => r && r.v != null).map(r => r.v));
   const lo = Math.min(...vals), hi = Math.max(...vals);
   const pad = Math.max((hi - lo) * .15, hi * .04);
-  const axisFont = { family: 'Vazirmatn', size: 11 };
+  const axisFont = { family: 'Vazirmatn', size: 12 };
 
   trendChart = new Chart(ctx, {
     type: 'line',
@@ -1155,7 +1155,7 @@ function drawCountTrend(){
 
   const cityWithHoods = false;
   const approx = filtered;
-  const axisFont = { family: 'Vazirmatn', size: 11 };
+  const axisFont = { family: 'Vazirmatn', size: 12 };
   const yAxes = {
     y: { position: 'right', beginAtZero: true, grid: { color: CSSVAR('--rule') },
          ticks: { font: axisFont, color: CSSVAR('--muted'), precision: 0, callback: v => FA(v) } },
@@ -1375,7 +1375,7 @@ function drawMap(){
           <span style="color:#5A6472">${esc(l.h || '')}</span><br>
           ${FA1(l.m)} میلیون تومان بر متر مربع${l.a ? ' · ' + FA(l.a) + ' متر' : ''}
           ${l.p ? '<br>قیمت کل: ' + FA1(l.p/1000) + ' میلیارد تومان' : ''}
-          <br><span style="color:#5A6472;font-size:12px">موقعیت تقریبی — جایی در این محدوده</span>
+          <br><span style="color:#5A6472;font-size:13px">موقعیت تقریبی — جایی در این محدوده</span>
           ${l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener"
             style="color:${CSSVAR('--green')};font-weight:700">دیدن آگهی ↗</a>` : ''}</div>`);
     }
@@ -1429,8 +1429,8 @@ function drawNext(){
   document.getElementById('next').innerHTML = cards.map(([f, icon, t, d]) => `
     <a class="citycard" href="${linkTo(f)}" data-page="${f}">
       <div class="ic">${icon}</div>
-      <b style="font-size:15px;display:block;margin-bottom:3px">${t}</b>
-      <span class="muted" style="font-size:12.5px">${d}</span>
+      <b style="font-size:16px;display:block;margin-bottom:3px">${t}</b>
+      <span class="muted" style="font-size:13.5px">${d}</span>
     </a>`).join('');
 }
 
