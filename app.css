@@ -43,7 +43,8 @@ button{font:inherit;font-family:inherit;cursor:pointer}
 :focus-visible{outline:2px solid var(--green);outline-offset:2px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 
-.wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+.wrap{max-width:1440px;margin:0 auto;padding:0 20px}
+@media (min-width:1200px){.wrap{padding:0 32px}}
 .hide{display:none!important}
 .muted{color:var(--muted)}
 .up{color:var(--rise)} .down{color:var(--fall)}
