@@ -593,15 +593,16 @@ export async function recheckChunk(env) {
   const { results } = await db.prepare(`
     SELECT rowid AS rid, source_id FROM listings
     WHERE rowid > ? AND source = 'divar' AND removed_at IS NULL
-      AND enriched_at IS NOT NULL
       AND COALESCE(last_seen, scraped_at) >= date('now', '-21 days')
     ORDER BY rowid LIMIT ?`).bind(cursor, N).all();
 
   const gone = [];
+  const codes = {};
   let ok = 0, failed = 0;
   for (const r of results) {
     try {
       const res = await fetch(DETAIL + r.source_id, { headers: HEADERS });
+      codes[res.status] = (codes[res.status] || 0) + 1;
       if (res.status === 404 || res.status === 410) { gone.push(r.source_id); continue; }
       if (!res.ok) { failed++; continue; }
       const text = await res.text();
@@ -625,6 +626,7 @@ export async function recheckChunk(env) {
 
   return { log: [`recheck: ${results.length} checked from rowid ${cursor} · ` +
                  `${gone.length} removed from Divar · ${ok} still up · ${failed} failed` +
+                 ` · answers ${Object.entries(codes).map(([c, n]) => c + "×" + n).join(" ")}` +
                  (next === 0 ? " · pass complete, starting again" : "")],
            checked: results.length, removed: gone.length };
 }

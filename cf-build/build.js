@@ -374,9 +374,25 @@ export async function build(env, log = [], from = 0, self = null) {
 
   const seen = new Set();
   const cities = new Map();
-  let dupes = 0;
+  let dupes = 0, onDivar = 0;
+  const looseKey = (r) => {
+    const a = Math.round(r.area_m2 || 0), p = Number(r.price_toman) || 0;
+    if (!a || !p) return null;
+    const d = Math.ceil(Math.log10(p)) - 3;
+    return `${canonicalPlace(r.city)}|${r.kind}|${a}|${Math.round(p / 10 ** d)}`;
+  };
+  const divarKeys = new Set();
+  for (const r of all.results) {
+    if (r.source !== "divar" || r.removed) continue;
+    if (r.dedupe_key) divarKeys.add(r.dedupe_key);
+    const k = looseKey(r);
+    if (k) divarKeys.add(k);
+  }
+  all.results.sort((a, b) => (a.source === "divar" ? 0 : 1) - (b.source === "divar" ? 0 : 1));
 
   for (const r of all.results) {
+    if (r.source !== "divar" &&
+        ((r.dedupe_key && divarKeys.has(r.dedupe_key)) || divarKeys.has(looseKey(r)))) { onDivar++; continue; }
     if (r.dedupe_key) {
       if (seen.has(r.dedupe_key)) { dupes++; r.dup = true; }
       else seen.add(r.dedupe_key);
@@ -408,6 +424,7 @@ export async function build(env, log = [], from = 0, self = null) {
       }
     }
   }
+  log.push(`${onDivar} ads from other sites left out because the same ad is on Divar`);
   log.push(`${dupes} duplicate reposts (shown, not counted twice in statistics), ` +
            `${misplaced} whose map position is in another town ` +
            `(${moves.length} moved to it)`);
