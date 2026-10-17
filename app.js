@@ -508,8 +508,8 @@ function confBadge(n, short){
 
 /* ------------------------------------------------------------ price heat */
 function heat(v, lo, hi){
-  if (!isFinite(v) || hi <= lo) return '#12A06B';
-  const stops = [[12,122,79],[242,199,68],[217,119,6],[179,38,30]];
+  if (!isFinite(v) || hi <= lo) return '#C8643A';
+  const stops = [[233,196,106],[224,138,60],[180,83,42],[107,30,30]];
   const x = Math.max(0, Math.min(1, (v-lo)/(hi-lo))) * (stops.length-1);
   const i = Math.min(stops.length-2, Math.floor(x)), f = x - i;
   const c = k => Math.round(stops[i][k] + (stops[i+1][k]-stops[i][k])*f);
@@ -568,7 +568,7 @@ const ICONS = {
              + '<path d="M8.5 12l2.5 2.5 4.5-5"/>'),
 };
 
-const LOGO = `<rect width="64" height="64" rx="14" fill="#0C7A4F"/>
+const LOGO = `<rect width="64" height="64" rx="14" fill="#A84A24"/>
   <path d="M14 30L32 16l18 14" stroke="#fff" stroke-width="5" fill="none"
         stroke-linecap="round" stroke-linejoin="round"/>
   <rect x="18" y="36" width="7" height="12" rx="2" fill="#fff" opacity=".55"/>
