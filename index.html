@@ -9,6 +9,42 @@
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
+.hl-view{display:inline-flex;padding:3px;border-radius:10px;background:var(--paper);gap:3px}
+.hl-view button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:13px;
+  padding:6px 14px;border-radius:8px;cursor:pointer}
+.hl-view button.on{background:var(--card);color:var(--ink);font-weight:800;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.hl-tools{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  padding:12px 16px;border-bottom:1px solid var(--rule)}
+.hl-tools input{flex:0 1 220px;min-width:140px;height:36px;border:1px solid var(--rule);border-radius:9px;
+  padding:0 12px;font:inherit;font-size:13.5px;background:var(--card);color:var(--ink)}
+.panel #hoodGrid{display:block;padding:0;grid-template-columns:none}
+.hl-list{list-style:none;margin:0;padding:6px 0}
+.hl-row{display:grid;grid-template-columns:30px minmax(110px,1.1fr) 2fr 74px 78px;align-items:center;
+  gap:12px;padding:8px 16px;cursor:pointer;border-bottom:1px solid transparent}
+.hl-row:hover{background:var(--paper)}
+.hl-row.on{background:var(--green-pale);box-shadow:inset 3px 0 0 var(--green)}
+.hl-row .rk{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;text-align:center}
+.hl-row .nm{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl-row .few{display:inline-block;margin-inline-start:6px;font-size:10.5px;font-weight:600;color:var(--muted);
+  border:1px solid var(--rule);border-radius:999px;padding:0 6px;vertical-align:middle}
+.hl-row.thin .nm,.hl-row.thin .vl{opacity:.6}
+.hl-row.thin .fill{opacity:.45}
+.hl-row .trk{height:10px;border-radius:5px;background:var(--paper);overflow:hidden}
+.hl-row .fill{height:100%;border-radius:5px}
+.hl-row .vl{font-weight:800;font-size:15px;font-variant-numeric:tabular-nums;text-align:end}
+.hl-row .ct{color:var(--muted);font-size:12px;text-align:end;font-variant-numeric:tabular-nums}
+.hl-more{display:block;width:100%;padding:12px;border:0;border-top:1px solid var(--rule);background:transparent;
+  color:var(--green);font:inherit;font-weight:700;cursor:pointer}
+#hoodMap{height:420px}
+#hoodMapBox{position:relative;isolation:isolate}
+@media (max-width:600px){
+  .hl-row{grid-template-columns:1fr auto;gap:4px 10px;padding:10px 14px}
+  .hl-row .rk{display:none}
+  .hl-row .trk{grid-column:1/-1;order:3}
+  .hl-row .ct{grid-column:1/-1;order:4;text-align:start}
+  .hl-tools input{flex:1 1 100%}
+  #hoodMap{height:340px}
+}
 .mapwrap{position:relative;isolation:isolate}
 @media (max-width:600px){
   .kpis{grid-template-columns:1fr 1fr!important;gap:10px}
@@ -70,18 +106,24 @@ table.cards td:first-child{white-space:normal;min-width:160px}
     <div class="panel">
       <header>
         <h3 id="hoodTitle">محله‌ها</h3>
+        <div class="hl-view" id="hoodView">
+          <button data-view="list" class="on">فهرست</button>
+          <button data-view="map">نقشه</button>
+        </div>
+      </header>
+      <div class="hl-tools" id="hoodTools">
         <div class="tabs" id="hoodTabs">
           <button data-sort="price" class="on">گران‌ترین</button>
           <button data-sort="cheap">ارزان‌ترین</button>
           <button data-sort="count">بیشترین آگهی</button>
         </div>
-      </header>
+        <input id="hoodFind" type="search" autocomplete="off" placeholder="پیدا کردن محله…">
+      </div>
       <div id="hoodGrid"><div class="loading">در حال بارگذاری…</div></div>
+      <div id="hoodMapBox" class="hide"><div id="hoodMap"></div></div>
       <div class="scalekey">
         <div class="scalerow"><span>ارزان‌ترین</span><span class="bar"></span>
-          <span>گران‌ترین</span></div>
-        <p class="scalenote">عدد هر خانه میانه قیمت هر متر مربع آن محله است،
-          به میلیون تومان؛ رنگ هم بر پایه همان عدد است.</p></div>
+          <span>گران‌ترین</span></div></div>
       <p class="foot" id="hoodFoot"></p>
     </div>
 
@@ -452,12 +494,23 @@ function heatIsLight(v, lo, hi){
   return 0.299*c(0) + 0.587*c(1) + 0.114*c(2) > 150;
 }
 
-let hoodSort = 'price';
+let hoodSort = 'price', hoodView = 'list', hoodShowAll = false, hoodFind = '';
+let hoodMap = null, hoodLayer = null;
+const HOOD_TOP = 15, HOOD_FEW = 20;
+
+function hoodScale(rows){
+  const v = rows.map(r => r.med).sort((a, b) => a - b);
+  const q = p => v[Math.max(0, Math.min(v.length - 1, Math.floor(v.length * p)))];
+  return { lo: q(.05), hi: q(.95), max: v[v.length - 1] || 1 };
+}
+
+function pickHood(h){
+  S.hood = S.hood === h ? '' : h;
+  fillHoodSelect();
+  commit();
+}
 
 function drawHoods(){
-  // Built from the whole city even when one neighbourhood is selected,
-  // otherwise the grid would hold a single tile. The selected one is
-  // outlined instead.
   const keep = S.hood;
   S.hood = '';
   const rows = hoodStats();
@@ -465,80 +518,115 @@ function drawHoods(){
 
   const box = document.getElementById('hoodGrid');
   const foot = document.getElementById('hoodFoot');
+  const mapBox = document.getElementById('hoodMapBox');
+  document.getElementById('hoodTools').classList.toggle('hide', hoodView !== 'list');
+  box.classList.toggle('hide', hoodView !== 'list');
+  mapBox.classList.toggle('hide', hoodView !== 'map');
 
   if (!rows.length) {
     box.innerHTML = '<div class="loading">با این فیلترها محله‌ای با آگهی کافی نمانده است.</div>';
     foot.textContent = '';
     return;
   }
+  const sc = hoodScale(rows);
 
-  /* With a neighbourhood chosen the grid narrows to it, so the panel shows
-     the same selection as everything else on the page rather than contradicting
-     it. The way back out has to stay visible, hence the button in the footer —
-     otherwise the only escape is the dropdown at the top. */
-  const picked = S.hood ? rows.filter(r => r.hood === S.hood) : rows;
-  if (S.hood && picked.length) {
-    const r = picked[0];
-    const color = heat(r.med, Math.min(...rows.map(x => x.med)),
-                              Math.max(...rows.map(x => x.med)));
-    const ink = heatIsLight(r.med, Math.min(...rows.map(x => x.med)),
-                                   Math.max(...rows.map(x => x.med))) ? '#1a1a1a' : '#fff';
-    box.innerHTML = `<div class="gcell on" data-hood="${esc(r.hood)}"
-      style="background:${color};color:${ink}">
-      <div class="grow"><span class="gname">${esc(r.hood)}</span></div>
-      <div class="grow"><span class="gval"><span class="glbl">میانه</span> ${FA1(r.med)}</span>
-        <span class="gcount">${FA(r.n)} آگهی</span></div>
-    </div>`;
-    box.querySelector('[data-hood]').addEventListener('click', () => {
-      S.hood = ''; fillHoodSelect(); commit();
-    });
-    foot.innerHTML = `تنها محله انتخاب‌شده نشان داده می‌شود — ` +
-      `<button class="reset" id="allHoods">نمایش همه ${FA(rows.length)} محله</button>`;
-    document.getElementById('allHoods').addEventListener('click', () => {
-      S.hood = ''; fillHoodSelect(); commit();
-    });
-    return;
+  if (hoodView === 'map') { drawHoodMap(rows, sc); return; }
+
+  const sorted = [...rows];
+  if (hoodSort === 'price')      sorted.sort((a, b) => b.med - a.med);
+  else if (hoodSort === 'cheap') sorted.sort((a, b) => a.med - b.med);
+  else                           sorted.sort((a, b) => b.n - a.n);
+  sorted.forEach((r, i) => { r.rank = i + 1; });
+
+  let show = sorted;
+  const q = hoodFind.trim();
+  if (q) show = sorted.filter(r => matches(r.hood, q));
+  else if (!hoodShowAll) {
+    show = sorted.slice(0, HOOD_TOP);
+    const sel = S.hood && sorted.find(r => r.hood === S.hood);
+    if (sel && !show.includes(sel)) show = [...show, sel];
   }
 
-  if (hoodSort === 'price')      rows.sort((a, b) => b.med - a.med);
-  else if (hoodSort === 'cheap') rows.sort((a, b) => a.med - b.med);
-  else                           rows.sort((a, b) => b.n - a.n);
-
-  const meds = rows.map(r => r.med);
-  const lo = Math.min(...meds), hi = Math.max(...meds);
-
-  box.innerHTML = rows.map((r, i) => {
-    const color = heat(r.med, lo, hi);
-    const ink = heatIsLight(r.med, lo, hi) ? '#1a1a1a' : '#fff';
-    return `<div class="gcell${r.hood === S.hood ? ' on' : ''}" data-hood="${esc(r.hood)}"
-      title="${esc(r.hood)} — میانه ${FA1(r.med)} میلیون تومان بر متر — ${FA(r.n)} آگهی — ${confLevel(r.n).label}"
-      style="background:${color};color:${ink}">
-      <div class="grow"><span class="gname">${esc(r.hood)}</span></div>
-      <div class="grow"><span class="gval"><span class="glbl">میانه</span> ${FA1(r.med)}</span>
-        <span class="gcount">${FA(r.n)} آگهی</span></div>
-    </div>`;
-  }).join('');
+  box.innerHTML = show.length ? `<ul class="hl-list">${show.map(r => {
+    const few = r.n < HOOD_FEW;
+    return `<li class="hl-row${r.hood === S.hood ? ' on' : ''}${few ? ' thin' : ''}" data-hood="${esc(r.hood)}"
+        title="${esc(r.hood)} — میانه ${FA1(r.med)} میلیون تومان بر متر — ${FA(r.n)} آگهی">
+      <span class="rk">${FA(r.rank)}</span>
+      <span class="nm">${esc(r.hood)}${few ? '<span class="few">کم‌آگهی</span>' : ''}</span>
+      <span class="trk"><span class="fill" style="display:block;width:${Math.max(2, r.med / sc.max * 100).toFixed(1)}%;background:${heat(r.med, sc.lo, sc.hi)}"></span></span>
+      <span class="vl">${FA1(r.med)}</span>
+      <span class="ct">${FA(r.n)} آگهی</span>
+    </li>`; }).join('')}</ul>` +
+    (!q && sorted.length > HOOD_TOP
+      ? `<button class="hl-more" id="hoodMore">${hoodShowAll
+          ? 'نمایش ' + FA(HOOD_TOP) + ' محله اول'
+          : 'نمایش همه ' + FA(sorted.length) + ' محله'}</button>` : '')
+    : '<div class="loading">محله‌ای با این نام پیدا نشد.</div>';
 
   box.querySelectorAll('[data-hood]').forEach(el =>
-    el.addEventListener('click', () => {
-      S.hood = S.hood === el.dataset.hood ? '' : el.dataset.hood;
-      fillHoodSelect();
-      commit();
-    }));
+    el.addEventListener('click', () => pickHood(el.dataset.hood)));
+  const more = document.getElementById('hoodMore');
+  if (more) more.addEventListener('click', () => { hoodShowAll = !hoodShowAll; drawHoods(); });
 
-  foot.textContent = `${FA(rows.length)} محله در ${CITY.name} · ` +
-    'مرتب‌شده از ' + (hoodSort === 'cheap' ? 'ارزان‌ترین' :
-      hoodSort === 'count' ? 'پرآگهی‌ترین' : 'گران‌ترین') +
-    ' · روی هر محله بزنید تا همه صفحه‌ها به آن محدود شوند.';
+  foot.textContent = `${FA(rows.length)} محله در ${CITY.name}. عدد هر ردیف میانه قیمت هر متر مربع ` +
+    'به میلیون تومان است و طول نوار همان را نشان می‌دهد. محله‌های «کم‌آگهی» کمتر از ' +
+    `${FA(HOOD_FEW)} آگهی دارند و رقمشان قابل‌اتکا نیست. روی هر محله بزنید تا همه صفحه به آن محدود شود.`;
+}
 
+function drawHoodMap(rows, sc){
+  const foot = document.getElementById('hoodFoot');
+  const pts = rows.filter(r => r.y && r.x);
+  if (typeof L === 'undefined') { foot.textContent = 'نقشه بارگذاری نشد.'; return; }
+  if (!hoodMap) {
+    hoodMap = L.map('hoodMap', { scrollWheelZoom: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(hoodMap);
+    hoodLayer = L.layerGroup().addTo(hoodMap);
+  }
+  setTimeout(() => hoodMap.invalidateSize(), 0);
+  hoodLayer.clearLayers();
+  if (!pts.length) {
+    hoodMap.setView([32.4, 53.7], 5);
+    foot.textContent = 'محله‌های این شهر هنوز مختصات ندارند.';
+    return;
+  }
+  const maxN = Math.max(...pts.map(r => r.n));
+  pts.sort((a, b) => b.n - a.n).forEach(r => {
+    const sel = r.hood === S.hood;
+    L.circleMarker([r.y, r.x], {
+      radius: 5 + 13 * Math.sqrt(r.n / maxN),
+      color: sel ? CSSVAR('--ink') : '#fff', weight: sel ? 3 : 1, opacity: .9,
+      fillColor: heat(r.med, sc.lo, sc.hi), fillOpacity: r.n < HOOD_FEW ? .45 : .85,
+    }).bindTooltip(`<b>${esc(r.hood)}</b><br>${FA1(r.med)} میلیون بر متر · ${FA(r.n)} آگهی`,
+      { direction: 'top' })
+      .on('click', () => pickHood(r.hood))
+      .addTo(hoodLayer);
+  });
+  hoodMap.fitBounds(L.latLngBounds(pts.map(r => [r.y, r.x])).pad(.08), { maxZoom: 14 });
+  foot.textContent = `${FA(pts.length)} محله از ${FA(rows.length)} محله روی نقشه است. ` +
+    'رنگ دایره میانه قیمت هر متر و اندازه‌اش تعداد آگهی را نشان می‌دهد. روی هر دایره بزنید تا همه صفحه به آن محله محدود شود.' +
+    (pts.length < rows.length ? ' محله‌های بی‌مختصات فقط در «فهرست» هستند.' : '');
 }
 
 document.getElementById('hoodTabs').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
-  hoodSort = b.dataset.sort;
+  hoodSort = b.dataset.sort; hoodShowAll = false;
   document.querySelectorAll('#hoodTabs button').forEach(x => x.classList.toggle('on', x === b));
   drawHoods();
 });
+document.getElementById('hoodView').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  hoodView = b.dataset.view;
+  document.querySelectorAll('#hoodView button').forEach(x => x.classList.toggle('on', x === b));
+  drawHoods();
+});
+{
+  let t = null;
+  document.getElementById('hoodFind').addEventListener('input', e => {
+    clearTimeout(t);
+    t = setTimeout(() => { hoodFind = e.target.value; drawHoods(); }, 200);
+  });
+}
 
 /* History is stored per kind. `ours` and `hood_hist` are objects keyed by
    apartment / villa / land, never one merged series — joining them would put
