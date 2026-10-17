@@ -9,18 +9,23 @@
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
-.hl-view{display:inline-flex;padding:3px;border-radius:10px;background:var(--paper);gap:3px}
-.hl-view button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:13px;
-  padding:6px 14px;border-radius:8px;cursor:pointer}
-.hl-view button.on{background:var(--card);color:var(--ink);font-weight:800;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.hl-view{display:inline-flex;padding:4px;border-radius:12px;background:var(--paper);gap:4px;border:1px solid var(--rule)}
+.hl-view button{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;color:var(--ink);
+  font:inherit;font-size:14px;font-weight:700;padding:8px 18px;border-radius:9px;cursor:pointer}
+.hl-view button svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hl-view button.on{background:var(--green);color:#fff}
+@media (max-width:600px){
+  #hoodView{display:flex;width:100%;margin-top:10px}
+  #hoodView button{flex:1;justify-content:center}
+}
 .hl-tools{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;
   padding:12px 16px;border-bottom:1px solid var(--rule)}
 .hl-tools input{flex:0 1 220px;min-width:140px;height:36px;border:1px solid var(--rule);border-radius:9px;
   padding:0 12px;font:inherit;font-size:13.5px;background:var(--card);color:var(--ink)}
 .panel #hoodGrid{display:block;padding:0;grid-template-columns:none}
 .hl-list{list-style:none;margin:0;padding:6px 0}
-.hl-row{display:grid;grid-template-columns:30px minmax(110px,1.1fr) 2fr 74px 78px;align-items:center;
-  gap:12px;padding:8px 16px;cursor:pointer;border-bottom:1px solid transparent}
+.hl-row{display:grid;grid-template-columns:24px 112px 1fr 56px 72px;align-items:center;
+  gap:10px;padding:7px 16px;cursor:pointer;border-bottom:1px solid transparent}
 .hl-row:hover{background:var(--paper)}
 .hl-row.on{background:var(--green-pale);box-shadow:inset 3px 0 0 var(--green)}
 .hl-row .rk{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;text-align:center}
@@ -29,19 +34,21 @@
   border:1px solid var(--rule);border-radius:999px;padding:0 6px;vertical-align:middle}
 .hl-row.thin .nm,.hl-row.thin .vl{opacity:.6}
 .hl-row.thin .fill{opacity:.45}
-.hl-row .trk{height:10px;border-radius:5px;background:var(--paper);overflow:hidden}
-.hl-row .fill{height:100%;border-radius:5px}
-.hl-row .vl{font-weight:800;font-size:15px;font-variant-numeric:tabular-nums;text-align:end}
+.hl-row .trk{height:16px;border-radius:6px;background:var(--paper);overflow:hidden}
+.hl-row .fill{height:100%;border-radius:6px}
+.hl-row .vl{font-weight:800;font-size:15px;font-variant-numeric:tabular-nums;text-align:start}
 .hl-row .ct{color:var(--muted);font-size:12px;text-align:end;font-variant-numeric:tabular-nums}
 .hl-more{display:block;width:100%;padding:12px;border:0;border-top:1px solid var(--rule);background:transparent;
   color:var(--green);font:inherit;font-weight:700;cursor:pointer}
 #hoodMap{height:420px}
 #hoodMapBox{position:relative;isolation:isolate}
 @media (max-width:600px){
-  .hl-row{grid-template-columns:1fr auto;gap:4px 10px;padding:10px 14px}
+  .hl-row{grid-template-columns:1fr auto auto;gap:4px 10px;padding:7px 14px}
   .hl-row .rk{display:none}
-  .hl-row .trk{grid-column:1/-1;order:3}
-  .hl-row .ct{grid-column:1/-1;order:4;text-align:start}
+  .hl-row .nm{order:1}
+  .hl-row .ct{order:2}
+  .hl-row .vl{order:3}
+  .hl-row .trk{grid-column:1/-1;order:4}
   .hl-tools input{flex:1 1 100%}
   #hoodMap{height:340px}
 }
@@ -107,8 +114,8 @@ table.cards td:first-child{white-space:normal;min-width:160px}
       <header>
         <h3 id="hoodTitle">محله‌ها</h3>
         <div class="hl-view" id="hoodView">
-          <button data-view="list" class="on">فهرست</button>
-          <button data-view="map">نقشه</button>
+          <button data-view="list" class="on"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>فهرست</button>
+          <button data-view="map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>نقشه</button>
         </div>
       </header>
       <div class="hl-tools" id="hoodTools">
