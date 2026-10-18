@@ -24,7 +24,7 @@ enabled = true
 [vars]
 SHARDS = "1"
 SHARD = "0"
-PER_RUN = "300"
+PER_RUN = "120"
 
 [triggers]
 crons = ["* * * * *"]

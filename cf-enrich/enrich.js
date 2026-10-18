@@ -450,12 +450,14 @@ export async function enrichChunk(env) {
    * reset the counter if it is worth another attempt. */
   const giveUp = [];
 
+  let lastRid = cursor, limited = false;
   for (const row of results) {
     let blob;
     try {
       const res = await fetch(DETAIL + row.source_id, { headers: HEADERS });
+      if (res.status === 429) { limited = true; break; }
+      lastRid = row.rid;
       if (res.status === 404 || res.status === 410) {
-        // the listing is gone; mark it so it is not retried forever
         stmts.push(db.prepare(
           `UPDATE listings SET enriched_at=?${hasRemoved ? ", removed_at=COALESCE(removed_at, ?)" : ""}
            WHERE source='divar' AND source_id=?`)
@@ -477,6 +479,7 @@ export async function enrichChunk(env) {
     } catch (e) {
       failed++;
       giveUp.push(row.source_id);
+      lastRid = row.rid;
       continue;
     }
 
@@ -530,7 +533,7 @@ export async function enrichChunk(env) {
   if (stmts.length) await db.batch(stmts);
 
   // remember where the sweep reached
-  await saveCursor(results.length ? results[results.length - 1].rid : cursor);
+  await saveCursor(limited ? lastRid : (results.length ? results[results.length - 1].rid : cursor));
 
   /* There used to be a COUNT of the remaining queue here, with a comment
    * claiming the index made it cheap. It does not. An index makes a lookup
@@ -564,13 +567,15 @@ export async function enrichChunk(env) {
     log: [`${results.length} fetched from rowid ${cursor} ` +
           `· ${coords} with coordinates · ` +
           `${dated} with a date · ${removed} removed from Divar · ${failed} failed` +
+          (limited ? " · Divar asked to slow down, stopped early" : "") +
           (remaining === null ? "" : ` · ${remaining} still to do`)],
     done: results.length, coords, removed, failed, remaining,
   };
 }
 
 
-const RECHECK_DEFAULT = 120;
+const RECHECK_DEFAULT = 60;
+const RECHECK_PAUSE_MS = 700;
 const REMOVED_RE = /آگهی\s*(?:حذف\s*شده|منقضی\s*شده|غیرفعال|دیگر\s*در\s*دسترس\s*نیست)|این\s*آگهی\s*(?:حذف|منقضی)/;
 
 export async function recheckChunk(env) {
@@ -598,17 +603,19 @@ export async function recheckChunk(env) {
 
   const gone = [];
   const codes = {};
-  let ok = 0, failed = 0;
+  let ok = 0, failed = 0, lastDone = cursor, limited = false;
   for (const r of results) {
     try {
       const res = await fetch(DETAIL + r.source_id, { headers: HEADERS });
       codes[res.status] = (codes[res.status] || 0) + 1;
+      if (res.status === 429) { limited = true; break; }
+      lastDone = r.rid;
       if (res.status === 404 || res.status === 410) { gone.push(r.source_id); continue; }
       if (!res.ok) { failed++; continue; }
       const text = await res.text();
       if (REMOVED_RE.test(text)) gone.push(r.source_id); else ok++;
-    } catch (e) { failed++; }
-    await sleep(PAUSE_MS);
+    } catch (e) { failed++; lastDone = r.rid; }
+    await sleep(RECHECK_PAUSE_MS);
   }
 
   if (results.length >= 20 && gone.length > results.length * 0.6) {
@@ -621,12 +628,13 @@ export async function recheckChunk(env) {
       "UPDATE listings SET removed_at = COALESCE(removed_at, ?) WHERE source='divar' AND source_id=?")
       .bind(today, id)));
   }
-  const next = results.length < N ? 0 : results[results.length - 1].rid;
+  const next = limited ? lastDone : (results.length < N ? 0 : results[results.length - 1].rid);
   try { await env.SITE?.put("recheck:cursor", JSON.stringify({ rowid: next })); } catch (e) { /* retry */ }
 
-  return { log: [`recheck: ${results.length} checked from rowid ${cursor} · ` +
+  return { log: [`recheck: ${limited ? Object.values(codes).reduce((a, b) => a + b, 0) - 1 : results.length} checked from rowid ${cursor} · ` +
                  `${gone.length} removed from Divar · ${ok} still up · ${failed} failed` +
                  ` · answers ${Object.entries(codes).map(([c, n]) => c + "×" + n).join(" ")}` +
+                 (limited ? " · Divar asked to slow down, stopped and will continue from here next minute" : "") +
                  (next === 0 ? " · pass complete, starting again" : "")],
            checked: results.length, removed: gone.length };
 }
