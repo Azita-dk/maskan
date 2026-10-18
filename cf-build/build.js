@@ -44,6 +44,11 @@ const ACTIVE_DAYS = 21;
  * listings, and a real neighbourhood can fall below the sample threshold
  * purely because its name is written three ways.
  */
+function sheypoorUrl(title, id) {
+  const slug = String(title || "").split(/[^\p{L}\p{N}\u200c]+/u).filter(Boolean).join("-");
+  return `https://www.sheypoor.com/v/${slug ? slug + "-" : ""}${id}.html`;
+}
+
 function canonicalPlace(name) {
   if (!name) return "";
   let t = String(name);
@@ -599,7 +604,7 @@ export async function build(env, log = [], from = 0, self = null) {
         a: Math.round(r.area_m2 || 0),
         p: Math.round((r.price_toman || 0) / 1e6),
         m: r.price_m2 > 0 ? Math.round(r.price_m2 / 1e5) / 10 : null,
-        s: r.source, u: r.url || "", k: kind,
+        s: r.source, u: r.source === "sheypoor" ? sheypoorUrl(r.title, r.source_id) : (r.url || ""), k: kind,
       };
       if (r.rooms != null) o.r = r.rooms;
       if (r.age_years != null) o.g = r.age_years;

@@ -126,6 +126,11 @@ function hoodOf(location, city) {
   return /مرکز شهر|سایر|همه/.test(h) ? "" : h;
 }
 
+function adUrl(title, id) {
+  const slug = String(title || "").split(/[^\p{L}\p{N}\u200c]+/u).filter(Boolean).join("-");
+  return `${SITE}/v/${slug ? slug + "-" : ""}${id}.html`;
+}
+
 function parseItem(item, city, cat, today) {
   if (!item || !["normal", "paidEngagement"].includes(item.type)) return null;
   const a = item.attributes || {};
@@ -145,7 +150,7 @@ function parseItem(item, city, cat, today) {
   const ts = Array.isArray(item.sort) && Number(item.sort[1]) > 1e12 ? Number(item.sort[1]) : null;
   const posted = ts ? new Date(ts).toISOString().slice(0, 10) : today;
   const geo = item.geo || {};
-  const url = a.url ? (String(a.url).startsWith("http") ? a.url : SITE + a.url) : `${SITE}/v/${item.id}`;
+  const url = adUrl(a.title, item.id);
   return {
     id: String(item.id), kind, city, hood: hoodOf(a.location, city),
     title: String(a.title || "").slice(0, 300), url, price, area,
