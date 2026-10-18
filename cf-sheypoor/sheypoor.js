@@ -132,6 +132,8 @@ function parseItem(item, city, cat, today) {
   const attrs = attrMap(item.fullAttributes || a.attributes);
   const kind = kindOf(item, cat, attrs);
   if (!kind) return null;
+  const locParts = String(a.location || "").split(/[،,]/).map((x) => canonicalPlace(x));
+  if (!locParts.includes(canonicalPlace(city))) return null;
   const price = pickPrice(a.price);
   if (!price) return null;
   let area = num((kind === "land" && attrs.get(A_LAND)?.[0]) || attrs.get(A_AREA)?.[0]);
@@ -293,7 +295,7 @@ async function scrapeChunk(env) {
   }
   await env.SITE.put("sh:state", JSON.stringify(st));
   const rc = await recheck(env, today);
-  log.unshift(`${pages} pages, ${saved} ads saved, ${skipped} skipped (rent/commercial/no price)`, rc);
+  log.unshift(`${pages} pages, ${saved} ads saved, ${skipped} skipped (rent/commercial/no price/other city)`, rc);
   return { log };
 }
 
