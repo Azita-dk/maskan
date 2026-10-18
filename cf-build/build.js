@@ -301,7 +301,10 @@ export async function build(env, log = [], from = 0, self = null) {
       AND city IN (${sliceCities.map(() => "?").join(",")})`)
     .bind(...sliceCities).all();
 
-  log.push(`${all.results.length} listings read`);
+  const KEEP_SOURCES = new Set(["divar", "sheypoor"]);
+  const dropped = all.results.length;
+  all.results = all.results.filter((r) => KEEP_SOURCES.has(r.source || "divar"));
+  log.push(`${all.results.length} listings read (${dropped - all.results.length} from unmaintained sources left out)`);
 
   const priceHistory = new Map();
   if (hasPriceHistory) {
