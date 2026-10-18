@@ -371,7 +371,7 @@ const KINDS = [
 const DEFAULTS = { kind:'apartment', prov:'', city:'', hood:'', min:'', max:'',
                    pmin:'', pmax:'', mmin:'', mmax:'',
                    rooms:'all', age:'999', agelo:'', agehi:'', date:'0', sample:'20',
-                   q:'', feat:'', cmp:'' };
+                   q:'', feat:'', cmp:'', src:'' };
 
 /* A value that changes every minute, appended to each data request.
    The files are rebuilt every five minutes, and without this a reader can be
@@ -461,6 +461,7 @@ function passes(l, except){
     && (except === 'age'   || ageOk(l, age))
     && (!cutoff || (l.d && l.d >= cutoff))
     && (!feats.size || [...feats].every(f => (l.f || []).includes(f)))
+    && (!S.src || (l.s || 'divar') === S.src)
     && (!S.q || matches(hay(l), S.q));
 }
 
@@ -492,6 +493,7 @@ function activeFilterCount(){
   if (S.rooms !== DEFAULTS.rooms) n++;
   if (S.age !== DEFAULTS.age || S.agelo !== DEFAULTS.agelo) n++;
   if (S.date !== DEFAULTS.date) n++;
+  if (S.src) n++;
   return n + featureSet().size;
 }
 
@@ -1136,6 +1138,51 @@ function drawSummary(){
   // are always visible on a phone
   if (btn) btn.innerHTML = fc
     ? `فیلترهای بیشتر <span class="n">${FA(fc)}</span>` : 'فیلترهای بیشتر';
+}
+
+function syncAdFilters(){
+  const host = document.getElementById('adFilters');
+  if (!host || !CITY) return;
+  if (!host.dataset.ready) {
+    host.dataset.ready = '1';
+    host.innerHTML = `
+      <label><span>منبع</span><select id="afSrc"></select></label>
+      <label><span>محله</span><select id="afHood"></select></label>
+      <label class="rng"><span>متراژ (متر)</span>
+        <span class="pair"><input id="afMin" inputmode="numeric" placeholder="از"><input id="afMax" inputmode="numeric" placeholder="تا"></span></label>
+      <label class="rng"><span>قیمت کل (میلیارد)</span>
+        <span class="pair"><input id="afPmin" inputmode="decimal" placeholder="از"><input id="afPmax" inputmode="decimal" placeholder="تا"></span></label>`;
+    const mirror = { afMin:['min','fMin'], afMax:['max','fMax'], afPmin:['pmin','fPmin'], afPmax:['pmax','fPmax'] };
+    for (const [id, [key, globalId]] of Object.entries(mirror)) {
+      let t = null;
+      document.getElementById(id).addEventListener('input', e => {
+        clearTimeout(t);
+        t = setTimeout(() => {
+          S[key] = e.target.value.trim();
+          const g = document.getElementById(globalId); if (g) g.value = S[key];
+          commit();
+        }, 450);
+      });
+    }
+    document.getElementById('afSrc').addEventListener('change', e => { S.src = e.target.value; commit(); });
+    document.getElementById('afHood').addEventListener('change', e => {
+      S.hood = e.target.value; fillHoodSelect(); commit();
+    });
+  }
+  const all = (CITY.listings || []).filter(ofKind);
+  const order = ['divar', 'sheypoor', 'kilid'];
+  const srcs = [...new Set(all.map(l => l.s || 'divar'))].sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  const names = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };
+  document.getElementById('afSrc').innerHTML = '<option value="">همه منابع</option>' +
+    srcs.map(s => `<option value="${esc(s)}"${S.src === s ? ' selected' : ''}>${esc(names[s] || s)}</option>`).join('');
+  const hoods = [...new Set(all.map(l => l.h).filter(h => h && h !== 'نامشخص'))].sort(byFa);
+  if (S.hood && !hoods.includes(S.hood)) hoods.unshift(S.hood);
+  document.getElementById('afHood').innerHTML = '<option value="">همه محله‌ها</option>' +
+    hoods.map(h => `<option${S.hood === h ? ' selected' : ''}>${esc(h)}</option>`).join('');
+  for (const [id, key] of [['afMin','min'],['afMax','max'],['afPmin','pmin'],['afPmax','pmax']]) {
+    const el = document.getElementById(id);
+    if (document.activeElement !== el) el.value = S[key] || '';
+  }
 }
 
 /* Every page registers what to redraw; the search bar calls it. */

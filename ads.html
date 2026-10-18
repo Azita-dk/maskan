@@ -104,6 +104,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
       <button id="aqClear" class="hide" aria-label="پاک کردن">✕</button>
       <button id="aqGo" aria-label="جست‌وجو" title="جست‌وجو"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
     </div>
+      <div class="adfilters" id="adFilters"></div>
 
     <div class="adscount" id="adsCount"></div>
     <div id="areaBar" class="hide areabar">
@@ -123,8 +124,8 @@ table.cards td:first-child{white-space:normal;min-width:160px}
       <tbody id="adsBody"><tr><td colspan="7" class="loading">در حال بارگذاری…</td></tr></tbody>
     </table></div>
     <button class="more hide" id="adsMore"></button>
-    <p class="foot">آگهی‌ها متعلق به دیوار است و با کلیک روی هر ردیف در دیوار باز
-      می‌شود. این سایت آگهی منتشر نمی‌کند.</p>
+    <p class="foot">آگهی‌ها متعلق به دیوار و شیپور است و با کلیک روی هر ردیف در همان سایت باز
+      می‌شود. آگهی‌ای که هم در دیوار و هم در شیپور هست فقط یک بار نشان داده می‌شود. این سایت آگهی منتشر نمی‌کند.</p>
   </div>
 
 
@@ -217,6 +218,7 @@ function drawAds(){
     const c = document.getElementById('aqClear');
     if (c) c.classList.toggle('hide', !aqEl.value);
   }
+  syncAdFilters();
   const all = rows();
   const body = document.getElementById('adsBody');
   document.getElementById('soloBar').classList.toggle('hide', !solo);
