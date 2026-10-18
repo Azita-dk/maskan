@@ -141,7 +141,7 @@ function parseItem(item, city, cat, today) {
   const rooms = num(attrs.get(A_ROOMS)?.[0]);
   const year = num(attrs.get(A_YEAR)?.[0]);
   const jy = jalaliYearNow();
-  const age = year && year > 1300 && year <= jy ? jy - year : null;
+  const age = year == null ? null : year < 100 ? Math.round(year) : year > 1300 && year <= jy ? jy - year : null;
   const ts = Array.isArray(item.sort) && Number(item.sort[1]) > 1e12 ? Number(item.sort[1]) : null;
   const posted = ts ? new Date(ts).toISOString().slice(0, 10) : today;
   const geo = item.geo || {};
@@ -307,32 +307,39 @@ async function recheck(env, today) {
     SELECT source_id FROM listings
     WHERE source='sheypoor' AND removed_at IS NULL AND COALESCE(last_seen,'') < ?
     ORDER BY last_seen LIMIT ?`).bind(today, n).all();
-  const codes = {}, gone = [], live = [];
+  const codes = {}, gone = [], live = [], added = [];
   for (const r of results) {
-    let status;
+    let code;
     try {
-      const res = await fetch(`${API}/listings/${r.source_id}`, { headers: HEADERS });
-      status = res.status;
-      if (res.ok) {
-        const j = await res.json().catch(() => null);
-        const attrs = j?.data?.attributes || j?.data || {};
-        if (j?.data) {
-          const dead = attrs.isExpired || attrs.isDeleted || /حذف|منقضی/.test(String(attrs.status || ""));
-          (dead ? gone : live).push(r.source_id);
+      const page = await fetch(`${SITE}/v/x-${r.source_id}.html`, { headers: HEADERS, redirect: "manual" });
+      code = page.status;
+      if (code === 200) {
+        live.push(r.source_id);
+        const res = await fetch(`${API}/listings/${r.source_id}`, { headers: HEADERS });
+        if (res.ok) {
+          const j = await res.json().catch(() => null);
+          const at = String(j?.data?.attributes?.addedAt || "").slice(0, 10);
+          if (/^\d{4}-\d\d-\d\d$/.test(at)) added.push([r.source_id, at]);
         }
-      } else if (status === 404 || status === 410) gone.push(r.source_id);
-    } catch (e) { status = "err"; }
-    codes[status] = (codes[status] || 0) + 1;
-    if (status === 429) break;
+      } else if ([301, 302, 303, 307, 308, 404, 410].includes(code)) {
+        const loc = page.headers.get("location") || "";
+        if (code >= 400 || !loc.includes(r.source_id)) gone.push(r.source_id);
+      }
+    } catch (e) { code = "err"; }
+    codes[code] = (codes[code] || 0) + 1;
+    if (code === 429 || code === 403) break;
     await sleep(500);
   }
   const checked = gone.length + live.length;
-  if (checked >= 10 && gone.length / checked > 0.6) {
+  if (checked >= 10 && gone.length / checked > 0.8) {
     return `recheck: ${Object.entries(codes).map(([k, v]) => `${k}×${v}`).join(" ")}, ${gone.length} looked removed — too many, not applied`;
   }
   const stmts = [
     ...gone.map((id) => db.prepare("UPDATE listings SET removed_at=? WHERE source='sheypoor' AND source_id=?").bind(today, id)),
     ...live.map((id) => db.prepare("UPDATE listings SET last_seen=? WHERE source='sheypoor' AND source_id=?").bind(today, id)),
+    ...added.map(([id, at]) => db.prepare(
+      "UPDATE listings SET first_posted_at=CASE WHEN first_posted_at IS NULL OR first_posted_at > ? THEN ? ELSE first_posted_at END WHERE source='sheypoor' AND source_id=?")
+      .bind(at, at, id)),
   ];
   for (let i = 0; i < stmts.length; i += 90) await db.batch(stmts.slice(i, i + 90));
   return `recheck: ${Object.entries(codes).map(([k, v]) => `${k}×${v}`).join(" ") || "nothing due"}, removed ${gone.length}`;
