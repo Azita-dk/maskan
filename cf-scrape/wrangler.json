@@ -1,0 +1,30 @@
+{
+  "name": "maskan-scrape",
+  "main": "scrape.js",
+  "compatibility_date": "2026-08-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "maskan",
+      "database_id": "eeb8ef9c-6572-4107-9a3e-f105c6556449"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "SITE",
+      "id": "435ef92702274deea775331b1dceffb0"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "PAGES_PER_RUN": "300",
+    "PAUSE_MS": "250"
+  },
+  "triggers": {
+    "crons": [
+      "*/2 * * * *"
+    ]
+  }
+}
