@@ -28,3 +28,4 @@ PER_RUN = "120"
 
 [triggers]
 crons = ["* * * * *"]
+

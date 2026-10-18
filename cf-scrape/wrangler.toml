@@ -45,3 +45,4 @@ PAUSE_MS = "250"
 # overlapping runs would fight over the same scrape_state row.
 [triggers]
 crons = ["*/2 * * * *"]
+

@@ -39,3 +39,4 @@ SLICE = "8"
 # halves the lag. It re-reads every listing each time, which is the cost.
 [triggers]
 crons = ["*/5 * * * *"]
+
