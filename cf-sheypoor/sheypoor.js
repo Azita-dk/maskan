@@ -360,6 +360,14 @@ async function route(url, env) {
       first_raw: items.find((x) => x.type === "normal") || null,
     });
   }
+  if (url.pathname === "/raw") {
+    const id = url.searchParams.get("id") || "";
+    const res = await fetch(`${API}/listings/${id}`, { headers: HEADERS, redirect: "manual" });
+    const text = await res.text();
+    let body; try { body = JSON.parse(text); } catch { body = text.slice(0, 1500); }
+    const page = await fetch(`${SITE}/v/x-${id}.html`, { headers: HEADERS, redirect: "manual" });
+    return json({ api_status: res.status, page_status: page.status, page_redirect: page.headers.get("location"), body });
+  }
   if (url.pathname === "/run") return json(await scrapeChunk(env));
   if (url.pathname === "/start") { await env.SITE.put("sh:enabled", "1"); return json({ running: true }); }
   if (url.pathname === "/stop") { await env.SITE.put("sh:enabled", "0"); return json({ running: false }); }
