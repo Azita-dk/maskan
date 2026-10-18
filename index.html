@@ -1309,7 +1309,7 @@ function drawAds(){
 
   body.querySelectorAll('tr[data-token]').forEach(tr =>
     tr.addEventListener('click', () => {
-      if (tr.dataset.url) window.open(tr.dataset.url, '_blank', 'noopener');
+      if (tr.dataset.url) window.open(tr.dataset.url, '_blank', 'noopener,noreferrer');
     }));
 
   const more = document.getElementById('adsMore');
@@ -1394,7 +1394,7 @@ function drawMap(){
           ${FA1(l.m)} میلیون تومان بر متر مربع${l.a ? ' · ' + FA(l.a) + ' متر' : ''}
           ${l.p ? '<br>قیمت کل: ' + FA1(l.p/1000) + ' میلیارد تومان' : ''}
           <br><span style="color:#5A6472;font-size:13px">موقعیت تقریبی — جایی در این محدوده</span>
-          ${l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener"
+          ${l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener noreferrer"
             style="color:${CSSVAR('--green')};font-weight:700">دیدن آگهی ↗</a>` : ''}</div>`);
     }
   }
@@ -1412,7 +1412,7 @@ function drawMap(){
       <span style="color:#5A6472">${esc(l.h || '')}</span><br>
       ${FA1(l.m)} میلیون تومان بر متر مربع${l.a ? ' · ' + FA(l.a) + ' متر' : ''}
       ${l.p ? '<br>قیمت کل: ' + FA1(l.p/1000) + ' میلیارد تومان' : ''}
-      ${l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener"
+      ${l.u ? `<br><a href="${esc(l.u)}" target="_blank" rel="noopener noreferrer"
         style="color:${CSSVAR('--green')};font-weight:700">دیدن آگهی در ${
         SOURCE_NAME[l.s] || l.s} ↗</a>` : ''}</div>`);
     mk.on('click', () => { solo = l.t; keepView = true; drawAds(); drawMap();
