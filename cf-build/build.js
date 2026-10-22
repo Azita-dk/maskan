@@ -730,16 +730,32 @@ export async function build(env, log = [], from = 0, self = null) {
       cityFile.listings.push(...listings);
     } else {
       const keep = new Set();
-      const take = (arr, n) => { for (const l of arr.slice(0, n)) keep.add(l); };
-      const byM = listings.filter((l) => l.m > 0).sort((a, b) => b.m - a.m);
-      const byP = listings.filter((l) => l.p > 0).sort((a, b) => b.p - a.p);
-      take(byM, 300); take([...byM].reverse(), 300);
-      take(byP, 200); take([...byP].reverse(), 200);
-      take([...listings].sort((a, b) => String(b.d || "").localeCompare(String(a.d || ""))), 800);
-      const rest = listings.filter((l) => !keep.has(l));
+      const priced = listings.filter((l) => l.m > 0);
+      for (let i = 0; i < 300 && i < priced.length; i++) {
+        keep.add(priced[i]); keep.add(priced[priced.length - 1 - i]);
+      }
+      const topN = (score, n) => {
+        const best = [];
+        for (const l of listings) {
+          const v = score(l);
+          if (v == null) continue;
+          if (best.length < n) { best.push([v, l]); if (best.length === n) best.sort((x, y) => x[0] - y[0]); continue; }
+          if (v <= best[0][0]) continue;
+          let i = 1;
+          while (i < n && best[i][0] < v) i++;
+          best.splice(i, 0, [v, l]); best.shift();
+        }
+        for (const [, l] of best) keep.add(l);
+      };
+      topN((l) => (l.p > 0 ? l.p : null), 200);
+      topN((l) => (l.p > 0 ? -l.p : null), 200);
+      topN((l) => (l.d ? Date.parse(l.d) : null), 800);
       const room = PER_KIND_CAP - keep.size;
-      const step = rest.length / room;
-      for (let i = 0; i < room && i * step < rest.length; i++) keep.add(rest[Math.floor(i * step)]);
+      const step = listings.length / room;
+      for (let i = 0; i < room; i++) {
+        const l = listings[Math.floor(i * step)];
+        if (!keep.has(l)) keep.add(l);
+      }
       cityFile.listings.push(...keep);
     }
     cityFile.byKind[kind] = { n: rows.length, median: cityMed,
