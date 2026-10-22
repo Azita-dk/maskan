@@ -1423,7 +1423,12 @@ function drawMap(){
   note.textContent = solo
     ? 'دایره، محدوده تقریبی همین آگهی است — دیوار موقعیت دقیق را منتشر نمی‌کند. ' +
       'برای دیدن بقیه دکمه بالای جدول را بزنید.'
-    : `${FA(pts.length)} آگهی روی نقشه از ${FA(activeListings().length)} آگهی این انتخاب. ` +
+    : (() => {
+        const rows = activeListings(), total = realCount(rows);
+        return total > rows.length * 1.05
+          ? `نقشه نمونه‌ای از ${FA(pts.length)} آگهی را نشان می‌دهد، از حدود ${FA(total)} آگهی این انتخاب؛ نشان دادن همه روی یک نقشه ممکن نیست. `
+          : `${FA(pts.length)} آگهی از ${FA(total)} آگهی این انتخاب روی نقشه است. `;
+      })() +
       'موقعیت‌ها تقریبی است و ممکن است تا چند صد متر با محل واقعی فاصله داشته باشد.';
 
   if (keepView) { keepView = false; return; }
