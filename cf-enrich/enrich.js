@@ -582,61 +582,67 @@ export async function recheckChunk(env) {
   const db = env.DB;
   const N = Number(env.RECHECK_PER_RUN) || RECHECK_DEFAULT;
   const today = new Date().toISOString().slice(0, 10);
-  let hasRemoved = false;
-  try {
-    const cols = await db.prepare("PRAGMA table_info(listings)").all();
-    hasRemoved = cols.results.some((c) => c.name === "removed_at");
-  } catch (e) { /* no column, nothing to do */ }
-  if (!hasRemoved) return { log: ["recheck skipped: run the removed_at SQL first"] };
+  let cols = [];
+  try { cols = (await db.prepare("PRAGMA table_info(listings)").all()).results.map((c) => c.name); }
+  catch (e) { /* nothing to do */ }
+  if (!cols.includes("removed_at")) return { log: ["recheck skipped: run the removed_at SQL first"] };
+  if (!cols.includes("checked_at")) {
+    await db.prepare("ALTER TABLE listings ADD COLUMN checked_at TEXT").run();
+  }
+  await db.prepare(
+    "CREATE INDEX IF NOT EXISTS idx_listings_recheck ON listings(source, removed_at, checked_at)").run();
+  await db.prepare(
+    "CREATE INDEX IF NOT EXISTS idx_listings_pm2 ON listings(source, removed_at, price_m2)").run();
 
-  let cursor = 0;
-  try {
-    const c = await env.SITE?.get("recheck:cursor", { type: "json" });
-    if (c && Number.isFinite(c.rowid)) cursor = c.rowid;
-  } catch (e) { /* start over */ }
-
-  const { results } = await db.prepare(`
-    SELECT rowid AS rid, source_id FROM listings
-    WHERE rowid > ? AND source = 'divar' AND removed_at IS NULL
+  const due = "(checked_at IS NULL OR checked_at < date('now', '-1 day'))";
+  const live = "source = 'divar' AND removed_at IS NULL";
+  const pick = async (order, n) => (await db.prepare(`
+    SELECT source_id FROM listings WHERE ${live} AND ${due}
       AND COALESCE(last_seen, scraped_at) >= date('now', '-21 days')
-    ORDER BY rowid LIMIT ?`).bind(cursor, N).all();
+    ORDER BY ${order} LIMIT ?`).bind(n).all()).results.map((r) => r.source_id);
 
-  const gone = [];
+  const ids = [...new Set([
+    ...await pick("price_m2 DESC", 10),
+    ...await pick("price_toman DESC", 5),
+    ...await pick("price_m2 IS NULL, price_m2 ASC", 5),
+    ...await pick("checked_at ASC", N),
+  ])].slice(0, N + 20);
+
+  const gone = [], seen = [];
   const codes = {};
-  let ok = 0, failed = 0, lastDone = cursor, limited = false;
-  for (const r of results) {
+  let ok = 0, failed = 0, limited = false;
+  for (const id of ids) {
     try {
-      const res = await fetch(DETAIL + r.source_id, { headers: HEADERS });
+      const res = await fetch(DETAIL + id, { headers: HEADERS });
       codes[res.status] = (codes[res.status] || 0) + 1;
       if (res.status === 429) { limited = true; break; }
-      lastDone = r.rid;
-      if (res.status === 404 || res.status === 410) { gone.push(r.source_id); continue; }
+      if (res.status === 404 || res.status === 410) { gone.push(id); seen.push(id); continue; }
       if (!res.ok) { failed++; continue; }
       const text = await res.text();
-      if (REMOVED_RE.test(text)) gone.push(r.source_id); else ok++;
-    } catch (e) { failed++; lastDone = r.rid; }
+      seen.push(id);
+      if (REMOVED_RE.test(text)) gone.push(id); else ok++;
+    } catch (e) { failed++; }
     await sleep(RECHECK_PAUSE_MS);
   }
 
-  if (results.length >= 20 && gone.length > results.length * 0.6) {
-    return { log: [`recheck: ${gone.length} of ${results.length} looked removed — too many to be real, ` +
+  if (seen.length >= 20 && gone.length > seen.length * 0.6) {
+    return { log: [`recheck: ${gone.length} of ${seen.length} looked removed — too many to be real, ` +
                    'nothing written. Divar may have changed its page; check /raw?token=…'],
-             checked: results.length, removed: 0 };
+             checked: seen.length, removed: 0 };
   }
-  if (gone.length) {
-    await db.batch(gone.map((id) => db.prepare(
-      "UPDATE listings SET removed_at = COALESCE(removed_at, ?) WHERE source='divar' AND source_id=?")
-      .bind(today, id)));
-  }
-  const next = limited ? lastDone : (results.length < N ? 0 : results[results.length - 1].rid);
-  try { await env.SITE?.put("recheck:cursor", JSON.stringify({ rowid: next })); } catch (e) { /* retry */ }
+  const stmts = [
+    ...gone.map((id) => db.prepare(
+      "UPDATE listings SET removed_at = COALESCE(removed_at, ?) WHERE source='divar' AND source_id=?").bind(today, id)),
+    ...seen.map((id) => db.prepare(
+      "UPDATE listings SET checked_at = ? WHERE source='divar' AND source_id=?").bind(today, id)),
+  ];
+  for (let i = 0; i < stmts.length; i += 90) await db.batch(stmts.slice(i, i + 90));
 
-  return { log: [`recheck: ${limited ? Object.values(codes).reduce((a, b) => a + b, 0) - 1 : results.length} checked from rowid ${cursor} · ` +
+  return { log: [`recheck: ${seen.length} checked (most and least expensive first, then oldest checked) · ` +
                  `${gone.length} removed from Divar · ${ok} still up · ${failed} failed` +
                  ` · answers ${Object.entries(codes).map(([c, n]) => c + "×" + n).join(" ")}` +
-                 (limited ? " · Divar asked to slow down, stopped and will continue from here next minute" : "") +
-                 (next === 0 ? " · pass complete, starting again" : "")],
-           checked: results.length, removed: gone.length };
+                 (limited ? " · Divar asked to slow down, stopped early" : "")],
+           checked: seen.length, removed: gone.length };
 }
 
 /* Counting rows costs one read per row, so a status page that scans the whole
