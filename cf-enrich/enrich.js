@@ -698,6 +698,26 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === "/run") return json(await enrichChunk(env));
     if (url.pathname === "/recheck") return json(await recheckChunk(env));
+    if (url.pathname === "/find") {
+      const q = (url.searchParams.get("q") || "").trim();
+      if (q.length < 3) return json({ error: "add ?q=part of the title" });
+      const { results } = await env.DB.prepare(`
+        SELECT source, source_id, city, hood, title, price_toman, area_m2, posted_at, first_posted_at,
+               scraped_at, last_seen, enriched_at, enrich_tries, removed_at, checked_at
+        FROM listings WHERE title LIKE ? LIMIT 5`).bind(`%${q}%`).all();
+      const out = [];
+      for (const r of results) {
+        let divar = null;
+        if (r.source === "divar") {
+          const res = await fetch(DETAIL + r.source_id, { headers: HEADERS });
+          const text = await res.text();
+          const hits = [...new Set(text.match(/[^"]{0,40}(?:حذف|منقضی|غیرفعال|در دسترس نیست|expired|deleted|removed|unavailable)[^"]{0,40}/gi) || [])].slice(0, 8);
+          divar = { status: res.status, removed_pattern_matched: REMOVED_RE.test(text), removal_like_text: hits };
+        }
+        out.push({ ...r, divar });
+      }
+      return json({ found: results.length, rows: out });
+    }
     if (url.pathname === "/raw") {
       const token = (url.searchParams.get("token") || "").trim();
       if (!/^[A-Za-z0-9_-]{4,20}$/.test(token)) return json({ error: "add ?token=CODE" });
