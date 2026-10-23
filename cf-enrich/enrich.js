@@ -704,7 +704,8 @@ export default {
       const { results } = await env.DB.prepare(`
         SELECT source, source_id, city, hood, title, price_toman, area_m2, posted_at, first_posted_at,
                scraped_at, last_seen, enriched_at, enrich_tries, removed_at, checked_at
-        FROM listings WHERE title LIKE ? LIMIT 5`).bind(`%${q}%`).all();
+        FROM listings WHERE ${q.split(/\s+/).filter(Boolean).map(() => "title LIKE ?").join(" AND ")}
+        ORDER BY price_toman DESC LIMIT 5`).bind(...q.split(/\s+/).filter(Boolean).map((w) => `%${w}%`)).all();
       const out = [];
       for (const r of results) {
         let divar = null;
@@ -712,7 +713,21 @@ export default {
           const res = await fetch(DETAIL + r.source_id, { headers: HEADERS });
           const text = await res.text();
           const hits = [...new Set(text.match(/[^"]{0,40}(?:حذف|منقضی|غیرفعال|در دسترس نیست|expired|deleted|removed|unavailable)[^"]{0,40}/gi) || [])].slice(0, 8);
-          divar = { status: res.status, removed_pattern_matched: REMOVED_RE.test(text), removal_like_text: hits };
+          let state = null;
+          try {
+            const j = JSON.parse(text);
+            const pick = (n, path = "") => {
+              if (!n || typeof n !== "object") return;
+              for (const k in n) {
+                const p = path ? `${path}.${k}` : k;
+                if (/status|state|expired|deleted|archived|unavailable|is_active|removed/i.test(k) && typeof n[k] !== "object")
+                  (state ||= {})[p] = n[k];
+                pick(n[k], p);
+              }
+            };
+            pick(j);
+          } catch (e) {}
+          divar = { status: res.status, removed_pattern_matched: REMOVED_RE.test(text), removal_like_text: hits, state };
         }
         out.push({ ...r, divar });
       }
