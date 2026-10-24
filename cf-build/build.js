@@ -1113,6 +1113,116 @@ function isLimitError(e) {
   return /exceeded .*(daily|limit)/i.test(String(e && e.message));
 }
 
+
+const ADS_SORT = {
+  new: "COALESCE(price_changed_at, posted_at, substr(scraped_at, 1, 10)) DESC",
+  cheap: "price_m2 IS NULL, price_m2 ASC",
+  dear: "price_m2 DESC",
+  cheapTotal: "price_toman ASC",
+  dearTotal: "price_toman DESC",
+};
+
+const foldPlace = (t) => String(t || "").replace(/[يى]/g, "ی").replace(/ك/g, "ک")
+  .replace(/آ/g, "ا").replace(/[\s‌\-_.]/g, "");
+
+async function adsApi(url, env) {
+  const db = env.DB;
+  const q = url.searchParams;
+  const num = (k) => {
+    const v = q.get(k);
+    if (v == null || v === "") return null;
+    const n = Number(String(v).replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[,٬\s]/g, "").replace("٫", "."));
+    return Number.isFinite(n) ? n : null;
+  };
+
+  if (!(await env.SITE.get("idx:ads:v1"))) {
+    for (const sql of [
+      "CREATE INDEX IF NOT EXISTS idx_ads_city_m2 ON listings(city, price_m2)",
+      "CREATE INDEX IF NOT EXISTS idx_ads_city_price ON listings(city, price_toman)",
+      "CREATE INDEX IF NOT EXISTS idx_ads_dedupe ON listings(dedupe_key)",
+    ]) await db.prepare(sql).run();
+    await env.SITE.put("idx:ads:v1", "1");
+  }
+
+  const where = [
+    "city = ?", "COALESCE(kind, 'apartment') = ?",
+    "source IN ('divar', 'sheypoor')", "removed_at IS NULL",
+    "price_toman > 0", "COALESCE(last_seen, substr(scraped_at, 1, 10)) >= date('now', ?)",
+    `NOT (source = 'sheypoor' AND dedupe_key IS NOT NULL AND EXISTS (
+       SELECT 1 FROM listings d WHERE d.dedupe_key = listings.dedupe_key
+         AND d.source = 'divar' AND d.removed_at IS NULL))`,
+  ];
+  const args = [q.get("city") || "", q.get("kind") || "apartment", `-${ACTIVE_DAYS} days`];
+  const add = (sql, ...v) => { where.push(sql); args.push(...v); };
+
+  if (q.get("hood")) add("replace(replace(replace(replace(replace(hood,' ',''),'‌',''),'-',''),'آ','ا'),'ي','ی') = ?", foldPlace(q.get("hood")));
+  if (q.get("src")) add("source = ?", q.get("src"));
+  if (num("min") != null) add("area_m2 >= ?", num("min"));
+  if (num("max") != null) add("area_m2 <= ?", num("max"));
+  if (num("pmin") != null) add("price_toman >= ?", num("pmin") * 1e9);
+  if (num("pmax") != null) add("price_toman <= ?", num("pmax") * 1e9);
+  if (num("mmin") != null) add("price_m2 >= ?", num("mmin") * 1e6);
+  if (num("mmax") != null) add("price_m2 <= ?", num("mmax") * 1e6);
+  if (q.get("rooms") && q.get("rooms") !== "all") add("rooms = ?", Number(q.get("rooms")));
+  if (q.get("agelo") != null && q.get("agelo") !== "") {
+    add("age_years >= ?", num("agelo"));
+    if (num("agehi") != null) add("age_years <= ?", num("agehi"));
+  } else {
+    const age = num("age");
+    if (age != null && age !== 999) {
+      if (age === 0) add("age_years <= 1");
+      else if (age === 21) add("age_years > 20");
+      else add("age_years <= ?", age);
+    }
+  }
+  const days = num("date");
+  if (days) add("COALESCE(price_changed_at, posted_at) >= date('now', ?)", `-${days} days`);
+  for (const f of (q.get("feat") || "").split(",").filter(Boolean)) add("features LIKE ?", `%${f}%`);
+  if (q.get("q")) {
+    const t = `%${q.get("q").trim()}%`;
+    add("(title LIKE ? OR hood LIKE ? OR address LIKE ? OR features LIKE ?)", t, t, t, t);
+  }
+  const box = (q.get("bbox") || "").split(",").map(Number);
+  if (box.length === 4 && box.every(Number.isFinite)) {
+    add("lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?", box[0], box[2], box[1], box[3]);
+  }
+
+  const order = ADS_SORT[q.get("sort")] || ADS_SORT.new;
+  const limit = Math.min(Math.max(num("limit") || 60, 1), 2000);
+  const w = where.join(" AND ");
+  const [{ results }, cnt] = await Promise.all([
+    db.prepare(`
+      SELECT source, source_id, hood, substr(title, 1, 150) AS title, url, price_toman, area_m2, price_m2,
+             rooms, age_years, lat, lng, substr(address, 1, 80) AS address, features,
+             COALESCE(price_changed_at, posted_at) AS d, first_posted_at, COALESCE(kind,'apartment') AS kind
+      FROM listings WHERE ${w} ORDER BY ${order} LIMIT ?`).bind(...args, limit).all(),
+    db.prepare(`SELECT COUNT(*) AS n FROM listings WHERE ${w}`).bind(...args).first(),
+  ]);
+
+  const rows = results.map((r) => {
+    const o = {
+      h: r.hood || "نامشخص", t: r.source_id, n: (r.title || "").slice(0, 70),
+      a: Math.round(r.area_m2 || 0), p: Math.round((r.price_toman || 0) / 1e6),
+      m: r.price_m2 > 0 ? Math.round(r.price_m2 / 1e5) / 10 : null,
+      s: r.source, k: r.kind,
+      u: r.source === "sheypoor" ? sheypoorUrl(r.title, r.source_id)
+        : r.source === "divar" ? `https://divar.ir/v/${r.source_id}` : (r.url || ""),
+    };
+    if (r.rooms != null) o.r = r.rooms;
+    if (r.age_years != null) o.g = r.age_years;
+    if (r.lat) { o.y = +Number(r.lat).toFixed(5); o.x = +Number(r.lng).toFixed(5); }
+    if (r.d) o.d = String(r.d).slice(0, 10);
+    if (r.first_posted_at && o.d && String(r.first_posted_at).slice(0, 10) < o.d) o.d0 = String(r.first_posted_at).slice(0, 10);
+    if (r.address) o.ad = r.address;
+    if (r.features) o.f = r.features.split(",");
+    return o;
+  });
+  return new Response(JSON.stringify({ total: cnt ? cnt.n : rows.length, rows }), {
+    headers: { "content-type": "application/json; charset=utf-8",
+               "cache-control": "public, max-age=60", "access-control-allow-origin": "*" },
+  });
+}
+
 export default {
   async scheduled(event, env, ctx) {
     /* Runs every five minutes and rebuilds continuously.
@@ -1188,6 +1298,13 @@ export default {
     }
 
     // the site fetches its data through here
+    if (url.pathname === "/ads") {
+      try { return await adsApi(url, env); }
+      catch (err) {
+        return new Response(JSON.stringify({ error: String(err.message || err) }), { status: 500,
+          headers: { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": "*" } });
+      }
+    }
     if (url.pathname.startsWith("/data/")) {
       const key = url.pathname.slice(1);
       const body = await env.SITE.get(key);

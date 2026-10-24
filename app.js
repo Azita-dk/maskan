@@ -1185,6 +1185,26 @@ function syncAdFilters(){
   }
 }
 
+let adsServer = null, adsKey = '';
+function adsParams(sort, limit, bounds){
+  const p = new URLSearchParams({ city: (CITY && CITY.name) || '', kind: S.kind, sort, limit });
+  for (const k of ['hood','src','min','max','pmin','pmax','mmin','mmax','rooms','age','agelo','agehi','date','feat','q'])
+    if (S[k] && S[k] !== DEFAULTS[k]) p.set(k, S[k]);
+  if (bounds && bounds.getSouth) p.set('bbox', [bounds.getSouth(), bounds.getWest(), bounds.getNorth(), bounds.getEast()].map(v => v.toFixed(5)).join(','));
+  return p.toString();
+}
+function serverAds(sort, limit, bounds, redraw){
+  const key = adsParams(sort, limit, bounds);
+  if (key !== adsKey) {
+    adsKey = key; adsServer = null;
+    fetch(`${DATA_BASE}/ads?${key}`).then(r => r.ok ? r.json() : null).then(j => {
+      if (key !== adsKey || !j || !Array.isArray(j.rows)) return;
+      adsServer = j; redraw();
+    }).catch(() => {});
+  }
+  return adsServer;
+}
+
 /* Every page registers what to redraw; the search bar calls it. */
 let PAGE_RENDER = () => {};
 function commit(){

@@ -219,7 +219,10 @@ function drawAds(){
     if (c) c.classList.toggle('hide', !aqEl.value);
   }
   syncAdFilters();
-  const all = rows();
+  const live = solo ? null : serverAds(adsSort, shown, areaBounds, drawAds);
+  const local = rows();
+  const all = live && (live.total || !local.length) ? live.rows : local;
+  const totalN = live && all === live.rows ? live.total : all.length;
   const body = document.getElementById('adsBody');
   document.getElementById('soloBar').classList.toggle('hide', !solo);
   document.getElementById('adsTitle').textContent =
@@ -231,9 +234,9 @@ function drawAds(){
     const inFile = activeListings().length;
     const sampled = total > inFile * 1.05;
     document.getElementById('adsCount').innerHTML = solo ? '' :
-      `<b>${FA(all.length)}</b> آگهی` +
+      `<b>${FA(totalN)}</b> آگهی` +
       (areaBounds ? ' در محدوده نقشه' : '') +
-      (sampled ? ` — نمونه‌ای از حدود ${FA(total)} آگهی این انتخاب` : '');
+      (!live && sampled ? ` — نمونه‌ای از حدود ${FA(total)} آگهی این انتخاب` : '');
   }
   if (!all.length) {
     body.innerHTML = `<tr><td colspan="7" class="loading">${areaBounds
@@ -260,9 +263,9 @@ function drawAds(){
     }));
 
   const more = document.getElementById('adsMore');
-  more.classList.toggle('hide', solo || all.length <= shown);
-  more.textContent = `نمایش ${FA(Math.min(60, all.length - shown))} آگهی بیشتر ` +
-    `(${FA(all.length - shown)} باقی مانده) →`;
+  more.classList.toggle('hide', solo || totalN <= shown);
+  more.textContent = `نمایش ${FA(Math.min(60, totalN - shown))} آگهی بیشتر ` +
+    `(${FA(totalN - shown)} باقی مانده) →`;
 }
 
 document.getElementById('adsMore').addEventListener('click', () => {
