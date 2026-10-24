@@ -292,8 +292,9 @@ export async function build(env, log = [], from = 0, self = null) {
   const activeFrom = new Date(Date.now() - ACTIVE_DAYS * 864e5).toISOString().slice(0, 10);
 
   const all = await db.prepare(`
-    SELECT source, source_id, city, hood, title, url, price_toman, area_m2,
-           price_m2, rooms, age_years, lat, lng, address, posted_at,
+    SELECT source, source_id, city, hood, substr(title, 1, 150) AS title,
+           CASE WHEN source = 'divar' THEN NULL ELSE url END AS url, price_toman, area_m2,
+           price_m2, rooms, age_years, lat, lng, substr(address, 1, 80) AS address, posted_at,
            features, dedupe_key, COALESCE(kind,'apartment') AS kind,
            ${hasLastSeen ? "COALESCE(last_seen, scraped_at)" : "scraped_at"} AS seen,
            ${hasPriceChanged
@@ -604,7 +605,8 @@ export async function build(env, log = [], from = 0, self = null) {
         a: Math.round(r.area_m2 || 0),
         p: Math.round((r.price_toman || 0) / 1e6),
         m: r.price_m2 > 0 ? Math.round(r.price_m2 / 1e5) / 10 : null,
-        s: r.source, u: r.source === "sheypoor" ? sheypoorUrl(r.title, r.source_id) : (r.url || ""), k: kind,
+        s: r.source, u: r.source === "sheypoor" ? sheypoorUrl(r.title, r.source_id)
+          : r.source === "divar" ? `https://divar.ir/v/${r.source_id}` : (r.url || ""), k: kind,
       };
       if (r.rooms != null) o.r = r.rooms;
       if (r.age_years != null) o.g = r.age_years;
