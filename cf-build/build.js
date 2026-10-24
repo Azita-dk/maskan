@@ -285,6 +285,9 @@ export async function build(env, log = [], from = 0, self = null) {
     hasLastSeen = cols.results.some((c) => c.name === "last_seen");
     hasPriceChanged = cols.results.some((c) => c.name === "price_changed_at");
     hasFirstPosted = cols.results.some((c) => c.name === "first_posted_at");
+    if (!cols.results.some((c) => c.name === "outlier")) {
+      await db.prepare("ALTER TABLE listings ADD COLUMN outlier INTEGER").run();
+    }
     const t = await db.prepare(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='price_history'").all();
     hasPriceHistory = t.results.length > 0;
@@ -433,6 +436,37 @@ export async function build(env, log = [], from = 0, self = null) {
       }
     }
   }
+  const OUT_FACTOR = { apartment: 5, villa: 6, land: 10 };
+  const outliers = new Map();
+  let outlierN = 0;
+  for (const [gk, list] of cities) {
+    const [city, kind] = gk.split("|");
+    const hi = OUT_FACTOR[kind] || 6, lo = 1 / hi;
+    const priced = list.filter((r) => !r.dup && r.price_m2 > 0);
+    if (priced.length < 20) continue;
+    const cityMed = median(priced.map((r) => r.price_m2));
+    const byHood = new Map();
+    for (const r of priced) {
+      const k = canonicalPlace(r.hood || "");
+      if (!k) continue;
+      if (!byHood.has(k)) byHood.set(k, []);
+      byHood.get(k).push(r.price_m2);
+    }
+    const hoodMed = new Map();
+    for (const [k, v] of byHood) if (v.length >= 10) hoodMed.set(k, median(v));
+    const keep = [];
+    for (const r of list) {
+      const ref = hoodMed.get(canonicalPlace(r.hood || "")) || cityMed;
+      const ratio = r.price_m2 > 0 ? r.price_m2 / ref : 1;
+      if (ratio > hi || ratio < lo) {
+        if (!outliers.has(city)) outliers.set(city, []);
+        outliers.get(city).push(r);
+        outlierN++;
+      } else keep.push(r);
+    }
+    cities.set(gk, keep);
+  }
+  log.push(`${outlierN} ads left out because their price per metre is far from their neighbourhood's`);
   log.push(`${onDivar} ads from other sites left out because the same ad is on Divar`);
   log.push(`${dupes} duplicate reposts (shown, not counted twice in statistics), ` +
            `${misplaced} whose map position is in another town ` +
@@ -867,6 +901,13 @@ export async function build(env, log = [], from = 0, self = null) {
      on every build. The neighbourhood goes too — it came from the wrong
      city. Capped per run so a first pass over a large backlog cannot become
      one enormous write. */
+  for (const city of sliceCities) {
+    const flagged = outliers.get(city) || [];
+    const ob = [db.prepare("UPDATE listings SET outlier = NULL WHERE city = ? AND outlier = 1").bind(city),
+      ...flagged.slice(0, 3000).map((r) => db.prepare(
+        "UPDATE listings SET outlier = 1 WHERE source = ? AND source_id = ?").bind(r.source, r.source_id))];
+    for (let i = 0; i < ob.length; i += 90) await db.batch(ob.slice(i, i + 90));
+  }
   if (hoodFills.length) {
     const fb = hoodFills.slice(0, 3000).map((m) => db.prepare(
       `UPDATE listings SET hood = ? WHERE source = ? AND source_id = ? AND (hood IS NULL OR hood = '')`)
@@ -1147,7 +1188,7 @@ async function adsApi(url, env) {
   const where = [
     "city = ?", "COALESCE(kind, 'apartment') = ?",
     "source IN ('divar', 'sheypoor')", "removed_at IS NULL",
-    "price_toman > 0", "COALESCE(last_seen, substr(scraped_at, 1, 10)) >= date('now', ?)",
+    "price_toman > 0", "COALESCE(outlier, 0) = 0", "COALESCE(last_seen, substr(scraped_at, 1, 10)) >= date('now', ?)",
     `NOT (source = 'sheypoor' AND dedupe_key IS NOT NULL AND EXISTS (
        SELECT 1 FROM listings d WHERE d.dedupe_key = listings.dedupe_key
          AND d.source = 'divar' AND d.removed_at IS NULL))`,
