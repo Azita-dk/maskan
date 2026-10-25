@@ -7,7 +7,7 @@
 <meta name="description" content="مقایسه کنار هم قیمت هر متر، تغییر قیمت و تعداد آگهی چند محله.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316915F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=20260925c">
+<link rel="stylesheet" href="app.css?v=20261026a">
 </head>
 <body>
 
@@ -26,11 +26,13 @@
     <div class="cmp-chips" id="cChips"></div>
   </div>
 
+  <div class="cmptable-wrap" id="cTable"></div>
   <div class="cmpgrid" id="cCards"><div class="loading">در حال بارگذاری…</div></div>
 
   <div class="shead"><h2>روند قیمت</h2></div>
   <div class="panel">
     <header><h3 id="cTrendTitle">میانه قیمت هر متر در هر ماه</h3></header>
+    <div class="cmeta hide" id="cTrendMeta"></div>
     <div class="chartbox"><div class="chart"><canvas id="cTrend"></canvas><div class="loading hide" id="cTrendEmpty"></div></div></div>
     <p class="foot">میانه قیمت هر متر آگهی‌هایی که در هر ماه روی سایت‌ها بوده‌اند، به میلیون تومان. خط‌چین، کل شهر است.</p>
   </div>
@@ -38,6 +40,7 @@
   <div class="shead"><h2>فعالیت بازار</h2></div>
   <div class="panel">
     <header><h3>تعداد آگهی‌های فروش در هر ماه</h3></header>
+    <div class="cmeta hide" id="cCountMeta"></div>
     <div class="chartbox"><div class="chart"><canvas id="cCount"></canvas><div class="loading hide" id="cCountEmpty"></div></div></div>
     <p class="foot">هر آگهی در همه ماه‌هایی شمرده می‌شود که روی سایت‌ها بوده است.</p>
   </div>
@@ -53,7 +56,7 @@
 </div></footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=20260925c"></script>
+<script src="app.js?v=20261026a"></script>
 <script>
 const COLORS = ['#0D7668', '#F08A4B', '#3B82C4', '#7A3E9D'];
 const FROM_KEY = 1405 * 12 + 5;
@@ -133,7 +136,7 @@ function drawPicker(){
 function drawCards(){
   const box = document.getElementById('cCards');
   const sel = chosen();
-  if (!sel.length) { box.innerHTML = '<div class="loading">یک محله از فهرست بالا انتخاب کنید.</div>'; return; }
+  if (!sel.length) { box.innerHTML = '<div class="loading">یک محله از فهرست بالا انتخاب کنید.</div>'; document.getElementById('cTable').innerHTML = ''; return; }
   const rows = hoodRows();
   const cityMed = ((CITY.byKind || {})[S.kind] || {}).median;
   const data = sel.map((h, i) => {
@@ -154,6 +157,22 @@ function drawCards(){
   };
   const cheapest = best('med', -1), dearest = best('med', 1), fastest = best('chg', 1), busiest = best('n', 1);
   const na = '<span class="na">داده کافی نیست</span>';
+  const badges = d => [d.h === cheapest ? '<span class="bdg g">ارزان‌ترین</span>' : '', d.h === dearest ? '<span class="bdg r">گران‌ترین</span>' : '',
+    d.h === fastest ? '<span class="bdg b">بیشترین رشد</span>' : '', d.h === busiest ? '<span class="bdg n">بیشترین آگهی</span>' : ''].join('');
+  const naS = '<span class="na">—</span>';
+  const tRows = [
+    ['میانه قیمت هر متر <small>میلیون تومان</small>', d => d.med != null ? `<b>${FA1(d.med)}</b>` : naS],
+    [`نسبت به میانه ${esc(CITY.name)}`, d => d.vsCity != null ? sign(d.vsCity) : naS],
+    ['تغییر قیمت ماهانه', d => d.chg != null ? `<span class="${d.chg >= 0 ? 'up' : 'down'}">${sign(d.chg)}</span>` : naS],
+    ['آگهی‌های فعال', d => d.n != null ? FA(d.n) : naS],
+    ['تغییر تعداد آگهی', d => d.cnt != null ? sign(d.cnt) : naS],
+    ['متراژ میانه <small>متر</small>', d => d.s.area ? FA(Math.round(d.s.area)) : naS],
+    ['قیمت کل میانه <small>میلیارد</small>', d => d.s.price ? FA1(d.s.price / 1000) : naS],
+  ];
+  document.getElementById('cTable').innerHTML = `<table class="cmptable"><thead><tr><th></th>${data.map(d =>
+      `<th style="--c:${COLORS[d.i]}"><i></i><a href="${esc(adsLink(d.h))}">${esc(d.h)}</a><div class="tb">${badges(d)}</div></th>`).join('')}</tr></thead>
+    <tbody>${tRows.map(([k, f]) => `<tr><th scope="row">${k}</th>${data.map(d => `<td>${f(d)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+    ${data.some(d => d.chgSpan && d.chg != null) ? `<p class="foot">تغییر ماهانه: ${data.find(d => d.chg != null).chgSpan}</p>` : ''}`;
   box.innerHTML = data.map(d => `
     <article class="ccard" style="--c:${COLORS[d.i]}">
       <header><i></i><h3>${esc(d.h)}</h3></header>
@@ -177,7 +196,7 @@ function drawCards(){
     </article>`).join('');
 }
 
-function lineChart(id, old, series, months, fmt, emptyId){
+function lineChart(id, old, series, months, fmt, emptyId, yTitle){
   if (old) old.destroy();
   const empty = document.getElementById(emptyId);
   const has = series.some(s => s.data.filter(v => v != null).length >= 1);
@@ -194,8 +213,8 @@ function lineChart(id, old, series, months, fmt, emptyId){
       plugins: { legend: { position: 'bottom', rtl: true, labels: { font, color: CSSVAR('--ink'), usePointStyle: true } },
         tooltip: { rtl: true, titleFont: font, bodyFont: font,
           callbacks: { label: c => `${c.dataset.label}: ${fmt(c.parsed.y)}` } } },
-      scales: { x: { reverse: true, ticks: { font, color: CSSVAR('--muted') }, grid: { display: false } },
-        y: { position: 'right', ticks: { font, color: CSSVAR('--muted'), callback: v => FA(v) }, grid: { color: CSSVAR('--rule') } } } },
+      scales: { x: { ticks: { font, color: CSSVAR('--muted') }, grid: { display: false } },
+        y: { position: 'right', title: axisTitle(yTitle), ticks: { font, color: CSSVAR('--muted'), callback: v => FA(v) }, grid: { color: CSSVAR('--rule') } } } },
   });
 }
 
@@ -208,10 +227,13 @@ function drawCharts(){
   trendC = lineChart('cTrend', trendC, [
     ...sel.map((h, i) => ({ label: h, color: COLORS[i], data: keys.map(k => at(per[i], k, 2)) })),
     { label: `کل ${CITY.name}`, color: CSSVAR('--muted'), dash: true, data: keys.map(k => at(cm, k, 2)) },
-  ], keys, v => FA1(v) + ' میلیون', 'cTrendEmpty');
+  ], keys, v => FA1(v) + ' میلیون', 'cTrendEmpty', 'میلیون تومان / متر');
   countC = lineChart('cCount', countC,
     sel.map((h, i) => ({ label: h, color: COLORS[i], data: keys.map(k => at(per[i], k, 1)) })),
-    keys, v => FA(v) + ' آگهی', 'cCountEmpty');
+    keys, v => FA(v) + ' آگهی', 'cCountEmpty', 'تعداد آگهی');
+  const rng = keys.length ? `${monthLabel(keys[0])} تا ${monthLabel(keys[keys.length - 1])}` : '';
+  setMeta('cTrendMeta', { range: rng, unit: 'میلیون تومان برای هر متر' });
+  setMeta('cCountMeta', { range: rng, unit: 'تعداد آگهی در هر ماه' });
   document.getElementById('cTrendTitle').textContent = `میانه قیمت هر متر ${kindLabel()} در هر ماه — ${CITY.name}`;
 }
 

@@ -38,28 +38,9 @@
 .tablewrap{container-type:inline-size;overflow-x:auto}
 table.cards td{white-space:nowrap}
 table.cards td:first-child{white-space:normal;min-width:160px}
-@container (max-width:760px){
-  table.cards, table.cards thead, table.cards tbody,
-  table.cards tr, table.cards th, table.cards td{display:block}
-  table.cards thead{position:absolute;width:1px;height:1px;overflow:hidden;
-    clip:rect(0 0 0 0);white-space:nowrap}
-  table.cards tr{border-bottom:1px solid var(--rule);padding:12px 14px;
-    display:grid;grid-template-columns:1fr 1fr;column-gap:18px}
-  table.cards tr:last-child{border-bottom:0}
-  table.cards td:first-child, table.cards td.loading{grid-column:1/-1}
-  table.cards td{border:0;padding:3px 0;display:flex;justify-content:space-between;
-    align-items:baseline;gap:14px;font-size:14.5px;white-space:normal;text-align:end}
-  table.cards td::before{content:attr(data-l);color:var(--muted);font-size:13px;
-    flex:0 0 auto;text-align:start}
-  table.cards td:first-child{display:block;font-weight:700;font-size:15.5px;
-    margin-bottom:5px;line-height:1.6;min-width:0;text-align:start}
-  table.cards td:first-child::before{content:none}
-  table.cards td:empty{display:none}
-  table.cards td.loading{display:block;text-align:center}
-  table.cards td.loading::before{content:none}
-}
+
 </style>
-<link rel="stylesheet" href="app.css?v=20260925c">
+<link rel="stylesheet" href="app.css?v=20261026a">
 </head>
 <body>
 
@@ -74,7 +55,8 @@ table.cards td:first-child{white-space:normal;min-width:160px}
     <div id="searchHost"></div>
   </details>
 
-  <div class="panel">
+  <div class="mapsplit">
+  <div class="panel mappanel">
     <header><h3 id="mapTitle">نقشه قیمت</h3>
       <button class="tabs" id="mapReset" style="display:none"></button></header>
     <div class="mapwrap">
@@ -91,7 +73,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
     <p class="foot" id="mapNote"></p>
   </div>
 
-  <div class="panel">
+  <div class="panel listpanel">
     <header><h3 id="adsTitle">آگهی‌ها</h3>
       <div class="tabs" id="adsTabs">
         <button data-sort="new" class="on">تازه‌ترین</button>
@@ -130,6 +112,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
     <p class="foot">آگهی‌ها متعلق به دیوار و شیپور است و با کلیک روی هر ردیف در همان سایت باز
       می‌شود. آگهی‌ای که هم در دیوار و هم در شیپور هست فقط یک بار نشان داده می‌شود. این سایت آگهی منتشر نمی‌کند.</p>
   </div>
+  </div>
 
 
 </main>
@@ -141,7 +124,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
 </div></footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js?v=20260925c"></script>
+<script src="app.js?v=20261026a"></script>
 <script>
 const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلید' };
 /* How far Divar's published point may sit from the real property. Their
@@ -149,7 +132,7 @@ const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلی
    figure the footnote under the map has always quoted. */
 const LOCATION_FUZZ_M = 400;
 const FUZZ_COLOR = '#D97706';
-let adsSort = 'new', shown = 60, solo = null;
+let adsSort = 'new', shown = 60, solo = null, MK = new Map();
 let map = null, layer = null, keepView = false, areaBounds = null, quietUntil = 0;
 
 function sampleScale(){
@@ -251,19 +234,28 @@ function drawAds(){
   const list = solo ? all : all.slice(0, shown);
   body.innerHTML = list.map(l => `
     <tr${l.u ? ` data-url="${esc(l.u)}"` : ''} data-token="${esc(l.t)}"${solo === l.t ? ' class="sel"' : ''}>
-      <td data-l="عنوان">${esc(l.n || '—')}</td>
-      <td data-l="محله">${esc(l.h || '')}</td>
-      <td data-l="متراژ">${l.a ? FA(l.a) + ' متر' : '—'}</td>
-      <td data-l="قیمت کل">${l.p ? FA1(l.p/1000) + ' میلیارد' : '—'}</td>
-      <td data-l="هر متر">${l.m > 0 ? FA1(l.m) + ' میلیون' : '—'}</td>
-      <td data-l="تاریخ">${l.d ? faShortDate(l.d) : '—'}</td>
-      <td data-l="منبع">${esc(SOURCE_NAME[l.s] || l.s || '')}${l.u ? ' ↗' : ''}</td>
+      <td class="c-t" data-l="عنوان">${esc(l.n || '—')}</td>
+      <td class="c-h" data-l="محله">${esc(l.h || '')}</td>
+      <td class="c-a" data-l="متراژ">${l.a ? FA(l.a) + ' متر' : '—'}</td>
+      <td class="c-p" data-l="قیمت کل">${l.p ? FA1(l.p/1000) + ' میلیارد' : '—'}</td>
+      <td class="c-m" data-l="هر متر">${l.m > 0 ? FA1(l.m) + ' میلیون' : '—'}</td>
+      <td class="c-d" data-l="تاریخ">${l.d ? faShortDate(l.d) : '—'}</td>
+      <td class="c-s" data-l="منبع">${esc(SOURCE_NAME[l.s] || l.s || '')}${l.u ? ' ↗' : ''}</td>
     </tr>`).join('');
 
   body.querySelectorAll('tr[data-token]').forEach(tr =>
     tr.addEventListener('click', () => {
       if (tr.dataset.url) window.open(tr.dataset.url, '_blank', 'noopener,noreferrer');
     }));
+  body.querySelectorAll('tr[data-token]').forEach(tr => {
+    tr.addEventListener('mouseenter', () => {
+      const mk = MK.get(tr.dataset.token); if (!mk) return;
+      mk.setStyle({ weight: 3, color: CSSVAR('--ink') }); mk.setRadius && mk.setRadius(10); mk.bringToFront && mk.bringToFront();
+    });
+    tr.addEventListener('mouseleave', () => {
+      const mk = MK.get(tr.dataset.token); if (mk) { mk.setStyle({ weight: 1, color: '#fff' }); mk.setRadius && mk.setRadius(6); }
+    });
+  });
 
   const more = document.getElementById('adsMore');
   more.classList.toggle('hide', solo || totalN <= shown);
@@ -364,6 +356,7 @@ function drawMap(){
   /* With one listing selected the circle is the whole answer — a dot in the
      middle of it points at a spot Divar never published, which is the thing
      the circle exists to avoid claiming. */
+  MK = new Map();
   (solo ? [] : pts).slice(0, 1500).forEach(l => {
     const mk = L.circleMarker([l.y, l.x], {
       radius: solo ? 7 : 6, weight: solo ? 3 : 1,
@@ -380,6 +373,7 @@ function drawMap(){
     mk.on('click', () => { solo = l.t; keepView = true; drawAds(); drawMap();
       document.getElementById('adsTitle').scrollIntoView({behavior:'smooth', block:'start'}); });
     mk.addTo(layer);
+    MK.set(l.t, mk);
   });
 
   note.textContent = solo

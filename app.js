@@ -590,6 +590,47 @@ function heat(v, lo, hi){
   return `rgb(${c(0)},${c(1)},${c(2)})`;
 }
 
+function seqTeal(v, lo, hi){
+  const a = [167, 220, 200], b = [13, 92, 82];
+  const f = !isFinite(v) || hi <= lo ? 1 : Math.max(0, Math.min(1, (v - lo) / (hi - lo)));
+  const c = k => Math.round(a[k] + (b[k] - a[k]) * f);
+  return `rgb(${c(0)},${c(1)},${c(2)})`;
+}
+
+function chartTheme(){
+  if (typeof Chart === 'undefined' || !Chart.defaults) return;
+  const d = Chart.defaults;
+  d.font.family = 'Vazirmatn, Tahoma, sans-serif';
+  d.font.size = 12;
+  d.color = CSSVAR('--muted');
+  d.borderColor = CSSVAR('--rule');
+  const t = d.plugins.tooltip;
+  t.rtl = true; t.textDirection = 'rtl';
+  t.backgroundColor = '#12343A'; t.titleColor = '#fff'; t.bodyColor = '#E5F3EE';
+  t.padding = 10; t.cornerRadius = 10; t.boxPadding = 4; t.usePointStyle = true;
+  t.titleFont = { family: 'Vazirmatn', weight: '700', size: 13 };
+  t.bodyFont = { family: 'Vazirmatn', size: 12.5 };
+  d.plugins.legend.rtl = true;
+  d.plugins.legend.labels.usePointStyle = true;
+}
+
+function axisTitle(text){
+  return { display: true, text, color: CSSVAR('--muted'), font: { family: 'Vazirmatn', size: 11.5, weight: '600' }, padding: { top: 4, bottom: 4 } };
+}
+
+function setMeta(id, o){
+  const el = document.getElementById(id);
+  if (!el) return;
+  const parts = [];
+  if (o.range) parts.push(`<span class="cm"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>${o.range}</span>`);
+  if (o.unit) parts.push(`<span class="cm">${o.unit}</span>`);
+  if (o.n != null) parts.push(o.n < (o.min || 30)
+    ? `<span class="cm warn" title="برای این انتخاب آگهی کمی هست؛ عددها را با احتیاط بخوانید"><svg viewBox="0 0 24 24"><path d="M12 4 2.5 20h19z"/><path d="M12 10v4M12 17v.5"/></svg>نمونه کم: ${o.approx ? 'حدود ' : ''}${FA(o.n)} آگهی${o.nl ? ' ' + o.nl : ''}</span>`
+    : `<span class="cm">${o.approx ? 'حدود ' : ''}${FA(o.n)} آگهی${o.nl ? ' ' + o.nl : ''}</span>`);
+  el.innerHTML = parts.join('');
+  el.classList.toggle('hide', !parts.length);
+}
+
 /* ------------------------------------------------------------ the icons */
 /* One icon set, drawn on a 24-grid with a single stroke weight.
    The previous set was too light and too small for the box it sat in, which
@@ -1335,6 +1376,7 @@ async function bootPage(currentFile, render){
   if (host) renderSearchBar(host);
 
   PAGE_RENDER = render;
+  chartTheme();
   writeState(true);
   refreshNavLinks();
   drawChips();
@@ -1352,7 +1394,7 @@ async function bootPage(currentFile, render){
     ? `آخرین به‌روزرسانی ${faDate(DB.generated.slice(0, 10))}`
     : `نسخه ${faDate(APP_VERSION.split(' ')[0])}`;
 
-  window.addEventListener('mk:theme', () => render());
+  window.addEventListener('mk:theme', () => { chartTheme(); render(); });
   window.addEventListener('popstate', async () => {
     readState();
     if (CITY && CITY.id !== S.city) await loadCity(S.city);

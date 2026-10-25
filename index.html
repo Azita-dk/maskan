@@ -53,7 +53,7 @@
 .hl-row .mk{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:2px;background:var(--ink);opacity:.35}
 .hl-row.thin .nm,.hl-row.thin .vl{opacity:.6}
 .hl-row.thin .fill{opacity:.4}
-.hl-row .chev{flex:0 0 auto;width:8px;height:8px;border-inline-end:2px solid var(--muted);border-bottom:2px solid var(--muted);
+.hl-row .chev{flex:0 0 auto;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
   transform:rotate(45deg);margin:-3px 2px 0;transition:transform .2s}
 .hl-row.open .chev{transform:rotate(-135deg);margin-top:3px}
 .hl-more-info{display:grid;grid-template-rows:0fr;transition:grid-template-rows .25s ease}
@@ -116,28 +116,9 @@
 .tablewrap{container-type:inline-size;overflow-x:auto}
 table.cards td{white-space:nowrap}
 table.cards td:first-child{white-space:normal;min-width:160px}
-@container (max-width:760px){
-  table.cards, table.cards thead, table.cards tbody,
-  table.cards tr, table.cards th, table.cards td{display:block}
-  table.cards thead{position:absolute;width:1px;height:1px;overflow:hidden;
-    clip:rect(0 0 0 0);white-space:nowrap}
-  table.cards tr{border-bottom:1px solid var(--rule);padding:12px 14px;
-    display:grid;grid-template-columns:1fr 1fr;column-gap:18px}
-  table.cards tr:last-child{border-bottom:0}
-  table.cards td:first-child, table.cards td.loading{grid-column:1/-1}
-  table.cards td{border:0;padding:3px 0;display:flex;justify-content:space-between;
-    align-items:baseline;gap:14px;font-size:14.5px;white-space:normal;text-align:end}
-  table.cards td::before{content:attr(data-l);color:var(--muted);font-size:13px;
-    flex:0 0 auto;text-align:start}
-  table.cards td:first-child{display:block;font-weight:700;font-size:15.5px;
-    margin-bottom:5px;line-height:1.6;min-width:0;text-align:start}
-  table.cards td:first-child::before{content:none}
-  table.cards td:empty{display:none}
-  table.cards td.loading{display:block;text-align:center}
-  table.cards td.loading::before{content:none}
-}
+
 </style>
-<link rel="stylesheet" href="app.css?v=20260925c">
+<link rel="stylesheet" href="app.css?v=20261026a">
 </head>
 <body>
 
@@ -158,6 +139,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
         </div>
       </div>
     </section>
+<nav class="journeys" id="next" aria-label="مسیرهای اصلی"></nav>
 <div class="homegrid">
   <div class="hmain">
 
@@ -202,6 +184,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
         <header><h3 id="trendTitle">روند قیمت</h3>
           <div class="tabs" id="trendTabs"></div></header>
       <div class="cmpbar" id="cmpBar"></div>
+      <div class="cmeta hide" id="trendMeta"></div>
         <div class="chartbox"><div class="chart">
           <canvas id="trend"></canvas>
         </div></div>
@@ -210,6 +193,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
     </div>
       <div class="panel">
         <header><h3 id="actTitle">تعداد آگهی‌های فروش</h3></header>
+        <div class="cmeta hide" id="actMeta"></div>
         <div class="chartbox"><div class="chart"><canvas id="act"></canvas>
           <div class="loading hide" id="actEmpty"></div></div></div>
         <p class="foot" id="actFoot"></p>
@@ -233,10 +217,6 @@ table.cards td:first-child{white-space:normal;min-width:160px}
   </aside>
 </div>
 
-  <section>
-    <div class="shead"><h2>کاوش در بخش‌های مختلف</h2></div>
-    <div class="explore" id="next"></div>
-  </section>
 
   <section>
     <div class="shead"><h2>فرصت‌های خرید</h2>
@@ -322,7 +302,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=20260925c"></script>
+<script src="app.js?v=20261026a"></script>
 <script>
 let allOpen = false;
 let trendChart = null, distChart = null;
@@ -676,6 +656,7 @@ function syncHero(){
 }
 
 const HOUSE_SVG = '<svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>';
+let OPP_N = 0;
 function drawOpps(){
   const box = document.getElementById('opps');
   const meds = new Map(allHoodStats().filter(r => r.n >= HOOD_FEW && r.med > 0).map(r => [r.hood, r.med]));
@@ -684,8 +665,9 @@ function drawOpps(){
     .filter(l => l.m > 0 && l.a > 0 && l.p > 0 && meds.has(l.h) && (!l.d || l.d >= cut))
     .map(l => ({ l, off: l.m / meds.get(l.h) - 1 }))
     .filter(x => x.off <= -0.12 && x.off >= -0.45)
-    .sort((x, y) => x.off - y.off)
-    .slice(0, 8);
+    .sort((x, y) => x.off - y.off);
+  OPP_N = list.length;
+  list.splice(8);
   if (!list.length) {
     box.innerHTML = '<div class="loading" style="grid-column:1/-1">با این انتخاب آگهی‌ای به‌طور محسوس زیر قیمت محله پیدا نشد.</div>';
     return;
@@ -713,6 +695,13 @@ function drawPopHoods(){
   const cityMed = whole && bk.median > 0 ? bk.median : null;
   const link = (file, set) => { const keep = { hood: S.hood, cmp: S.cmp }; Object.assign(S, set); const u = linkTo(file); Object.assign(S, keep); return u; };
   const pin = '<svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+  const trendOf = h => {
+    if (!whole) return '';
+    const pts = (findHoodMonthly(h) || []).filter(x => x[0] >= SHOW_FROM_KEY() && x[1] >= 5 && x[2] > 0);
+    if (pts.length < 2) return '';
+    return `<div class="ph-trend" title="میانه قیمت هر متر در هر ماه، ${jMonthLabel(pts[0][0])} تا ${jMonthLabel(pts[pts.length - 1][0])}">
+      ${spark(pts.map(x => x[2]), '#0D7668')}<span>${jMonthLabel(pts[0][0])} تا ${jMonthLabel(pts[pts.length - 1][0])}</span></div>`;
+  };
   box.innerHTML = [...rows].sort((a, b) => b.n - a.n).slice(0, 8).map((r, i) => {
     const d = cityMed ? (r.med - cityMed) / cityMed * 100 : null;
     const chip = d == null ? '' : Math.abs(d) < 3
@@ -725,6 +714,7 @@ function drawPopHoods(){
       <div class="ph-price"><span class="ph-k">میانه قیمت هر متر</span>
         <span class="ph-v">${FA1(r.med)}<small>میلیون تومان</small></span></div>
       ${chip}
+      ${trendOf(r.hood)}
       <div class="ph-foot"><span class="ph-go">آمار محله ←</span>
         <a class="ph-cmp" href="${esc(link('compare.html', { hood: '', cmp: r.hood }))}">مقایسه</a></div>
     </article>`;
@@ -932,7 +922,7 @@ function hoodDetail(r, cityMed, whole){
     }
     const pts = m.filter(x => x[1] >= 5 && x[2] > 0);
     if (pts.length >= 2) trend = `<div class="hl-trend"><div class="t"><span>میانه قیمت هر متر در هر ماه</span>
-      <span>${jMonthLabel(pts[0][0])} تا ${jMonthLabel(pts[pts.length - 1][0])}</span></div>${spark(pts.map(x => x[2]).reverse(), '#0D7668')}</div>`;
+      <span>${jMonthLabel(pts[0][0])} تا ${jMonthLabel(pts[pts.length - 1][0])}</span></div>${spark(pts.map(x => x[2]), '#0D7668')}</div>`;
   }
   const want = canonHood(r.hood);
   const ls = activeListings().filter(l => canonHood(l.h) === want);
@@ -1406,6 +1396,12 @@ function drawTrend(){
 
   const main = monthlySeries(hood);
   const monthsWithData = months.filter(k => main.has(k) && main.get(k).v != null).length;
+  {
+    const withV = months.filter(k => main.has(k) && main.get(k).v != null);
+    const last = withV.length ? main.get(withV[withV.length - 1]) : null;
+    setMeta('trendMeta', { range: months.length ? `${jMonthLabel(months[0])} تا ${jMonthLabel(months[months.length - 1])}` : '',
+      unit: 'میلیون تومان برای هر متر', n: last ? last.n : null, nl: 'در آخرین ماه', min: 30, approx: filtered || (last && last.approx) });
+  }
   if (monthsWithData < 1) {
     ctx.style.display = 'none';
     setNote(note, 'برای این انتخاب هنوز داده کافی نیست.', []);
@@ -1456,7 +1452,7 @@ function drawTrend(){
         (r.n ? ` — ${r.approx ? 'حدود ' : ''}${FA(r.n)} آگهی` : '');
     }, {
       y: { position: 'right', suggestedMin: Math.max(0, lo - pad), suggestedMax: hi + pad,
-           grid: { color: CSSVAR('--rule') },
+           grid: { color: CSSVAR('--rule') }, title: axisTitle('میلیون تومان / متر'),
            ticks: { font: axisFont, color: CSSVAR('--muted'), callback: v => FA(Math.round(v)) } },
     }, series.length > 1),
   });
@@ -1534,9 +1530,11 @@ function drawCountTrend(){
   const approx = filtered;
   const axisFont = { family: 'Vazirmatn', size: 12 };
   const yAxes = {
-    y: { position: 'right', beginAtZero: true, grid: { color: CSSVAR('--rule') },
+    y: { position: 'right', beginAtZero: true, grid: { color: CSSVAR('--rule') }, title: axisTitle('تعداد آگهی'),
          ticks: { font: axisFont, color: CSSVAR('--muted'), precision: 0, callback: v => FA(v) } },
   };
+  setMeta('actMeta', { range: months.length ? `${jMonthLabel(months[0])} تا ${jMonthLabel(months[months.length - 1])}` : '',
+    unit: approx ? 'تعداد تقریبی آگهی در هر ماه' : 'تعداد آگهی در هر ماه' });
   if (cityWithHoods) {
     yAxes.y.title = { display: true, text: 'محله‌ها', font: axisFont, color: CSSVAR('--muted') };
     yAxes.y2 = { position: 'left', beginAtZero: true, grid: { display: false },
@@ -1662,13 +1660,13 @@ function drawAds(){
   const list = solo ? all : all.slice(0, shown);
   body.innerHTML = list.map(l => `
     <tr${l.u ? ` data-url="${esc(l.u)}"` : ''} data-token="${esc(l.t)}">
-      <td data-l="عنوان">${esc(l.n || '—')}</td>
-      <td data-l="محله">${esc(l.h || '')}</td>
-      <td data-l="متراژ">${l.a ? FA(l.a) + ' متر' : '—'}</td>
-      <td data-l="قیمت کل">${l.p ? FA1(l.p/1000) + ' میلیارد' : '—'}</td>
-      <td data-l="هر متر">${l.m > 0 ? FA1(l.m) + ' میلیون' : '—'}</td>
-      <td data-l="تاریخ">${l.d ? faShortDate(l.d) : '—'}</td>
-      <td data-l="منبع">${esc(SOURCE_NAME[l.s] || l.s || '')}${l.u ? ' ↗' : ''}</td>
+      <td class="c-t" data-l="عنوان">${esc(l.n || '—')}</td>
+      <td class="c-h" data-l="محله">${esc(l.h || '')}</td>
+      <td class="c-a" data-l="متراژ">${l.a ? FA(l.a) + ' متر' : '—'}</td>
+      <td class="c-p" data-l="قیمت کل">${l.p ? FA1(l.p/1000) + ' میلیارد' : '—'}</td>
+      <td class="c-m" data-l="هر متر">${l.m > 0 ? FA1(l.m) + ' میلیون' : '—'}</td>
+      <td class="c-d" data-l="تاریخ">${l.d ? faShortDate(l.d) : '—'}</td>
+      <td class="c-s" data-l="منبع">${esc(SOURCE_NAME[l.s] || l.s || '')}${l.u ? ' ↗' : ''}</td>
     </tr>`).join('');
 
   body.querySelectorAll('tr[data-token]').forEach(tr =>
@@ -1811,19 +1809,37 @@ function drawNext(){
     stats: '<rect x="8" y="34" width="10" height="22" rx="2" fill="#20A779"/><rect x="22" y="24" width="10" height="32" rx="2" fill="#16915F"/><rect x="36" y="14" width="10" height="42" rx="2" fill="#0D7668"/><path d="M6 30l14-10 12 6 16-14" stroke="#F08A4B" stroke-width="3" fill="none" stroke-linecap="round"/>',
     ads:   '<path d="M6 14l14-6 14 6 14-6v36l-14 6-14-6-14 6z" fill="#DCEFE7"/><path d="M20 8v36M34 14v36" stroke="#9CCFBB" stroke-width="2"/><path d="M27 18a7 7 0 0 1 7 7c0 6-7 12-7 12s-7-6-7-12a7 7 0 0 1 7-7z" fill="#16915F"/><circle cx="27" cy="25" r="2.6" fill="#fff"/>',
     value: '<rect x="12" y="8" width="30" height="44" rx="5" fill="#0D7668"/><rect x="17" y="13" width="20" height="9" rx="2" fill="#DCEFE7"/><g fill="#BFE3D4"><rect x="17" y="27" width="5" height="5" rx="1"/><rect x="24.5" y="27" width="5" height="5" rx="1"/><rect x="32" y="27" width="5" height="5" rx="1"/><rect x="17" y="35" width="5" height="5" rx="1"/><rect x="24.5" y="35" width="5" height="5" rx="1"/><rect x="32" y="35" width="5" height="12" rx="1" fill="#F08A4B"/><rect x="17" y="43" width="12.5" height="4" rx="1"/></g>',
+    opp: '<path d="M8 30 30 8h16v16L24 46z" fill="#DCEFE7" stroke="#16915F" stroke-width="2.5" stroke-linejoin="round"/><circle cx="38" cy="16" r="3" fill="#0D7668"/><path d="M40 34v16M34 44l6 6 6-6" stroke="#F08A4B" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
     about: '<rect x="10" y="8" width="34" height="44" rx="4" fill="#DCEFE7"/><path d="M17 18h20M17 25h20M17 32h12" stroke="#16915F" stroke-width="3" stroke-linecap="round"/><circle cx="40" cy="42" r="9" fill="#0D7668"/><path d="M36 42l3 3 5-6" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/>',
   };
+  const bk = (CITY.byKind || {})[S.kind] || {};
+  const whole = !S.q && activeFilterCount() === 0;
+  const nHoods = allHoodStats().filter(r => r.hood && r.hood !== 'نامشخص').length;
+  const place = esc(S.hood || CITY.name);
   const cards = [
-    ['stats.html', 'stats', 'آمار و نمودارها', 'روند قیمت، توزیع، متراژ و سن بنا'],
-    ['ads.html',   'ads',   'نقشه و آگهی‌ها',  'آگهی‌های واقعی روی نقشه، با فیلتر'],
-    ['value.html', 'value', 'قیمت خانه من',    'تخمین ارزش ملک از آگهی‌های مشابه'],
-    ['about.html', 'about', 'روش کار',         'منبع داده‌ها و روش محاسبه'],
+    { href: linkTo('stats.html'), a: 'stats', n: '۱', t: 'تحلیل قیمت مسکن',
+      d: 'روند ماهانه، توزیع قیمت، متراژ و سن بنا',
+      f: whole && bk.median > 0 ? `میانه هر متر در ${esc(CITY.name)}: <b>${FA1(bk.median)}</b> میلیون` : '' },
+    { href: linkTo('compare.html'), a: 'ads', n: '۲', t: 'کاوش و مقایسه محله‌ها',
+      d: 'قیمت، رشد و تعداد آگهی چند محله کنار هم',
+      f: nHoods ? `<b>${FA(nHoods)}</b> محله با داده در ${esc(CITY.name)}` : '' },
+    { href: '#opps', a: 'opp', n: '۳', t: 'فرصت‌های خرید',
+      d: 'آگهی‌های تازه‌ای که هر مترشان زیر میانه محله است',
+      f: OPP_N ? `<b>${FA(OPP_N)}</b> آگهی در ${place}` : 'در این انتخاب فعلاً موردی نیست' },
   ];
-  document.getElementById('next').innerHTML = cards.map(([f, a, t, d]) => `
-    <a class="xcard" href="${linkTo(f)}" data-page="${f}">
-      <svg class="xart" viewBox="0 0 56 60" aria-hidden="true">${art[a]}</svg>
-      <b>${t}</b><span>${d}</span><em>رفتن به بخش ←</em>
+  document.getElementById('next').innerHTML = cards.map(c => `
+    <a class="jcard" href="${c.href}">
+      <svg class="xart" viewBox="0 0 56 60" aria-hidden="true">${art[c.a]}</svg>
+      <span class="jt"><i>${c.n}</i>${c.t}</span>
+      <span class="jd">${c.d}</span>
+      ${c.f ? `<span class="jf">${c.f}</span>` : ''}
+      <em>شروع کنید ←</em>
     </a>`).join('');
+  const oppLink = document.querySelector('#next a[href="#opps"]');
+  if (oppLink) oppLink.addEventListener('click', e => {
+    e.preventDefault();
+    document.getElementById('opps').closest('section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 }
 
 /* The same search the ads page has over its map. Both write to S.q — the

@@ -35,7 +35,7 @@
 .notemore{display:inline}
 .notemore.hide{display:none}
 </style>
-<link rel="stylesheet" href="app.css?v=20260925c">
+<link rel="stylesheet" href="app.css?v=20261026a">
 </head>
 <body>
 
@@ -63,11 +63,13 @@
       <header><h3 id="trendTitle">روند قیمت</h3>
         <div class="tabs" id="trendTabs"></div></header>
       <div class="cmpbar" id="cmpBar"></div>
+      <div class="cmeta hide" id="trendMeta"></div>
       <div class="chartbox"><div class="chart"><canvas id="trend"></canvas></div></div>
       <p class="foot" id="trendNote"></p>
     </div>
     <div class="panel">
       <header><h3 id="actTitle">تعداد آگهی‌های فروش</h3></header>
+      <div class="cmeta hide" id="actMeta"></div>
       <div class="chartbox"><div class="chart"><canvas id="act"></canvas>
         <div class="loading hide" id="actEmpty"></div></div></div>
       <p class="foot" id="actFoot"></p>
@@ -78,12 +80,14 @@
   <div class="sidebyside">
     <div class="panel">
       <header><h3 id="distTitle">توزیع قیمت</h3></header>
+      <div class="cmeta hide" id="distMeta"></div>
       <div class="chartbox"><div class="chart"><canvas id="dist"></canvas></div></div>
       <div class="statrow" id="distStats"></div>
       <p class="foot" id="distFoot"></p>
     </div>
     <div class="panel">
       <header><h3 id="hoodBarsTitle">مقایسه محله‌ها</h3></header>
+      <div class="cmeta hide" id="hoodBarsMeta"></div>
       <div class="chartbox"><div class="chart"><canvas id="hoodBars"></canvas></div></div>
       <p class="foot" id="hoodBarsFoot"></p>
     </div>
@@ -93,11 +97,13 @@
   <div class="sidebyside" id="driversRow">
     <div class="panel">
       <header><h3>میانه هر متر بر پایه متراژ</h3></header>
+      <div class="cmeta hide" id="sizeMeta"></div>
       <div class="chartbox"><div class="chart short"><canvas id="bySize"></canvas></div></div>
       <p class="foot" id="sizeFoot"></p>
     </div>
     <div class="panel" id="agePanel">
       <header><h3>میانه هر متر بر پایه سن بنا</h3></header>
+      <div class="cmeta hide" id="ageMeta"></div>
       <div class="chartbox"><div class="chart short"><canvas id="byAge"></canvas></div></div>
       <p class="foot" id="ageFoot"></p>
     </div>
@@ -112,7 +118,7 @@
 </div></footer>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=20260925c"></script>
+<script src="app.js?v=20261026a"></script>
 <script>
 let trendChart=null, distChart=null, sizeChart=null, ageChart=null, hoodBars=null, actChart=null;
 let period = 'all';
@@ -604,6 +610,12 @@ function drawTrend(){
 
   const main = monthlySeries(hood);
   const monthsWithData = months.filter(k => main.has(k) && main.get(k).v != null).length;
+  {
+    const withV = months.filter(k => main.has(k) && main.get(k).v != null);
+    const last = withV.length ? main.get(withV[withV.length - 1]) : null;
+    setMeta('trendMeta', { range: months.length ? `${jMonthLabel(months[0])} تا ${jMonthLabel(months[months.length - 1])}` : '',
+      unit: 'میلیون تومان برای هر متر', n: last ? last.n : null, nl: 'در آخرین ماه', min: 30, approx: filtered || (last && last.approx) });
+  }
   if (monthsWithData < 1) {
     ctx.style.display = 'none';
     setNote(note, 'برای این انتخاب هنوز داده کافی نیست.', []);
@@ -654,7 +666,7 @@ function drawTrend(){
         (r.n ? ` — ${r.approx ? 'حدود ' : ''}${FA(r.n)} آگهی` : '');
     }, {
       y: { position: 'right', suggestedMin: Math.max(0, lo - pad), suggestedMax: hi + pad,
-           grid: { color: CSSVAR('--rule') },
+           grid: { color: CSSVAR('--rule') }, title: axisTitle('میلیون تومان / متر'),
            ticks: { font: axisFont, color: CSSVAR('--muted'), callback: v => FA(Math.round(v)) } },
     }, series.length > 1),
   });
@@ -728,9 +740,11 @@ function drawCountTrend(){
   const approx = filtered;
   const axisFont = { family: 'Vazirmatn', size: 12 };
   const yAxes = {
-    y: { position: 'right', beginAtZero: true, grid: { color: CSSVAR('--rule') },
+    y: { position: 'right', beginAtZero: true, grid: { color: CSSVAR('--rule') }, title: axisTitle('تعداد آگهی'),
          ticks: { font: axisFont, color: CSSVAR('--muted'), precision: 0, callback: v => FA(v) } },
   };
+  setMeta('actMeta', { range: months.length ? `${jMonthLabel(months[0])} تا ${jMonthLabel(months[months.length - 1])}` : '',
+    unit: approx ? 'تعداد تقریبی آگهی در هر ماه' : 'تعداد آگهی در هر ماه' });
   if (cityWithHoods) {
     yAxes.y.title = { display: true, text: 'محله‌ها', font: axisFont, color: CSSVAR('--muted') };
     yAxes.y2 = { position: 'left', beginAtZero: true, grid: { display: false },
@@ -779,6 +793,7 @@ function drawDist(){
   distChart && distChart.destroy();
   const panel = document.getElementById('dist').closest('.panel');
   if (vals.length < 20) { panel.classList.add('hide'); return; }
+  setMeta('distMeta', { unit: 'آگهی‌های فعال · میلیون تومان برای هر متر', n: scaled(vals.length), min: 60, approx: !!approxNote() });
   panel.classList.remove('hide');
   document.getElementById('distTitle').textContent =
     `توزیع قیمت ${kindLabel()} در ${S.hood || CITY.name}`;
@@ -804,7 +819,7 @@ function drawDist(){
       datasets:[
         { type:'bar', label:'تعداد آگهی', data:counts, borderWidth:0,
           barPercentage:.96, categoryPercentage:1,
-          backgroundColor: counts.map((_, i) => heat(lo + w*i, lo, hi)) },
+          backgroundColor: counts.map((_, i) => seqTeal(lo + w*i, lo, hi)), borderRadius: 3 },
         { type:'line', label:'منحنی نرمال هم‌میانگین', data:curve,
           borderColor:CSSVAR('--muted'), borderWidth:1.5, borderDash:[5,4],
           pointRadius:0, fill:false, tension:.4 }] },
@@ -813,10 +828,10 @@ function drawDist(){
           labels:{font:{family:'Vazirmatn',size:13}, color:CSSVAR('--muted'),
                   boxWidth:12, usePointStyle:true} },
         tooltip:{ rtl:true, bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'} } },
-      scales:{ x:{ grid:{display:false},
+      scales:{ x:{ grid:{display:false}, title: axisTitle('قیمت هر متر (میلیون تومان)'),
                    ticks:{font:{family:'Vazirmatn',size:11}, color:CSSVAR('--muted'),
                           maxTicksLimit:9, maxRotation:0} },
-               y:{ position:'right', grid:{color:CSSVAR('--rule')},
+               y:{ position:'right', grid:{color:CSSVAR('--rule')}, title: axisTitle(approxNote() ? 'تعداد در نمونه' : 'تعداد آگهی'),
                    ticks:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
                           callback:v=>FA(v)} } } }
   });
@@ -883,7 +898,7 @@ function drawBreakdown(){
   const sizes = bucket(activeListings('area'), SIZE, l => l.a);
   const ages  = bucket(activeListings('age'),  AGE,  l => l.g);
 
-  const paint = (id, rows, prev, pick, isOn) => {
+  const paint = (id, rows, prev, pick, isOn, xt) => {
     prev && prev.destroy();
     if (!rows.length) return null;
     const meds = rows.map(r => r.med);
@@ -895,7 +910,8 @@ function drawBreakdown(){
       data:{ labels: rows.map(r => [r.label, (approxNote() ? '~' : '') + FA(scaled(r.n)) + ' آگهی']),
         datasets:[{ data:meds, barPercentage:.78,
           backgroundColor: rows.map(r =>
-            r.n < 20 ? CSSVAR('--rule') : heat(r.med, lo, hi)),
+            r.n < 20 ? CSSVAR('--rule') : seqTeal(r.med, lo, hi)),
+          borderRadius: 6,
           borderColor: CSSVAR('--ink'),
           borderWidth: rows.map(r => (isOn && isOn(r)) ? 3 : 0) }] },
       options:{ maintainAspectRatio:false,
@@ -907,18 +923,21 @@ function drawBreakdown(){
             bodyFont:{family:'Vazirmatn'}, titleFont:{family:'Vazirmatn'},
             callbacks:{ label: c => FA1(meds[c.dataIndex]) + ' میلیون/متر — ' +
                                     (approxNote() ? 'حدود ' : '') + FA(scaled(rows[c.dataIndex].n)) + ' آگهی' } } },
-        scales:{ x:{ grid:{display:false},
+        scales:{ x:{ grid:{display:false}, title: axisTitle(xt),
                      ticks:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
                             maxRotation:0} },
-                 y:{ position:'right', grid:{color:CSSVAR('--rule')},
+                 y:{ position:'right', grid:{color:CSSVAR('--rule')}, title: axisTitle('میلیون تومان / متر'),
                      ticks:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
                             callback:v=>FA(v)} } } }
     });
   };
-  sizeChart = paint('bySize', sizes, sizeChart, pickSize, sizeOn);
+  sizeChart = paint('bySize', sizes, sizeChart, pickSize, sizeOn, 'متراژ (متر)');
+  const sumN = rows => scaled(rows.reduce((a, r) => a + r.n, 0));
+  setMeta('sizeMeta', { unit: 'میانه به میلیون تومان برای هر متر', n: sizes.length ? sumN(sizes) : null, min: 60, approx: !!approxNote() });
+  setMeta('ageMeta', { unit: 'میانه به میلیون تومان برای هر متر', n: ages.length ? sumN(ages) : null, min: 60, approx: !!approxNote() });
   const land = S.kind === 'land';
   document.getElementById('agePanel').classList.toggle('hide', land);
-  ageChart = land ? (ageChart && ageChart.destroy(), null) : paint('byAge', ages, ageChart, pickAge, ageOn);
+  ageChart = land ? (ageChart && ageChart.destroy(), null) : paint('byAge', ages, ageChart, pickAge, ageOn, 'سن بنا (سال)');
   const common = ['ستون‌های کم‌رنگ کمتر از ۲۰ آگهی دارند.',
     'روی هر ستون بزنید تا همه صفحه به همان بازه محدود شود؛ دوباره بزنید تا برداشته شود.',
     'این نمودار علت را نشان نمی‌دهد: خانه‌های بزرگ‌تر یا نوسازتر معمولاً در محله‌های گران‌تر هم هستند.'];
@@ -957,7 +976,7 @@ function drawHoodBars(){
   setNote(document.getElementById('hoodBarsFoot'),
     'میانه قیمت هر متر در پرآگهی‌ترین محله‌ها، به میلیون تومان.',
     ['روی هر ستون بزنید تا همه صفحه به آن محله محدود شود.',
-     'محله انتخاب‌شده سبز است و محله‌هایی که در «مقایسه با» آورده‌اید به رنگ خطشان در نمودار روند.',
+     'محله انتخاب‌شده صورتی است و محله‌هایی که در «مقایسه با» آورده‌اید به رنگ خطشان در نمودار روند.',
      'با فیلتر، ارقام از نمونه‌ای از آگهی‌ها حساب می‌شوند.']);
   let top = [...rows].sort((a,b) => b.n - a.n).slice(0, 12);
   if (S.hood && !top.some(r => r.hood === S.hood)) {
@@ -968,16 +987,17 @@ function drawHoodBars(){
     if (!top.some(r => r.hood === h)) { const r = rows.find(x => x.hood === h); if (r) top.push(r); }
   }
   top.sort((a,b) => b.med - a.med);
+  setMeta('hoodBarsMeta', { unit: `${FA(top.length)} محله پرآگهی · میلیون تومان برای هر متر` });
   const meds = top.map(r => r.med);
   const lo = Math.min(...meds), hi = Math.max(...meds);
   hoodBars = new Chart(document.getElementById('hoodBars'), {
     type:'bar',
     data:{ labels: top.map(r => r.hood),
-      datasets:[{ data: meds, borderWidth:0, barPercentage:.8,
+      datasets:[{ data: meds, borderWidth:0, barPercentage:.8, borderRadius:6,
         backgroundColor: top.map(r => {
-          if (r.hood === S.hood) return CSSVAR('--green');
+          if (r.hood === S.hood) return '#D9467A';
           const ci = cmpList().indexOf(r.hood);
-          return ci >= 0 ? LINE_COLORS[(ci + 1) % LINE_COLORS.length] : heat(r.med, lo, hi);
+          return ci >= 0 ? LINE_COLORS[(ci + 1) % LINE_COLORS.length] : seqTeal(r.med, lo, hi);
         }) }] },
     options:{ maintainAspectRatio:false,
       onClick: (e, hit) => {
@@ -994,7 +1014,7 @@ function drawHoodBars(){
       scales:{ x:{ grid:{display:false},
                    ticks:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
                           maxRotation:0} },
-               y:{ position:'right', grid:{color:CSSVAR('--rule')},
+               y:{ position:'right', grid:{color:CSSVAR('--rule')}, title: axisTitle('میلیون تومان / متر'),
                    ticks:{font:{family:'Vazirmatn',size:12}, color:CSSVAR('--muted'),
                           callback:v=>FA(v)} } } }
   });
