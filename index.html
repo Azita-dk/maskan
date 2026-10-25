@@ -656,31 +656,62 @@ function syncHero(){
 }
 
 const HOUSE_SVG = '<svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>';
-let OPP_N = 0;
-function drawOpps(){
-  const box = document.getElementById('opps');
-  const meds = new Map(allHoodStats().filter(r => r.n >= HOOD_FEW && r.med > 0).map(r => [r.hood, r.med]));
-  const cut = new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10);
-  const list = activeListings()
-    .filter(l => l.m > 0 && l.a > 0 && l.p > 0 && meds.has(l.h) && (!l.d || l.d >= cut))
-    .map(l => ({ l, off: l.m / meds.get(l.h) - 1 }))
-    .filter(x => x.off <= -0.12 && x.off >= -0.45)
-    .sort((x, y) => x.off - y.off);
-  OPP_N = list.length;
-  list.splice(8);
-  if (!list.length) {
-    box.innerHTML = '<div class="loading" style="grid-column:1/-1">با این انتخاب آگهی‌ای به‌طور محسوس زیر قیمت محله پیدا نشد.</div>';
-    return;
-  }
-  box.innerHTML = list.map(({ l, off }) => `
+let OPP_N = 0, oppKey = '', oppLive = null;
+function oppCard(l, med){
+  const off = l.m / med - 1;
+  return `
     <div class="opp" data-url="${esc(l.u || '')}">
-      <div class="ph">${HOUSE_SVG}<span class="badge">${FA(Math.round(off * 100)).replace('-', '\u2212')}٪</span>
-        <span class="src">${esc(SOURCE_NAME[l.s] || l.s || '')}</span></div>
+      <div class="ph">${HOUSE_SVG}<span class="badge">${FA(Math.round(off * 100)).replace('-', '−')}٪</span>
+        <span class="src">${esc(SOURCE_NAME[l.s] || l.s || '')}</span>${l.v ? '<span class="ok" title="همین حالا بررسی شد که آگهی هنوز روی سایت هست">✓ فعال</span>' : ''}</div>
       <div class="bd"><b>${esc(l.n || (kindLabel() + ' ' + FA(l.a) + ' متری'))}</b>
         <span class="loc">${esc(CITY.name)}، ${esc(l.h)} · ${FA(l.a)} متر</span>
         <span class="pr">${FA1(l.p / 1000)} میلیارد تومان</span>
-        <span class="pm">${FA1(l.m)} میلیون هر متر · میانه محله ${FA1(meds.get(l.h))}</span></div>
-    </div>`).join('');
+        <span class="pm">${FA1(l.m)} میلیون هر متر · میانه محله ${FA1(med)}</span></div>
+    </div>`;
+}
+function oppParams(){
+  const p = new URLSearchParams({ city: (CITY && CITY.name) || '', kind: S.kind, limit: 8 });
+  for (const k of ['hood','src','min','max','pmin','pmax','rooms','age','agelo','agehi','feat','q'])
+    if (S[k] && S[k] !== DEFAULTS[k]) p.set(k, S[k]);
+  return p.toString();
+}
+function drawOpps(){
+  const box = document.getElementById('opps');
+  const sub = document.getElementById('oppSub');
+  const key = oppParams();
+  if (key !== oppKey) {
+    oppKey = key; oppLive = null;
+    box.innerHTML = '<div class="loading" style="grid-column:1/-1">در حال بررسی آگهی‌ها روی دیوار و شیپور…</div>';
+    fetch(`${DATA_BASE}/opps?${key}`).then(r => r.ok ? r.json() : null).then(j => {
+      if (key !== oppKey) return;
+      oppLive = j && j.ready ? j : { failed: true };
+      drawOpps(); drawNext();
+    }).catch(() => { if (key === oppKey) { oppLive = { failed: true }; drawOpps(); } });
+    return;
+  }
+  if (!oppLive) return;
+  let cards = [];
+  if (!oppLive.failed) {
+    cards = oppLive.rows.map(l => oppCard(l, l.hm));
+    OPP_N = oppLive.rows.length;
+    if (sub) sub.textContent = 'آگهی‌های تازه‌ای که قیمت هر مترشان پایین‌تر از میانه محله خودشان است. پیش از نمایش بررسی می‌شود که هنوز روی دیوار یا شیپور باشند.';
+  } else {
+    const meds = new Map(allHoodStats().filter(r => r.n >= HOOD_FEW && r.med > 0).map(r => [r.hood, r.med]));
+    const cut = new Date(Date.now() - 21 * 864e5).toISOString().slice(0, 10);
+    const list = activeListings()
+      .filter(l => l.m > 0 && l.a > 0 && l.p > 0 && meds.has(l.h) && l.d && l.d >= cut)
+      .map(l => ({ l, off: l.m / meds.get(l.h) - 1 }))
+      .filter(x => x.off <= -0.12 && x.off >= -0.45)
+      .sort((x, y) => x.off - y.off);
+    OPP_N = list.length;
+    cards = list.slice(0, 8).map(x => oppCard(x.l, meds.get(x.l.h)));
+    if (sub) sub.textContent = 'آگهی‌های تازه‌ای که قیمت هر مترشان پایین‌تر از میانه محله خودشان است. ممکن است بعضی تازه فروخته یا حذف شده باشند.';
+  }
+  if (!cards.length) {
+    box.innerHTML = '<div class="loading" style="grid-column:1/-1">با این انتخاب آگهی فعالی به‌طور محسوس زیر قیمت محله پیدا نشد.</div>';
+    return;
+  }
+  box.innerHTML = cards.join('');
   box.querySelectorAll('.opp').forEach(el => el.addEventListener('click', () => {
     if (el.dataset.url) window.open(el.dataset.url, '_blank', 'noopener,noreferrer');
   }));

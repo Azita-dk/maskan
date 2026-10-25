@@ -544,7 +544,7 @@ export async function build(env, log = [], from = 0, self = null) {
   for (const [city, kinds] of slice) {
     const cityFile = { name: city, rows: [], listings: [],
                        ours: {}, hood_hist: {}, byKind: {},
-                       monthly: {}, hood_monthly: {} };
+                       monthly: {}, hood_monthly: {}, _hm: {} };
 
    for (const [kind, allRows] of kinds) {
     cityFile.monthly[kind] = monthlyOf(allRows, jy, jm, activeFrom, priceHistory);
@@ -612,6 +612,10 @@ export async function build(env, log = [], from = 0, self = null) {
         }
       }
       hoodRows.push(row);
+      if (kept.length >= 20) {
+        const hk = (cityFile._hm[kind] ||= {});
+        for (const m of members) if (m.hood && !(m.hood in hk)) hk[m.hood] = med;
+      }
 
       row.k = kind;
       if (perKindHistory) {
@@ -858,6 +862,13 @@ export async function build(env, log = [], from = 0, self = null) {
         d: r.day, v: Math.round(r.median_m2 * 10) / 10, n: r.n_listings });
     }
 
+    const hm = payload._hm; delete payload._hm;
+    try {
+      const prev = await env.SITE.getWithMetadata(`hm:${payload.name}`);
+      const age = prev && prev.metadata && prev.metadata.t ? Date.now() - prev.metadata.t : Infinity;
+      if (age > 6 * 3600e3 && hm && Object.keys(hm).length)
+        await env.SITE.put(`hm:${payload.name}`, JSON.stringify(hm), { metadata: { t: Date.now() } });
+    } catch (e) { /* medians for opportunities can wait for the next pass */ }
     await env.SITE.put(`data/${id}.json`, JSON.stringify(payload));
   }
 
@@ -1166,25 +1177,26 @@ const ADS_SORT = {
 const foldPlace = (t) => String(t || "").replace(/[يى]/g, "ی").replace(/ك/g, "ک")
   .replace(/آ/g, "ا").replace(/[\s‌\-_.]/g, "");
 
-async function adsApi(url, env) {
-  const db = env.DB;
-  const q = url.searchParams;
-  const num = (k) => {
-    const v = q.get(k);
-    if (v == null || v === "") return null;
-    const n = Number(String(v).replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[,٬\s]/g, "").replace("٫", "."));
-    return Number.isFinite(n) ? n : null;
-  };
+function adRow(r) {
+    const o = {
+      h: r.hood || "نامشخص", t: r.source_id, n: (r.title || "").slice(0, 70),
+      a: Math.round(r.area_m2 || 0), p: Math.round((r.price_toman || 0) / 1e6),
+      m: r.price_m2 > 0 ? Math.round(r.price_m2 / 1e5) / 10 : null,
+      s: r.source, k: r.kind,
+      u: r.source === "sheypoor" ? sheypoorUrl(r.title, r.source_id)
+        : r.source === "divar" ? `https://divar.ir/v/${r.source_id}` : (r.url || ""),
+    };
+    if (r.rooms != null) o.r = r.rooms;
+    if (r.age_years != null) o.g = r.age_years;
+    if (r.lat) { o.y = +Number(r.lat).toFixed(5); o.x = +Number(r.lng).toFixed(5); }
+    if (r.d) o.d = String(r.d).slice(0, 10);
+    if (r.first_posted_at && o.d && String(r.first_posted_at).slice(0, 10) < o.d) o.d0 = String(r.first_posted_at).slice(0, 10);
+    if (r.address) o.ad = r.address;
+    if (r.features) o.f = r.features.split(",");
+    return o;
+}
 
-  if (!(await env.SITE.get("idx:ads:v1"))) {
-    for (const sql of [
-      "CREATE INDEX IF NOT EXISTS idx_ads_city_m2 ON listings(city, price_m2)",
-      "CREATE INDEX IF NOT EXISTS idx_ads_city_price ON listings(city, price_toman)",
-      "CREATE INDEX IF NOT EXISTS idx_ads_dedupe ON listings(dedupe_key)",
-    ]) await db.prepare(sql).run();
-    await env.SITE.put("idx:ads:v1", "1");
-  }
-
+function adsWhere(q, num) {
   const where = [
     "city = ?", "COALESCE(kind, 'apartment') = ?",
     "source IN ('divar', 'sheypoor')", "removed_at IS NULL",
@@ -1228,6 +1240,116 @@ async function adsApi(url, env) {
     add("lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?", box[0], box[2], box[1], box[3]);
   }
 
+  return { where, args };
+}
+
+const DIVAR_DETAIL = "https://api.divar.ir/v8/posts-v2/web/";
+const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
+const REMOVED_TEXT = /آگهی\s*(?:حذف\s*شده|منقضی\s*شده|غیرفعال|دیگر\s*در\s*دسترس\s*نیست)|این\s*آگهی\s*(?:حذف|منقضی)/;
+
+async function stillUp(src, id) {
+  try {
+    if (src === "divar") {
+      const res = await fetch(DIVAR_DETAIL + id, { headers: { "User-Agent": BROWSER_UA } });
+      if (res.status === 404 || res.status === 410) return false;
+      if (!res.ok) return null;
+      return !REMOVED_TEXT.test(await res.text());
+    }
+    if (src === "sheypoor") {
+      const res = await fetch(`https://www.sheypoor.com/v/x-${id}.html`, { headers: { "User-Agent": BROWSER_UA }, redirect: "manual" });
+      if (res.status === 200) return true;
+      if (res.status === 404 || res.status === 410) return false;
+      if (res.status >= 300 && res.status < 400) return (res.headers.get("location") || "").includes(id);
+      return null;
+    }
+  } catch (e) { /* unknown */ }
+  return null;
+}
+
+const OPPS_CACHE = new Map(), ALIVE = new Map();
+
+async function oppsApi(url, env) {
+  const db = env.DB;
+  const q = url.searchParams;
+  const num = (k) => { const v = q.get(k); const n = v == null || v === "" ? null : Number(v); return Number.isFinite(n) ? n : null; };
+  const city = q.get("city") || "", kind = q.get("kind") || "apartment";
+  const want = Math.min(Math.max(num("limit") || 8, 1), 24);
+  const cacheKey = url.search;
+  const hit = OPPS_CACHE.get(cacheKey);
+  const cached = hit && Date.now() - hit.t < 180e3 ? hit.body : null;
+  const headers = { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=60", "access-control-allow-origin": "*" };
+  if (cached) return new Response(cached, { headers });
+
+  const hmAll = await env.SITE.get(`hm:${city}`, { type: "json" });
+  const hm = (hmAll || {})[kind];
+  if (!hm || !Object.keys(hm).length) return new Response(JSON.stringify({ rows: [], total: 0, ready: false }), { headers });
+
+  const { where, args } = adsWhere(q, num);
+  const days = num("fresh") || 45;
+  const { results } = await db.prepare(`
+    WITH hm(hk, med) AS (SELECT key, value FROM json_each(?))
+    SELECT source, source_id, hood, substr(title, 1, 150) AS title, url, price_toman, area_m2, price_m2,
+           rooms, age_years, lat, lng, substr(address, 1, 80) AS address, features,
+           COALESCE(price_changed_at, posted_at) AS d, first_posted_at, COALESCE(kind,'apartment') AS kind,
+           hm.med AS hood_med, price_m2 / (hm.med * 1e6) AS ratio
+    FROM listings JOIN hm ON listings.hood = hm.hk
+    WHERE ${where.join(" AND ")}
+      AND area_m2 > 0 AND price_m2 BETWEEN hm.med * 1e6 * 0.55 AND hm.med * 1e6 * 0.88
+      AND COALESCE(price_changed_at, posted_at, substr(scraped_at, 1, 10)) >= date('now', ?)
+    ORDER BY ratio ASC LIMIT 60`).bind(JSON.stringify(hm), ...args, `-${days} days`).all();
+
+  const today = new Date().toISOString().slice(0, 10);
+  const out = [], gone = [];
+  let checked = 0;
+  for (let i = 0; i < results.length && out.length < want && checked < 40; i += 8) {
+    const batch = results.slice(i, i + 8);
+    const states = await Promise.all(batch.map(async (r) => {
+      const key = `${r.source}:${r.source_id}`;
+      const c = ALIVE.get(key);
+      if (c && Date.now() - c < 1200e3) return true;
+      const up = await stillUp(r.source, r.source_id);
+      checked++;
+      if (up === true) ALIVE.set(key, Date.now());
+      return up;
+    }));
+    batch.forEach((r, j) => {
+      if (states[j] === false) { gone.push(r); return; }
+      if (out.length < want) out.push({ ...adRow(r), hm: Math.round(r.hood_med * 10) / 10, v: states[j] === true });
+    });
+  }
+  if (gone.length && !(gone.length >= 12 && out.length === 0)) {
+    const stmts = gone.map((r) => db.prepare(
+      "UPDATE listings SET removed_at = COALESCE(removed_at, ?), checked_at = ? WHERE source = ? AND source_id = ?")
+      .bind(today, today, r.source, r.source_id));
+    for (let i = 0; i < stmts.length; i += 90) await db.batch(stmts.slice(i, i + 90));
+  }
+  const body = JSON.stringify({ rows: out, total: out.length, removed: gone.length, checkedAt: new Date().toISOString(), ready: true });
+  OPPS_CACHE.set(cacheKey, { t: Date.now(), body });
+  if (OPPS_CACHE.size > 200) OPPS_CACHE.delete(OPPS_CACHE.keys().next().value);
+  if (ALIVE.size > 5000) ALIVE.clear();
+  return new Response(body, { headers });
+}
+
+async function adsApi(url, env) {
+  const db = env.DB;
+  const q = url.searchParams;
+  const num = (k) => {
+    const v = q.get(k);
+    if (v == null || v === "") return null;
+    const n = Number(String(v).replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[,٬\s]/g, "").replace("٫", "."));
+    return Number.isFinite(n) ? n : null;
+  };
+
+  if (!(await env.SITE.get("idx:ads:v1"))) {
+    for (const sql of [
+      "CREATE INDEX IF NOT EXISTS idx_ads_city_m2 ON listings(city, price_m2)",
+      "CREATE INDEX IF NOT EXISTS idx_ads_city_price ON listings(city, price_toman)",
+      "CREATE INDEX IF NOT EXISTS idx_ads_dedupe ON listings(dedupe_key)",
+    ]) await db.prepare(sql).run();
+    await env.SITE.put("idx:ads:v1", "1");
+  }
+
+  const { where, args } = adsWhere(q, num);
   const order = ADS_SORT[q.get("sort")] || ADS_SORT.new;
   const limit = Math.min(Math.max(num("limit") || 60, 1), 2000);
   const w = where.join(" AND ");
@@ -1240,24 +1362,7 @@ async function adsApi(url, env) {
     db.prepare(`SELECT COUNT(*) AS n FROM listings WHERE ${w}`).bind(...args).first(),
   ]);
 
-  const rows = results.map((r) => {
-    const o = {
-      h: r.hood || "نامشخص", t: r.source_id, n: (r.title || "").slice(0, 70),
-      a: Math.round(r.area_m2 || 0), p: Math.round((r.price_toman || 0) / 1e6),
-      m: r.price_m2 > 0 ? Math.round(r.price_m2 / 1e5) / 10 : null,
-      s: r.source, k: r.kind,
-      u: r.source === "sheypoor" ? sheypoorUrl(r.title, r.source_id)
-        : r.source === "divar" ? `https://divar.ir/v/${r.source_id}` : (r.url || ""),
-    };
-    if (r.rooms != null) o.r = r.rooms;
-    if (r.age_years != null) o.g = r.age_years;
-    if (r.lat) { o.y = +Number(r.lat).toFixed(5); o.x = +Number(r.lng).toFixed(5); }
-    if (r.d) o.d = String(r.d).slice(0, 10);
-    if (r.first_posted_at && o.d && String(r.first_posted_at).slice(0, 10) < o.d) o.d0 = String(r.first_posted_at).slice(0, 10);
-    if (r.address) o.ad = r.address;
-    if (r.features) o.f = r.features.split(",");
-    return o;
-  });
+  const rows = results.map(adRow);
   return new Response(JSON.stringify({ total: cnt ? cnt.n : rows.length, rows }), {
     headers: { "content-type": "application/json; charset=utf-8",
                "cache-control": "public, max-age=60", "access-control-allow-origin": "*" },
@@ -1339,6 +1444,13 @@ export default {
     }
 
     // the site fetches its data through here
+    if (url.pathname === "/opps") {
+      try { return await oppsApi(url, env); }
+      catch (err) {
+        return new Response(JSON.stringify({ error: String(err.message || err) }), { status: 500,
+          headers: { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": "*" } });
+      }
+    }
     if (url.pathname === "/ads") {
       try { return await adsApi(url, env); }
       catch (err) {
