@@ -1613,7 +1613,7 @@ const SOURCE_NAME = { divar:'دیوار', sheypoor:'شیپور', kilid:'کیلی
 /* A phone shows fewer at a time. Twenty-four rows is a very long scroll on
    a small screen, and it pushes the map far below the list — on a laptop the
    two sit side by side, so the same number reads quite differently. */
-const PAGE = () => (window.innerWidth <= 1100 ? 8 : 24);
+const PAGE = () => 10;
 let adsSort = 'new', shown = PAGE(), solo = null;
 /* How far Divar's published point may sit from the real property. Their
    listings show an approximate area for the seller's privacy; 300 m is the
