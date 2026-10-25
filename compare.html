@@ -65,13 +65,33 @@ let trendC = null, countC = null;
 const hoodRows = () => ((CITY && CITY.rows) || [])
   .filter(r => (r.k || 'apartment') === S.kind && r.hood && r.hood !== 'نامشخص' && r.n >= 5 && r.median > 0);
 const chosen = () => (S.cmp && S.cmp !== '_none' ? S.cmp.split('|').filter(Boolean) : []);
+function jKey(iso){ const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number); const [a, b] = toJalali(y, m, d); return a * 12 + b - 1; }
+function fromListings(hood){
+  const ls = (CITY.listings || []).filter(l => (l.k || 'apartment') === S.kind);
+  const kindN = ((CITY.byKind || {})[S.kind] || {}).n || 0;
+  const scale = ls.length && kindN > ls.length ? kindN / ls.length : 1;
+  const want = hood ? fold(hood) : null, nowK = jKey(new Date().toISOString()), g = new Map();
+  for (const l of ls) {
+    if (!l.d || !(l.m > 0) || (want && fold(l.h) !== want)) continue;
+    for (let k = Math.max(jKey(l.d0 || l.d), FROM_KEY); k <= nowK; k++) {
+      if (!g.has(k)) g.set(k, []);
+      g.get(k).push(l.m);
+    }
+  }
+  return [...g].sort((a, b) => a[0] - b[0]).map(([k, v]) => [k, Math.round(v.length * scale), v.length >= 5 ? round1(median(v)) : null]);
+}
+const hasVals = a => (a || []).some(x => x[0] >= FROM_KEY && x[2] > 0);
 function monthlyOf(hood){
   const hm = ((CITY.hood_monthly || {})[S.kind]) || {};
   let a = hm[hood];
   if (!a) { const k = fold(hood); for (const h in hm) if (fold(h) === k) { a = hm[h]; break; } }
+  if (!hasVals(a)) a = fromListings(hood);
   return (a || []).filter(x => x[0] >= FROM_KEY);
 }
-const cityMonthly = () => (((CITY.monthly || {})[S.kind]) || []).filter(x => x[0] >= FROM_KEY);
+const cityMonthly = () => {
+  const a = ((CITY.monthly || {})[S.kind]) || [];
+  return (hasVals(a) ? a : fromListings('')).filter(x => x[0] >= FROM_KEY);
+};
 function sampleOf(hood){
   const f = fold(hood);
   const ls = (CITY.listings || []).filter(l => (l.k || 'apartment') === S.kind && fold(l.h) === f);
