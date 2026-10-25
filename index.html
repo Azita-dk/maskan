@@ -100,12 +100,12 @@ table.cards td:first-child{white-space:normal;min-width:160px}
 
 <main id="main" class="wrap">
 
-<div class="homegrid">
-  <div class="hmain">
-    <section class="herocard photo" aria-labelledby="heroTitle">
+<section class="herocard photo" aria-labelledby="heroTitle">
       <div class="hc-img" role="img" aria-label="منظره تهران با برج میلاد و رشته‌کوه البرز"></div>
       <h1 class="sr-only" id="heroTitle">با داده‌های واقعی، بازار مسکن را بهتر بشناسید</h1>
       <div class="hc-ui">
+        <div class="hc-mtext" aria-hidden="true"><b>با داده‌های واقعی،<br>بازار مسکن را بهتر بشناسید</b>
+          <span>قیمت‌ها را بررسی کنید، محله‌های مناسب را پیدا کنید و روند بازار را ببینید.</span></div>
         <label class="ov ov-city"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><select id="hCity" aria-label="شهر"></select></label>
         <span class="ov ov-period" id="hPeriod"></span>
         <div class="ov ov-search hc-search">
@@ -115,6 +115,9 @@ table.cards td:first-child{white-space:normal;min-width:160px}
         </div>
       </div>
     </section>
+<div class="homegrid">
+  <div class="hmain">
+
 
     <details class="morefilters" id="moreFilters">
       <summary><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg>فیلترهای بیشتر — متراژ، قیمت، اتاق، سن بنا، امکانات</summary>

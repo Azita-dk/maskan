@@ -940,15 +940,30 @@ footer{margin-top:44px;background:transparent;border-top:1px solid var(--rule)}
 .herocard.photo .hc-search input{height:100%;font-size:clamp(11px,1.6cqw,16px);padding-inline-start:1.4em;padding-inline-end:3em;box-shadow:0 6px 18px rgba(0,0,0,.18)}
 .herocard.photo .hc-search > svg{top:50%;transform:translateY(-50%);width:clamp(14px,2.1cqw,22px);height:clamp(14px,2.1cqw,22px);inset-inline-end:1em}
 .herocard.photo .hc-sugg{top:calc(100% + 6px)}
+main > .herocard.photo{margin-top:20px}
+.hc-mtext{display:none}
 @media (max-width:700px){
-  .herocard.photo{aspect-ratio:auto;background:var(--card);border:1px solid var(--rule);box-shadow:var(--shadow)}
-  .herocard.photo .hc-img{position:relative;height:190px;border-radius:22px 22px 0 0;background-size:auto 100%;background-position:right center}
-  .herocard.photo .hc-ui{position:static;display:flex;flex-wrap:wrap;gap:8px;padding:12px}
-  .herocard.photo .ov{position:static;height:38px;min-width:0;font-size:13.5px}
-  .ov-city,.ov-period{border:1px solid var(--rule);box-shadow:none}
-  .ov-search{flex:1 1 100%;width:auto;height:48px!important}
-  .herocard.photo .hc-search input{font-size:15px;border:1px solid var(--rule);box-shadow:none;background:var(--paper);color:var(--ink)}
+  .herocard.photo{aspect-ratio:auto;height:340px;border-radius:20px;overflow:hidden}
+  .herocard.photo .hc-img{inset:0;border-radius:20px;background:url(hero-tehran-m.jpg) 30% center/cover no-repeat}
+  .herocard.photo .hc-img::after{content:"";position:absolute;inset:0;border-radius:20px;
+    background:linear-gradient(180deg,rgba(9,38,41,.10) 0%,rgba(9,38,41,.25) 35%,rgba(9,38,41,.82) 100%)}
+  .herocard.photo .hc-ui{position:absolute;inset:0;display:grid;grid-template-columns:auto auto 1fr;grid-template-rows:auto 1fr auto auto;gap:10px 8px;padding:14px}
+  .hc-ui > .ov-city{grid-column:1;grid-row:1}
+  .hc-ui > .ov-period{grid-column:2;grid-row:1}
+  .hc-ui > .hc-mtext{grid-column:1/-1;grid-row:3}
+  .hc-ui > .ov-search{grid-column:1/-1;grid-row:4;position:relative!important}
+  .herocard.photo .ov{position:static;height:34px;min-width:0;font-size:13px}
+  .hc-ui .ov-city,.hc-ui .ov-period{align-self:flex-start}
+  .hc-ui{align-items:stretch}
+  .hc-ui > .ov-city{order:1}
+  .hc-ui > .ov-period{order:2}
+  .hc-mtext{order:3;display:block;margin-top:auto;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.35)}
+  .hc-mtext b{display:block;font-size:22px;line-height:1.45;font-weight:900}
+  .hc-mtext span{display:block;font-size:13.5px;line-height:1.8;color:#DCEDEA;margin-top:4px}
+  .hc-ui > .ov-search{order:4;width:auto;height:48px!important;flex:0 0 48px}
+  .herocard.photo .hc-search input{font-size:15px;border:0;background:#fff;color:#183B3B;box-shadow:0 6px 18px rgba(0,0,0,.25)}
   .herocard.photo .hc-search > svg{width:20px;height:20px}
+  .hc-ui .ov-city,.hc-ui .ov-period{display:inline-flex}
 }
 
 /* ================================================================ compare */
