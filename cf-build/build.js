@@ -1341,6 +1341,28 @@ async function oppsApi(url, env, request) {
   return new Response(body, { headers });
 }
 
+async function verifyFront(env, results, max) {
+  const today = new Date().toISOString().slice(0, 10);
+  const todo = results.filter((r) => {
+    if (String(r.checked_at || "").slice(0, 10) === today) return false;
+    const c = ALIVE.get(`${r.source}:${r.source_id}`);
+    return !(c && Date.now() - c < 1200e3);
+  }).slice(0, max);
+  if (!todo.length) return 0;
+  const states = await Promise.all(todo.map((r) => stillUp(r.source, r.source_id)));
+  const gone = todo.filter((_, i) => states[i] === false);
+  const up = todo.filter((_, i) => states[i] === true);
+  if (gone.length >= 8 && up.length === 0) return 0;
+  for (const r of up) ALIVE.set(`${r.source}:${r.source_id}`, Date.now());
+  for (const r of gone) r._gone = true;
+  const stmts = [
+    ...gone.map((r) => env.DB.prepare("UPDATE listings SET removed_at = COALESCE(removed_at, ?), checked_at = ? WHERE source = ? AND source_id = ?").bind(today, today, r.source, r.source_id)),
+    ...up.map((r) => env.DB.prepare("UPDATE listings SET checked_at = ? WHERE source = ? AND source_id = ?").bind(today, r.source, r.source_id)),
+  ];
+  try { for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90)); } catch (e) { /* next view retries */ }
+  return gone.length;
+}
+
 async function adsApi(url, env) {
   const db = env.DB;
   const q = url.searchParams;
@@ -1368,13 +1390,15 @@ async function adsApi(url, env) {
     db.prepare(`
       SELECT source, source_id, hood, substr(title, 1, 150) AS title, url, price_toman, area_m2, price_m2,
              rooms, age_years, lat, lng, substr(address, 1, 80) AS address, features,
-             COALESCE(price_changed_at, posted_at) AS d, first_posted_at, COALESCE(kind,'apartment') AS kind
+             COALESCE(price_changed_at, posted_at) AS d, first_posted_at, COALESCE(kind,'apartment') AS kind, checked_at
       FROM listings WHERE ${w} ORDER BY ${order} LIMIT ?`).bind(...args, limit).all(),
     db.prepare(`SELECT COUNT(*) AS n FROM listings WHERE ${w}`).bind(...args).first(),
   ]);
 
-  const rows = results.map(adRow);
-  return new Response(JSON.stringify({ total: cnt ? cnt.n : rows.length, rows }), {
+  const front = Math.min(Math.max(num("verify") ?? 16, 0), 24);
+  const goneN = front ? await verifyFront(env, results, front) : 0;
+  const rows = results.filter((r) => !r._gone).map(adRow);
+  return new Response(JSON.stringify({ total: Math.max(0, (cnt ? cnt.n : rows.length) - goneN), rows }), {
     headers: { "content-type": "application/json; charset=utf-8",
                "cache-control": "public, max-age=60", "access-control-allow-origin": "*" },
   });
