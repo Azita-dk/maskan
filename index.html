@@ -247,7 +247,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
 
   <section>
     <div class="shead"><h2>محله‌های پرطرفدار</h2>
-      <a href="cities.html" data-page="cities.html">مشاهده همه محله‌ها ←</a></div>
+      <a class="sh-all" href="#hoodGrid" id="popAll">مشاهده همه محله‌ها<span aria-hidden="true">←</span></a></div>
     <p class="secsub" id="popSub">محله‌هایی که بیشترین آگهی را دارند، با میانه قیمت هر متر.</p>
     <div class="cardrow" id="popHoods"></div>
   </section>
@@ -708,18 +708,31 @@ function drawPopHoods(){
   const box = document.getElementById('popHoods');
   const rows = allHoodStats().filter(r => r.hood && r.hood !== 'نامشخص' && r.med > 0);
   if (!rows.length) { box.innerHTML = ''; return; }
-  const sc = hoodScale(rows);
-  box.innerHTML = [...rows].sort((a, b) => b.n - a.n).slice(0, 8).map(r => `
-    <div class="phood" data-hood="${esc(r.hood)}">
-      <span class="tile" style="background:${heat(r.med, sc.lo, sc.hi)}">${esc([...r.hood][0] || '')}</span>
-      <div class="bd"><b>${esc(r.hood)}</b>
-        <span class="loc">متری ${FA1(r.med)} میلیون تومان</span>
-        <span class="loc">${FA(r.n)} آگهی</span></div>
-    </div>`).join('');
-  box.querySelectorAll('.phood').forEach(el => el.addEventListener('click', () => {
-    pickHood(el.dataset.hood);
-    document.getElementById('kpis').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }));
+  const whole = !S.q && activeFilterCount() === 0;
+  const bk = (CITY.byKind || {})[S.kind] || {};
+  const cityMed = whole && bk.median > 0 ? bk.median : null;
+  const link = (file, set) => { const keep = { hood: S.hood, cmp: S.cmp }; Object.assign(S, set); const u = linkTo(file); Object.assign(S, keep); return u; };
+  const pin = '<svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
+  box.innerHTML = [...rows].sort((a, b) => b.n - a.n).slice(0, 8).map((r, i) => {
+    const d = cityMed ? (r.med - cityMed) / cityMed * 100 : null;
+    const chip = d == null ? '' : Math.abs(d) < 3
+      ? `<span class="ph-chip eq">هم‌سطح میانه ${esc(CITY.name)}</span>`
+      : `<span class="ph-chip ${d > 0 ? 'up' : 'down'}"><bdi dir="ltr">${d > 0 ? '+' : '−'}${FA(Math.round(Math.abs(d)))}٪</bdi> ${d > 0 ? 'بالاتر' : 'پایین‌تر'} از میانه شهر</span>`;
+    return `<article class="phood${r.hood === S.hood ? ' on' : ''}" data-href="${esc(link('stats.html', { hood: r.hood }))}" tabindex="0" role="link" aria-label="آمار ${esc(r.hood)}">
+      <div class="ph-top"><span class="ph-ico">${pin}</span><span class="ph-rank">${FA(i + 1)}</span></div>
+      <h3 class="ph-name">${esc(r.hood)}</h3>
+      <span class="ph-sub">${esc(CITY.name)} · ${FA(r.n)} آگهی</span>
+      <div class="ph-price"><span class="ph-k">میانه قیمت هر متر</span>
+        <span class="ph-v">${FA1(r.med)}<small>میلیون تومان</small></span></div>
+      ${chip}
+      <div class="ph-foot"><span class="ph-go">آمار محله ←</span>
+        <a class="ph-cmp" href="${esc(link('compare.html', { hood: '', cmp: r.hood }))}">مقایسه</a></div>
+    </article>`;
+  }).join('');
+  box.querySelectorAll('.phood').forEach(el => {
+    el.addEventListener('click', e => { if (!e.target.closest('a')) location.href = el.dataset.href; });
+    el.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === el) location.href = el.dataset.href; });
+  });
 }
 
 function drawPulse(fresh, scope){
@@ -971,6 +984,13 @@ function drawHoodMap(rows, sc){
     (pts.length < rows.length ? ' محله‌های بی‌مختصات فقط در «فهرست» هستند.' : '');
 }
 
+document.getElementById('popAll').addEventListener('click', e => {
+  e.preventDefault();
+  hoodView = 'list'; hoodShowAll = true;
+  document.querySelectorAll('#hoodView button').forEach(x => x.classList.toggle('on', x.dataset.view === 'list'));
+  drawHoods();
+  document.getElementById('hoodView').closest('.panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 document.getElementById('hoodTabs').addEventListener('click', e => {
   const b = e.target.closest('button'); if (!b) return;
   hoodSort = b.dataset.sort; hoodShowAll = false;
