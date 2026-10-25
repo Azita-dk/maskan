@@ -18,38 +18,81 @@
   #hoodView{display:flex;width:100%;margin-top:10px}
   #hoodView button{flex:1;justify-content:center}
 }
-.hl-tools{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;
-  padding:12px 16px;border-bottom:1px solid var(--rule)}
-.hl-tools input{flex:0 1 220px;min-width:140px;height:36px;border:1px solid var(--rule);border-radius:9px;
-  padding:0 12px;font:inherit;font-size:14.5px;background:var(--card);color:var(--ink)}
+.hl-tools{display:flex;flex-direction:column;gap:10px;align-items:stretch;padding:12px 16px;border-bottom:1px solid var(--rule)}
+#hoodTabs{display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--paper);border:1px solid var(--rule);width:max-content;max-width:100%}
+#hoodTabs button{flex:1;border:0!important;background:transparent;color:var(--muted);font:inherit;font-size:14px;font-weight:700;
+  padding:7px 14px;border-radius:9px;cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+#hoodTabs button.on{background:var(--green)!important;color:#fff!important}
+.hl-find{position:relative}
+.hl-find svg{position:absolute;inset-inline-start:11px;top:50%;width:16px;height:16px;transform:translateY(-50%);
+  fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;pointer-events:none}
+.hl-tools input{width:100%;height:38px;border:1px solid var(--rule);border-radius:10px;padding:0 36px 0 12px;
+  font:inherit;font-size:14.5px;background:var(--card);color:var(--ink);direction:rtl}
+.hl-tools input:focus{outline:2px solid color-mix(in srgb,var(--green) 35%,transparent);border-color:var(--green)}
 .panel #hoodGrid{display:block;padding:0;grid-template-columns:none}
-.hl-list{list-style:none;margin:0;padding:6px 0}
-.hl-row{display:grid;grid-template-columns:24px 112px 1fr 56px 72px;align-items:center;
-  gap:10px;padding:7px 16px;cursor:pointer;border-bottom:1px solid transparent}
-.hl-row:hover{background:var(--paper)}
-.hl-row.on{background:var(--green-pale);box-shadow:inset 3px 0 0 var(--green)}
-.hl-row .rk{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;text-align:center}
-.hl-row .nm{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.hl-row .few{display:inline-block;margin-inline-start:6px;font-size:11.5px;font-weight:600;color:var(--muted);
+.hl-list{list-style:none;margin:0;padding:4px 0}
+.hl-row{border-bottom:1px solid var(--rule);transition:background .15s}
+.hl-row:last-child{border-bottom:0}
+.hl-head{display:block;width:100%;border:0;background:transparent;color:inherit;font:inherit;text-align:start;
+  padding:10px 16px 11px;cursor:pointer}
+.hl-row:hover,.hl-row.open{background:color-mix(in srgb,var(--green-pale) 55%,transparent)}
+.hl-row.on{background:var(--green-pale);box-shadow:inset -3px 0 0 var(--green)}
+.hl-top{display:flex;align-items:center;gap:10px;min-width:0}
+.hl-row .rk{flex:0 0 auto;min-width:24px;height:24px;padding:0 6px;border-radius:7px;background:var(--paper);
+  color:var(--muted);font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.hl-row:nth-child(-n+3) .rk{background:var(--green-pale);color:var(--green)}
+.hl-row .nm{flex:1 1 auto;min-width:0;font-weight:700;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hl-row .few{display:inline-block;margin-inline-start:6px;font-size:11px;font-weight:600;color:var(--muted);
   border:1px solid var(--rule);border-radius:999px;padding:0 6px;vertical-align:middle}
+.hl-row .ct{flex:0 0 auto;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
+.hl-row .vl{flex:0 0 auto;font-weight:800;font-size:17px;font-variant-numeric:tabular-nums;color:var(--ink)}
+.hl-row .vl small{font-size:11px;font-weight:600;color:var(--muted);margin-inline-start:3px}
+.hl-row .trk{position:relative;display:block;height:7px;margin-top:8px;border-radius:99px;background:var(--rule)}
+.hl-row .fill{position:absolute;inset-block:0;inset-inline-start:0;border-radius:99px;
+  background:linear-gradient(to left,var(--green-mid),var(--green));transition:width .3s ease}
+.hl-row .mk{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:2px;background:var(--ink);opacity:.35}
 .hl-row.thin .nm,.hl-row.thin .vl{opacity:.6}
-.hl-row.thin .fill{opacity:.45}
-.hl-row .trk{height:18px;border-radius:7px;background:var(--paper);overflow:hidden}
-.hl-row .fill{height:100%;border-radius:7px}
-.hl-row .vl{font-weight:800;font-size:16px;font-variant-numeric:tabular-nums;text-align:start}
-.hl-row .ct{color:var(--muted);font-size:13px;text-align:end;font-variant-numeric:tabular-nums}
+.hl-row.thin .fill{opacity:.4}
+.hl-row .chev{flex:0 0 auto;width:8px;height:8px;border-inline-end:2px solid var(--muted);border-bottom:2px solid var(--muted);
+  transform:rotate(45deg);margin:-3px 2px 0;transition:transform .2s}
+.hl-row.open .chev{transform:rotate(-135deg);margin-top:3px}
+.hl-more-info{display:grid;grid-template-rows:0fr;transition:grid-template-rows .25s ease}
+.hl-row.open .hl-more-info{grid-template-rows:1fr}
+.hl-more-info > div{overflow:hidden}
+.hl-det{padding:0 16px 14px}
+.hl-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:2px 0 10px}
+.hl-stats div{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:8px 10px}
+.hl-stats dt{font-size:12px;color:var(--muted)}
+.hl-stats dd{margin:2px 0 0;font-weight:800;font-size:15px;font-variant-numeric:tabular-nums}
+.hl-stats dd small{font-weight:500;color:var(--muted);font-size:11.5px}
+.hl-stats dd small.sp{display:block;margin-top:1px}
+.hl-stats .up{color:var(--rise)} .hl-stats .down{color:var(--fall)}
+.hl-trend{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:8px 10px 0;margin-bottom:10px;overflow:hidden}
+.hl-trend .t{font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.hl-trend .spark{width:calc(100% + 20px);margin:4px -10px 0;height:44px}
+.hl-acts{display:flex;gap:8px;flex-wrap:wrap}
+.hl-acts button,.hl-acts a{flex:1 1 140px;display:inline-flex;align-items:center;justify-content:center;min-height:40px;
+  border-radius:10px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;text-decoration:none;
+  border:1px solid var(--green);background:var(--green);color:#fff}
+.hl-acts a{background:transparent;color:var(--green)}
+.hl-legend{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid var(--rule);font-size:12.5px;color:var(--muted)}
+.hl-legend .lt{flex:1;position:relative;height:7px;border-radius:99px;background:linear-gradient(to left,var(--green-mid),var(--green));opacity:.85}
+.hl-legend .lt i{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.5}
+.hl-legend b{color:var(--ink);font-variant-numeric:tabular-nums}
 .hl-more{display:block;width:100%;padding:12px;border:0;border-top:1px solid var(--rule);background:transparent;
   color:var(--green);font:inherit;font-weight:700;cursor:pointer}
 #hoodMap{height:420px}
 #hoodMapBox{position:relative;isolation:isolate}
 @media (max-width:600px){
-  .hl-row{grid-template-columns:1fr auto auto;gap:4px 10px;padding:7px 14px}
-  .hl-row .rk{display:none}
-  .hl-row .nm{order:1}
-  .hl-row .ct{order:2}
-  .hl-row .vl{order:3}
-  .hl-row .trk{grid-column:1/-1;order:4}
-  .hl-tools input{flex:1 1 100%}
+  .hl-tools{padding:10px 12px}
+  #hoodTabs{width:100%}
+  #hoodTabs button{padding:7px 6px;font-size:13.5px}
+  .hl-head{padding:9px 12px 10px}
+  .hl-det{padding:0 12px 12px}
+  .hl-top{gap:8px}
+  .hl-row .nm{font-size:15px}
+  .hl-row .vl{font-size:16px}
+  .hl-legend{padding:9px 12px}
   #hoodMap{height:340px}
 }
 .mapwrap{position:relative;isolation:isolate}
@@ -144,11 +187,13 @@ table.cards td:first-child{white-space:normal;min-width:160px}
           <button data-sort="cheap">ارزان‌ترین</button>
           <button data-sort="count">بیشترین آگهی</button>
         </div>
-        <input id="hoodFind" type="search" autocomplete="off" placeholder="پیدا کردن محله…">
+        <label class="hl-find"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="hoodFind" type="search" autocomplete="off" placeholder="پیدا کردن محله…" aria-label="پیدا کردن محله"></label>
       </div>
       <div id="hoodGrid"><div class="loading">در حال بارگذاری…</div></div>
       <div id="hoodMapBox" class="hide"><div id="hoodMap"></div></div>
-      <div class="scalekey">
+      <div class="hl-legend hide" id="hoodLegend"></div>
+      <div class="scalekey" id="hoodScaleKey">
         <div class="scalerow"><span>ارزان‌ترین</span><span class="bar"></span>
           <span>گران‌ترین</span></div></div>
       <p class="foot" id="hoodFoot"></p>
@@ -736,7 +781,7 @@ function heatIsLight(v, lo, hi){
   return 0.299*c(0) + 0.587*c(1) + 0.114*c(2) > 150;
 }
 
-let hoodSort = 'price', hoodView = 'map', hoodShowAll = false, hoodFind = '';
+let hoodSort = 'price', hoodView = 'map', hoodShowAll = false, hoodFind = '', hoodOpen = '';
 let hoodMap = null, hoodLayer = null;
 const HOOD_TOP = 15, HOOD_FEW = 20;
 
@@ -764,6 +809,8 @@ function drawHoods(){
   document.getElementById('hoodTools').classList.toggle('hide', hoodView !== 'list');
   box.classList.toggle('hide', hoodView !== 'list');
   mapBox.classList.toggle('hide', hoodView !== 'map');
+  document.getElementById('hoodLegend').classList.toggle('hide', hoodView !== 'list');
+  document.getElementById('hoodScaleKey').classList.toggle('hide', hoodView !== 'map');
 
   if (!rows.length) {
     box.innerHTML = '<div class="loading">با این فیلترها محله‌ای با آگهی کافی نمانده است.</div>';
@@ -789,15 +836,32 @@ function drawHoods(){
     if (sel && !show.includes(sel)) show = [...show, sel];
   }
 
+  const byCount = hoodSort === 'count';
+  const meds = rows.map(r => r.med), lo = Math.min(...meds), hi = Math.max(...meds);
+  const maxN = Math.max(...rows.map(r => r.n));
+  const whole = !S.q && activeFilterCount() === 0;
+  const bk = (CITY.byKind || {})[S.kind] || {};
+  const cityMed = whole && bk.median > 0 ? bk.median : median(meds);
+  const pricePos = v => hi > lo ? 4 + (v - lo) / (hi - lo) * 96 : 100;
+  const barW = r => byCount ? Math.max(1.5, r.n / maxN * 100) : pricePos(r.med);
+  const mark = byCount ? null : pricePos(cityMed);
+
   box.innerHTML = show.length ? `<ul class="hl-list">${show.map(r => {
     const few = r.n < HOOD_FEW;
-    return `<li class="hl-row${r.hood === S.hood ? ' on' : ''}${few ? ' thin' : ''}" data-hood="${esc(r.hood)}"
-        title="${esc(r.hood)} — میانه ${FA1(r.med)} میلیون تومان بر متر — ${FA(r.n)} آگهی">
-      <span class="rk">${FA(r.rank)}</span>
-      <span class="nm">${esc(r.hood)}${few ? '<span class="few">کم‌آگهی</span>' : ''}</span>
-      <span class="trk"><span class="fill" style="display:block;width:${Math.max(2, r.med / sc.max * 100).toFixed(1)}%;background:${heat(r.med, sc.lo, sc.hi)}"></span></span>
-      <span class="vl">${FA1(r.med)}</span>
-      <span class="ct">${FA(r.n)} آگهی</span>
+    const main = byCount ? `${FA(r.n)}<small>آگهی</small>` : `${FA1(r.med)}<small>میلیون/متر</small>`;
+    const sub = byCount ? `${FA1(r.med)} میلیون/متر` : `${FA(r.n)} آگهی`;
+    return `<li class="hl-row${r.hood === S.hood ? ' on' : ''}${few ? ' thin' : ''}${r.hood === hoodOpen ? ' open' : ''}" data-hood="${esc(r.hood)}">
+      <button class="hl-head" type="button" aria-expanded="${r.hood === hoodOpen}">
+        <span class="hl-top">
+          <span class="rk">${FA(r.rank)}</span>
+          <span class="nm">${esc(r.hood)}${few ? '<span class="few">کم‌آگهی</span>' : ''}</span>
+          <span class="ct">${sub}</span>
+          <span class="vl">${main}</span>
+          <span class="chev"></span>
+        </span>
+        <span class="trk"><span class="fill" style="width:${barW(r).toFixed(1)}%"></span>${mark != null ? `<span class="mk" style="inset-inline-start:${mark.toFixed(1)}%"></span>` : ''}</span>
+      </button>
+      <div class="hl-more-info"><div>${r.hood === hoodOpen ? hoodDetail(r, cityMed, whole) : ''}</div></div>
     </li>`; }).join('')}</ul>` +
     (!q && sorted.length > HOOD_TOP
       ? `<button class="hl-more" id="hoodMore">${hoodShowAll
@@ -805,14 +869,71 @@ function drawHoods(){
           : 'نمایش همه ' + FA(sorted.length) + ' محله'}</button>` : '')
     : '<div class="loading">محله‌ای با این نام پیدا نشد.</div>';
 
-  box.querySelectorAll('[data-hood]').forEach(el =>
-    el.addEventListener('click', () => pickHood(el.dataset.hood)));
+  const legend = document.getElementById('hoodLegend');
+  legend.innerHTML = byCount
+    ? `<span>۰</span><span class="lt"></span><span><b>${FA(maxN)}</b> آگهی</span>`
+    : `<span>ارزان‌ترین محله <b>${FA1(lo)}</b></span><span class="lt"><i style="inset-inline-start:${mark.toFixed(1)}%"></i></span><span>گران‌ترین <b>${FA1(hi)}</b></span>`;
+
+  box.querySelectorAll('.hl-row').forEach(li => li.querySelector('.hl-head').addEventListener('click', () => {
+    const h = li.dataset.hood, opening = hoodOpen !== h;
+    box.querySelectorAll('.hl-row.open').forEach(x => { x.classList.remove('open'); x.querySelector('.hl-head').setAttribute('aria-expanded', 'false'); });
+    hoodOpen = opening ? h : '';
+    if (!opening) return;
+    const r = show.find(x => x.hood === h);
+    li.querySelector('.hl-more-info > div').innerHTML = hoodDetail(r, cityMed, whole);
+    wireDetail(li);
+    void li.offsetHeight;
+    li.classList.add('open');
+    li.querySelector('.hl-head').setAttribute('aria-expanded', 'true');
+  }));
+  box.querySelectorAll('.hl-row.open').forEach(wireDetail);
   const more = document.getElementById('hoodMore');
   if (more) more.addEventListener('click', () => { hoodShowAll = !hoodShowAll; drawHoods(); });
 
-  foot.textContent = `${FA(rows.length)} محله در ${CITY.name}. عدد هر ردیف میانه قیمت هر متر مربع ` +
-    'به میلیون تومان است و طول نوار همان را نشان می‌دهد. محله‌های «کم‌آگهی» کمتر از ' +
-    `${FA(HOOD_FEW)} آگهی دارند و رقمشان قابل‌اتکا نیست. روی هر محله بزنید تا همه صفحه به آن محدود شود.`;
+  foot.textContent = `${FA(rows.length)} محله در ${CITY.name}. عدد «میلیون/متر» میانه قیمت هر متر مربع به میلیون تومان است. ` +
+    (byCount
+      ? 'طول نوار تعداد آگهی محله است، از صفر تا پرآگهی‌ترین محله. '
+      : `طول نوار جای محله بین ارزان‌ترین (${FA1(lo)}) و گران‌ترین (${FA1(hi)}) محله شهر است و خط کوچک میانه ${whole ? 'کل شهر' : 'محله‌ها'} (${FA1(cityMed)}) را نشان می‌دهد. `) +
+    `محله‌های «کم‌آگهی» کمتر از ${FA(HOOD_FEW)} آگهی دارند و رقمشان قابل‌اتکا نیست. روی هر محله بزنید تا جزئیاتش باز شود.`;
+}
+
+function hoodDetail(r, cityMed, whole){
+  const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
+  const sign = v => `<bdi dir="ltr">${v >= 0 ? '+' : '−'}${FA1(Math.abs(v))}٪</bdi>`;
+  const items = [
+    `<div><dt>میانه قیمت هر متر</dt><dd>${FA1(r.med)} <small>میلیون تومان</small></dd></div>`,
+    `<div><dt>آگهی‌ها</dt><dd>${FA(r.n)}</dd></div>`,
+  ];
+  if (cityMed > 0) {
+    const d = (r.med - cityMed) / cityMed * 100;
+    items.push(`<div><dt>نسبت به میانه ${whole ? esc(CITY.name) : 'محله‌ها'}</dt><dd class="${d >= 0 ? 'up' : 'down'}">${sign(d)}</dd></div>`);
+  }
+  let trend = '';
+  if (whole) {
+    const m = (findHoodMonthly(r.hood) || []).filter(x => x[0] >= SHOW_FROM_KEY());
+    const full = m.filter(x => x[0] < nowKey && x[1] >= 10 && x[2] > 0);
+    if (full.length >= 2) {
+      const [p, q] = full.slice(-2);
+      const c = (q[2] - p[2]) / p[2] * 100;
+      items.push(`<div><dt>تغییر ماهانه</dt><dd class="${c >= 0 ? 'up' : 'down'}">${sign(c)} <small class="sp">${jMonthLabel(p[0])} تا ${jMonthLabel(q[0])}</small></dd></div>`);
+    }
+    const pts = m.filter(x => x[1] >= 5 && x[2] > 0);
+    if (pts.length >= 2) trend = `<div class="hl-trend"><div class="t"><span>میانه قیمت هر متر در هر ماه</span>
+      <span>${jMonthLabel(pts[0][0])} تا ${jMonthLabel(pts[pts.length - 1][0])}</span></div>${spark(pts.map(x => x[2]).reverse(), '#0D7668')}</div>`;
+  }
+  const want = canonHood(r.hood);
+  const ls = activeListings().filter(l => canonHood(l.h) === want);
+  const area = ls.map(l => l.a).filter(v => v > 0), price = ls.map(l => l.p).filter(v => v > 0);
+  if (area.length >= 5) items.push(`<div><dt>متراژ معمول</dt><dd>${FA(Math.round(median(area)))} <small>متر</small></dd></div>`);
+  if (price.length >= 5) items.push(`<div><dt>قیمت کل معمول</dt><dd>${FA1(median(price) / 1000)} <small>میلیارد تومان</small></dd></div>`);
+  const keep = S.hood; S.hood = r.hood; const ads = linkTo('ads.html'); S.hood = keep;
+  return `<div class="hl-det"><dl class="hl-stats">${items.join('')}</dl>${trend}
+    <div class="hl-acts"><button type="button" data-pick="${esc(r.hood)}">${S.hood === r.hood ? 'برداشتن انتخاب محله' : 'نمایش آمار این محله'}</button>
+    <a href="${esc(ads)}">آگهی‌های ${esc(r.hood)}</a></div></div>`;
+}
+function wireDetail(li){
+  const b = li.querySelector('[data-pick]');
+  if (b) b.addEventListener('click', () => pickHood(b.dataset.pick));
 }
 
 function drawHoodMap(rows, sc){
