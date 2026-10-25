@@ -1268,7 +1268,9 @@ async function stillUp(src, id) {
 
 const OPPS_CACHE = new Map(), ALIVE = new Map();
 
-async function oppsApi(url, env) {
+const FOLD_SQL = (c) => `replace(replace(replace(replace(replace(replace(replace(replace(replace(${c},' ',''),'‌',''),'-',''),'_',''),'.',''),'آ','ا'),'ي','ی'),'ى','ی'),'ك','ک')`;
+
+async function oppsApi(url, env, request) {
   const db = env.DB;
   const q = url.searchParams;
   const num = (k) => { const v = q.get(k); const n = v == null || v === "" ? null : Number(v); return Number.isFinite(n) ? n : null; };
@@ -1280,9 +1282,18 @@ async function oppsApi(url, env) {
   const headers = { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=60", "access-control-allow-origin": "*" };
   if (cached) return new Response(cached, { headers });
 
-  const hmAll = await env.SITE.get(`hm:${city}`, { type: "json" });
-  const hm = (hmAll || {})[kind];
-  if (!hm || !Object.keys(hm).length) return new Response(JSON.stringify({ rows: [], total: 0, ready: false }), { headers });
+  let given = null;
+  if (request && request.method === "POST") {
+    try { given = (JSON.parse(await request.text()) || {}).hm; } catch (e) { given = null; }
+  }
+  const src = given && typeof given === "object" ? given
+    : ((await env.SITE.get(`hm:${city}`, { type: "json" })) || {})[kind];
+  const hm = {};
+  for (const [k, v] of Object.entries(src || {})) {
+    const f = foldPlace(k), n = Number(v);
+    if (f && n > 0 && !(f in hm)) hm[f] = n;
+  }
+  if (!Object.keys(hm).length) return new Response(JSON.stringify({ rows: [], total: 0, ready: false }), { headers });
 
   const { where, args } = adsWhere(q, num);
   const days = num("fresh") || 45;
@@ -1292,7 +1303,7 @@ async function oppsApi(url, env) {
            rooms, age_years, lat, lng, substr(address, 1, 80) AS address, features,
            COALESCE(price_changed_at, posted_at) AS d, first_posted_at, COALESCE(kind,'apartment') AS kind,
            hm.med AS hood_med, price_m2 / (hm.med * 1e6) AS ratio
-    FROM listings JOIN hm ON listings.hood = hm.hk
+    FROM listings JOIN hm ON ${FOLD_SQL('listings.hood')} = hm.hk
     WHERE ${where.join(" AND ")}
       AND area_m2 > 0 AND price_m2 BETWEEN hm.med * 1e6 * 0.55 AND hm.med * 1e6 * 0.88
       AND COALESCE(price_changed_at, posted_at, substr(scraped_at, 1, 10)) >= date('now', ?)
@@ -1445,7 +1456,8 @@ export default {
 
     // the site fetches its data through here
     if (url.pathname === "/opps") {
-      try { return await oppsApi(url, env); }
+      if (request.method === "OPTIONS") return new Response(null, { headers: { "access-control-allow-origin": "*", "access-control-allow-methods": "GET, POST", "access-control-allow-headers": "content-type" } });
+      try { return await oppsApi(url, env, request); }
       catch (err) {
         return new Response(JSON.stringify({ error: String(err.message || err) }), { status: 500,
           headers: { "content-type": "application/json; charset=utf-8", "access-control-allow-origin": "*" } });

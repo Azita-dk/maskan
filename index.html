@@ -682,7 +682,9 @@ function drawOpps(){
   if (key !== oppKey) {
     oppKey = key; oppLive = null;
     box.innerHTML = '<div class="loading" style="grid-column:1/-1">در حال بررسی آگهی‌ها روی دیوار و شیپور…</div>';
-    fetch(`${DATA_BASE}/opps?${key}`).then(r => r.ok ? r.json() : null).then(j => {
+    const hm = {};
+    for (const r of (CITY.rows || [])) if ((r.k || 'apartment') === S.kind && r.hood && r.hood !== 'نامشخص' && r.n >= HOOD_FEW && r.median > 0) hm[r.hood] = r.median;
+    fetch(`${DATA_BASE}/opps?${key}`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: JSON.stringify({ hm }) }).then(r => r.ok ? r.json() : null).then(j => {
       if (key !== oppKey) return;
       oppLive = j && j.ready ? j : { failed: true };
       drawOpps(); drawNext();
