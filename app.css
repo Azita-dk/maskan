@@ -1160,3 +1160,13 @@ html{scroll-padding-top:80px}
   table.cards tbody tr.sel{background:var(--green-pale)}
 }
 .opp .ok{position:absolute;bottom:8px;inset-inline-end:10px;font-size:11.5px;font-weight:700;color:var(--fall);background:var(--card);padding:1px 8px;border-radius:6px}
+.cmpbar-ph{display:none}
+@media (min-width:1001px){
+  .pair{grid-template-rows:repeat(5,auto);align-items:stretch}
+  .pair > .panel,.sidebyside.pair > .panel{display:grid;grid-row:span 5;grid-template-rows:subgrid;row-gap:0;align-content:start;margin:0}
+  .pair #actMeta{grid-row:span 2;align-self:end}
+  .pair #actMeta.hide{display:block;visibility:hidden}
+  .pair > .panel > .chartbox{display:block}
+  .pair > .panel > .chartbox > .chart,.sidebyside.pair > .panel > .chartbox > .chart{height:300px;min-height:0;flex:none}
+  .pair > .panel > .foot{align-self:end}
+}

@@ -154,7 +154,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
     </div>
     <div class="kpis" id="kpis"></div>
 
-    <div class="dash">
+    <div class="dash pair">
       <div class="panel">
         <header><h3 id="trendTitle">روند قیمت</h3>
           <div class="tabs" id="trendTabs"></div></header>
@@ -1185,7 +1185,7 @@ const pointLabels = {
     ctx.textAlign = 'center';
     meta.data.forEach((pt, i) => {
       if (data[i] == null) return;
-      ctx.fillText(FA(data[i]), pt.x, pt.y - 10);
+      ctx.fillText(Number.isInteger(data[i]) ? FA(data[i]) : FA1(data[i]), pt.x, pt.y - 10);
     });
     ctx.restore();
   }
@@ -1463,7 +1463,7 @@ function drawTrend(){
 
   trendChart = new Chart(ctx, {
     type: 'line',
-    plugins: [preShade],
+    plugins: [preShade, pointLabels],
     data: {
       labels: months.map(jMonthLabel),
       datasets: series.map((s, i) => ({
@@ -1474,7 +1474,7 @@ function drawTrend(){
         fill: i === 0 && !s.ref ? 'start' : false,
         pointBackgroundColor: s.ref ? CSSVAR('--muted') : hollowPre(months, s.color),
         borderWidth: s.wide ? 3 : 2, tension: .42, spanGaps: true,
-        pointRadius: s.ref ? 0 : 3, pointHoverRadius: 6,
+        pointRadius: s.ref ? 0 : 4, pointHoverRadius: 6,
         segment: dashLast(months),
         _by: s.by,
       })),
