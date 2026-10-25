@@ -345,7 +345,7 @@ const byFa = (a, b) => String(a).localeCompare(String(b), 'fa');
 
 /* ------------------------------------------------------- shared state */
 const PAGES = [
-  { file:'index.html',  label:'صفحه اصلی' },
+  { file:'index.html',  label:'خانه' },
   /* شهرها و محله‌ها was removed from the menu at the owner's request. The page
      itself is kept as _cities.html.unused; to bring it back, rename the file
      to cities.html and restore this line. Nothing else references it. */
@@ -555,8 +555,8 @@ function freshCount(rows, days = 7){
 
 /* ------------------------------------------------------------ price heat */
 function heat(v, lo, hi){
-  if (!isFinite(v) || hi <= lo) return '#4A8BEF';
-  const stops = [[207,224,251],[120,170,240],[30,111,224],[12,58,138]];
+  if (!isFinite(v) || hi <= lo) return '#20A779';
+  const stops = [[32,167,121],[164,206,92],[244,196,66],[240,138,75],[214,84,52]];
   const x = Math.max(0, Math.min(1, (v-lo)/(hi-lo))) * (stops.length-1);
   const i = Math.min(stops.length-2, Math.floor(x)), f = x - i;
   const c = k => Math.round(stops[i][k] + (stops[i+1][k]-stops[i][k])*f);
@@ -615,7 +615,7 @@ const ICONS = {
              + '<path d="M8.5 12l2.5 2.5 4.5-5"/>'),
 };
 
-const LOGO = `<rect width="64" height="64" rx="14" fill="#1E63D6"/>
+const LOGO = `<rect width="64" height="64" rx="14" fill="#16915F"/>
   <path d="M14 30L32 16l18 14" stroke="#fff" stroke-width="5" fill="none"
         stroke-linecap="round" stroke-linejoin="round"/>
   <rect x="18" y="36" width="7" height="12" rx="2" fill="#fff" opacity=".55"/>
@@ -623,23 +623,53 @@ const LOGO = `<rect width="64" height="64" rx="14" fill="#1E63D6"/>
   <rect x="39" y="26" width="7" height="22" rx="2" fill="#fff"/>`;
 
 /* ------------------------------------------------------------- the nav */
-function renderNav(current){
-  const links = PAGES.map(p =>
-    `<a href="${menuLink(p.file)}"${p.file === current ? ' class="on"' : ''}
-       >${p.label}</a>`).join('');
-  document.body.insertAdjacentHTML('afterbegin', `
-    <nav class="nav"><div class="wrap">
-      <a class="brand" href="index.html">
-        <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">${LOGO}</svg>
-        <span><b>تحلیل بازار مسکن</b><small>قیمت‌ها و روند بازار در یک نگاه</small></span>
-      </a>
-      <div class="menu" id="menu">${links}</div>
-      <button class="iconbtn burger" id="burger" aria-label="فهرست">${ICONS.burger}</button>
-      <button class="iconbtn" id="theme" title="روشن / تیره" aria-label="روشن یا تیره">${ICONS.theme}</button>
-    </div></nav>`);
+const NAV_ICON = {
+  'index.html': '<path d="M3 11 12 4l9 7"/><path d="M5 9.5V20h14V9.5"/><path d="M10 20v-5h4v5"/>',
+  'stats.html': '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  'ads.html':   '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/>',
+  'value.html': '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 18h8"/>',
+  'about.html': '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+  'cities.html':'<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+};
+const navIco = f => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICON[f] || NAV_ICON['about.html']}</svg>`;
 
-  document.getElementById('burger').addEventListener('click', () =>
-    document.getElementById('menu').classList.toggle('open'));
+function renderNav(current){
+  const page = PAGES.find(p => p.file === current);
+  const links = PAGES.map(p =>
+    `<a href="${menuLink(p.file)}"${p.file === current ? ' class="on" aria-current="page"' : ''}>${navIco(p.file)}<span>${p.label}</span></a>`).join('');
+  const brand = `<a class="brand" href="index.html">
+        <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">${LOGO}</svg>
+        <span><b>MaskanHub</b><small>تحلیل بازار مسکن</small></span></a>`;
+  document.body.classList.add('has-side');
+  document.body.insertAdjacentHTML('afterbegin', `
+    <aside class="side" id="side" aria-label="فهرست اصلی">
+      ${brand}
+      <nav class="snav" id="menu">${links}</nav>
+      <div class="spromo"><p>همه ارقام از آگهی‌های عمومی دیوار و شیپور محاسبه می‌شود و هر چند دقیقه به‌روز می‌شود.</p>
+        <a href="about.html">روش کار و منبع داده</a></div>
+    </aside>
+    <div class="sideshade" id="sideShade"></div>
+    <header class="topbar"><div class="wrap">
+      <button class="iconbtn burger" id="burger" aria-label="فهرست" aria-controls="side" aria-expanded="false">${ICONS.burger}</button>
+      ${brand}
+      <div class="tb-title">${page ? page.label : ''}<small>MaskanHub · تحلیل بازار مسکن</small></div>
+      <button class="iconbtn" id="theme" title="روشن / تیره" aria-label="روشن یا تیره">${ICONS.theme}</button>
+    </div></header>`);
+  const side = document.getElementById('side'), shade = document.getElementById('sideShade'),
+        burger = document.getElementById('burger');
+  const setOpen = (on) => {
+    side.classList.toggle('open', on); shade.classList.toggle('open', on);
+    burger.setAttribute('aria-expanded', on ? 'true' : 'false');
+  };
+  const ph = document.querySelector('.phead');
+  if (ph && page && current !== 'index.html') {
+    ph.insertAdjacentHTML('afterbegin',
+      `<nav class="crumbs" aria-label="مسیر"><a href="index.html">خانه</a> <span aria-hidden="true">‹</span> ${page.label}</nav>`);
+  }
+  burger.addEventListener('click', () => setOpen(!side.classList.contains('open')));
+  shade.addEventListener('click', () => setOpen(false));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
+
 
   const saved = (() => { try { return localStorage.getItem('mk_theme'); } catch(e){ return null; } })();
   if (saved) document.documentElement.dataset.theme = saved;
