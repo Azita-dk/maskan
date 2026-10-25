@@ -350,6 +350,7 @@ const PAGES = [
      itself is kept as _cities.html.unused; to bring it back, rename the file
      to cities.html and restore this line. Nothing else references it. */
   { file:'stats.html',  label:'آمار و نمودارها' },
+  { file:'compare.html', label:'مقایسه مناطق' },
   { file:'ads.html',    label:'آگهی‌ها و نقشه' },
   { file:'value.html',  label:'قیمت خانه من' },
   { file:'about.html',  label:'روش کار' },
@@ -548,6 +549,32 @@ function kpiCard(o){
       ${o.viz ? `<div class="kviz">${o.viz}</div>` : ''}</div>
     <div class="kf"><span>${o.foot || ''}</span>${o.link ? `<a href="${o.link[0]}">${o.link[1]}</a>` : ''}</div></div>`;
 }
+function spark(vals, color){
+  const v = (vals || []).filter(x => x != null && isFinite(x));
+  if (v.length < 2) return '<div class="spark empty"></div>';
+  const w = 200, h = 44, lo = Math.min(...v), hi = Math.max(...v), r = (hi - lo) || 1;
+  const pts = v.map((x, i) => [i * w / (v.length - 1), h - 6 - (x - lo) / r * (h - 12)]);
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <path d="${line} L${w} ${h} L0 ${h}Z" fill="${color}" opacity=".12"/>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke"/></svg>`;
+}
+function kpi3(o){
+  return `<div class="kpi kpi3">
+      <div class="kt"><span class="kico"><svg viewBox="0 0 24 24">${o.icon}</svg></span><div><div class="k">${o.k}</div>${o.scope ? `<span class="scope">${o.scope}</span>` : ''}</div></div>
+      <div class="v ${o.cls || ''}">${o.v}${o.unit ? `<small>${o.unit}</small>` : ''}</div>
+      <div class="d">${o.d || '&nbsp;'}</div>
+      ${o.series ? spark(o.series, o.color) : '<div class="spark empty"></div>'}
+    </div>`;
+}
+const KPI_ICON = {
+  med: '<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+  count: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+  change: '<path d="M4 20V14M10 20V9M16 20v-6M3 20h18"/><path d="M4 10l6-5 4 3 6-5"/>',
+  hoods: '<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+  conf: '<path d="M12 2.5l8 3.25v6.25c0 4.6-3.35 8.5-8 9.5-4.65-1-8-4.9-8-9.5V5.75z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+};
+
 function freshCount(rows, days = 7){
   const cut = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
   return rows.filter(l => (l.d0 || l.d || '') >= cut).length;
@@ -629,6 +656,7 @@ const NAV_ICON = {
   'ads.html':   '<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14M15 6v14"/>',
   'value.html': '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 18h8"/>',
   'about.html': '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+  'compare.html':'<path d="M12 3v18M5 7h14M7 7l-3 7h6zM17 7l-3 7h6z"/><path d="M8 21h8"/>',
   'cities.html':'<path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
 };
 const navIco = f => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${NAV_ICON[f] || NAV_ICON['about.html']}</svg>`;

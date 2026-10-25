@@ -45,7 +45,14 @@
     <p>همه نمودارها از همان انتخابی که در بالا کرده‌اید ساخته می‌شوند.</p>
   </div>
 
-  <div id="searchHost"></div>
+  <nav class="jump" aria-label="بخش‌های این صفحه">
+    <a href="#secTrend">روند بازار</a><a href="#secNow">قیمت‌ها در این انتخاب</a><a href="#secDrivers">ویژگی‌های ملک</a>
+    <a href="compare.html" data-page="compare.html">مقایسه مناطق ←</a>
+  </nav>
+  <details class="morefilters" open>
+    <summary><svg viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg>انتخاب و فیلترها</summary>
+    <div id="searchHost"></div>
+  </details>
 
   <div class="scopebar" id="scopeBar"></div>
   <div class="kpis" id="kpis"></div>
@@ -203,21 +210,17 @@ function drawKpis(){
   const mon = [...monthlyBase(S.hood).entries()].sort((x, y) => x[0] - y[0]).map(e => e[1]);
   const fresh = Math.round(freshCount(rows) * (rows.length ? count / rows.length : 1));
   document.getElementById('kpis').innerHTML =
-    kpiCard({ k: 'میانه هر متر مربع', scope: esc(scope) + (filtered ? ' · با فیلتر' : ''),
-      v: med === null ? '—' : FA1(med), u: 'میلیون تومان',
-      viz: miniBars(mon.map(m => m.v), CSSVAR('--green-mid')),
-      foot: 'میانه ماه جاری', link: ['#trendTitle', 'روند قیمت'] }) +
-    kpiCard({ k: 'تعداد آگهی', v: FA(count), u: `${approx ? 'حدود، ' : ''}در ${esc(scope)}`,
-      viz: miniBars(mon.map(m => m.n), CSSVAR('--accent')),
-      foot: fresh ? `<b class="new">+${FA(fresh)}</b> آگهی در ۷ روز گذشته` : 'آگهی‌های فعال دیوار',
-      link: [linkTo('ads.html'), 'دیدن آگهی‌ها'] }) +
-    kpiCard({ k: chLabel, v: change, cls,
-      u: mc ? `از ${jMonthLabel(mc.from)} تا ${jMonthLabel(mc.to)}` : 'هنوز دو ماه کامل داده نیست',
-      viz: miniBars(mon.map(m => m.v), CSSVAR('--sun')),
-      foot: 'میانه قیمت هر متر', link: ['#trendTitle', 'نمودار'] }) +
-    kpiCard({ k: 'اعتبار این رقم', v: confBadge(count), cls: 'conf-v', u: 'بر پایه تعداد آگهی',
-      viz: miniRing(Math.min(1, count / 100), CSSVAR('--green')),
-      foot: `${FA(count)} آگهی`, link: ['about.html', 'روش کار'] });
+    kpi3({ k: 'میانه قیمت هر متر', icon: KPI_ICON.med, scope: esc(scope) + (filtered ? ' · با فیلتر' : ''),
+      v: med === null ? '—' : FA1(med), unit: 'میلیون تومان', d: 'میانه آگهی‌های فعال',
+      series: mon.map(m => m.v), color: '#16915F' }) +
+    kpi3({ k: 'تعداد آگهی‌های فعال', icon: KPI_ICON.count, v: FA(count), unit: approx ? 'حدود' : '',
+      d: fresh ? `<b class="new">+${FA(fresh)}</b> آگهی در ۷ روز گذشته` : `در ${esc(scope)}`,
+      series: mon.map(m => m.n), color: '#3B82C4' }) +
+    kpi3({ k: chLabel, icon: KPI_ICON.change, v: change === '—' ? '—' : `<bdi dir="ltr">${change}</bdi>`, cls,
+      d: mc ? `از ${jMonthLabel(mc.from)} تا ${jMonthLabel(mc.to)}` : 'هنوز دو ماه کامل داده نیست',
+      series: mon.map(m => m.v), color: '#20A779' }) +
+    kpi3({ k: 'اعتبار این رقم', icon: KPI_ICON.conf, v: confBadge(count), cls: 'conf-v',
+      d: `بر پایه ${FA(count)} آگهی — <a href="about.html" style="color:var(--green);font-weight:700">روش کار</a>` });
 }
 
 
@@ -660,10 +663,10 @@ function drawTrend(){
   const tn = [];
   if (monthsWithData < 2) tn.push('فعلاً فقط یک ماه داده هست؛ خط روند از ماه دوم کشیده می‌شود.');
   if (months.some(k => k < COLLECT_START_KEY))
-    tn.push('جمع‌آوری از شهریور ۱۴۰۵ آغاز شده است. ماه‌های پیش از آن با پس‌زمینه خاکستری نشان داده می‌شوند: در آن‌ها فقط آگهی‌هایی هست که تا شهریور هنوز روی دیوار بوده‌اند — بیشتر خانه‌های بزرگ‌تر و گران‌تر — پس تعدادشان کمتر و قیمتشان بالاتر از واقع است.');
+    tn.push('جمع‌آوری از شهریور ۱۴۰۵ آغاز شده است. ماه‌های پیش از آن با پس‌زمینه خاکستری نشان داده می‌شوند: در آن‌ها فقط آگهی‌هایی هست که تا شهریور هنوز روی دیوار یا شیپور بوده‌اند — بیشتر خانه‌های بزرگ‌تر و گران‌تر — پس تعدادشان کمتر و قیمتشان بالاتر از واقع است.');
   tn.push('«تغییر قیمت» فقط از شهریور ۱۴۰۵ به بعد حساب می‌شود.');
   tn.push(
-    'هر آگهی در همه ماه‌هایی شمرده می‌شود که روی دیوار بوده: از ماه انتشار تا ماهی که حذف شده، یا تا امروز اگر هنوز فعال است. در هر ماه فقط یک بار شمرده می‌شود.',
+    'هر آگهی در همه ماه‌هایی شمرده می‌شود که روی دیوار یا شیپور بوده: از ماه انتشار تا ماهی که حذف شده، یا تا امروز اگر هنوز فعال است. در هر ماه فقط یک بار شمرده می‌شود.',
     'اگر قیمت آگهی عوض شود، از همان ماه با قیمت تازه حساب می‌شود. آگهی‌ای که بیش از سه هفته در دیوار دیده نشود، حذف‌شده به حساب می‌آید.',
     'ماه جاری هنوز تمام نشده است.');
   if (filtered) tn.push(`همه خط‌ها فقط آگهی‌های «${filterLabel()}» را نشان می‌دهند` +
@@ -671,7 +674,7 @@ function drawTrend(){
   if (S.hood && !hood) tn.push(`برای ${S.hood} داده ماهانه کافی نیست؛ کل ${CITY.name} نشان داده می‌شود.`);
   if (missing.length) tn.push(`برای ${missing.join('، ')} داده کافی نیست و خطی رسم نشده است.`);
   tn.push('قیمت، قیمت درخواستی فروشنده در آگهی است، نه قیمت معامله.');
-  setNote(note, 'میانه قیمت هر متر آگهی‌هایی که در هر ماه روی دیوار بوده‌اند، به میلیون تومان.', tn);
+  setNote(note, 'میانه قیمت هر متر آگهی‌هایی که در هر ماه روی دیوار یا شیپور بوده‌اند، به میلیون تومان.', tn);
 }
 
 function setNote(el, short, details){
@@ -758,15 +761,15 @@ function drawCountTrend(){
   });
 
   actChart.$months = months; actChart.update && actChart.update('none');
-  const cn = ['ماه‌های پیش از شهریور ۱۴۰۵ (پس‌زمینه خاکستری) ناقص‌اند: فقط آگهی‌هایی که تا شهریور هنوز روی دیوار بوده‌اند در آن‌ها شمرده شده‌اند.',
-    'تعداد آگهی‌هایی که در آن ماه روی دیوار بوده‌اند — همان آگهی‌هایی که قیمتشان در نمودار کناری آمده. آگهی‌ای که چند ماه روی دیوار مانده در هر یک از آن ماه‌ها یک بار شمرده می‌شود.',
+  const cn = ['ماه‌های پیش از شهریور ۱۴۰۵ (پس‌زمینه خاکستری) ناقص‌اند: فقط آگهی‌هایی که تا شهریور هنوز روی دیوار یا شیپور بوده‌اند در آن‌ها شمرده شده‌اند.',
+    'تعداد آگهی‌هایی که در آن ماه روی دیوار یا شیپور بوده‌اند — همان آگهی‌هایی که قیمتشان در نمودار کناری آمده. آگهی‌ای که چند ماه روی سایت مانده در هر یک از آن ماه‌ها یک بار شمرده می‌شود.',
     'ماه جاری هنوز تمام نشده است.',
     'آگهی‌هایی که هنوز تاریخ دیوار ندارند شمرده نمی‌شوند، پس ماه جاری تا چند روز کمتر از واقع دیده می‌شود.'];
   if (!hood && series[0].main && series.length > 1)
     cn.push(`برای دیدن بهتر محله‌ها، ${CITY.name} را با زدن ✕ کنار نامش در «مقایسه با» پنهان کنید.`);
   if (filtered) cn.push('با فیلتر، تعداد از نمونه‌ای از آگهی‌ها برآورد می‌شود و تقریبی است.');
   if (missing.length) cn.push(`برای ${missing.join('، ')} داده کافی نیست.`);
-  setNote(foot, 'تعداد آگهی‌هایی که در هر ماه روی دیوار بوده‌اند.', cn);
+  setNote(foot, 'تعداد آگهی‌هایی که در هر ماه روی دیوار یا شیپور بوده‌اند.', cn);
 }
 
 

@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مقایسه مناطق — تحلیل بازار مسکن</title>
+<meta name="description" content="مقایسه کنار هم قیمت هر متر، تغییر قیمت و تعداد آگهی چند محله.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316915F'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
+<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<link rel="stylesheet" href="app.css?v=20260925c">
+</head>
+<body>
+
+<main id="main" class="wrap">
+  <div class="phead">
+    <h1>مقایسه مناطق</h1>
+    <p>تا چهار محله را انتخاب کنید و قیمت هر متر، تغییر قیمت و تعداد آگهی‌هایشان را کنار هم ببینید.</p>
+  </div>
+
+  <div class="panel cmp-pick">
+    <div class="cmp-ctl">
+      <label><span>شهر</span><select id="cCity"></select></label>
+      <label><span>نوع ملک</span><select id="cKind"></select></label>
+      <label class="grow"><span>افزودن محله</span><select id="cAdd"></select></label>
+    </div>
+    <div class="cmp-chips" id="cChips"></div>
+  </div>
+
+  <div class="cmpgrid" id="cCards"><div class="loading">در حال بارگذاری…</div></div>
+
+  <div class="shead"><h2>روند قیمت</h2></div>
+  <div class="panel">
+    <header><h3 id="cTrendTitle">میانه قیمت هر متر در هر ماه</h3></header>
+    <div class="chartbox"><div class="chart"><canvas id="cTrend"></canvas><div class="loading hide" id="cTrendEmpty"></div></div></div>
+    <p class="foot">میانه قیمت هر متر آگهی‌هایی که در هر ماه روی سایت‌ها بوده‌اند، به میلیون تومان. خط‌چین، کل شهر است.</p>
+  </div>
+
+  <div class="shead"><h2>فعالیت بازار</h2></div>
+  <div class="panel">
+    <header><h3>تعداد آگهی‌های فروش در هر ماه</h3></header>
+    <div class="chartbox"><div class="chart"><canvas id="cCount"></canvas><div class="loading hide" id="cCountEmpty"></div></div></div>
+    <p class="foot">هر آگهی در همه ماه‌هایی شمرده می‌شود که روی سایت‌ها بوده است.</p>
+  </div>
+
+  <p class="foot cmp-note">ارقام این صفحه برای همه آگهی‌های هر محله است و فیلترهای متراژ و قیمت روی آن اعمال نمی‌شود.
+    متراژ و قیمت کل میانه از نمونه‌ای از آگهی‌ها حساب می‌شود. آگهی‌های تکراری و قیمت‌های پرت کنار گذاشته شده‌اند.</p>
+</main>
+
+<footer><div class="wrap">
+  <span>ارقام از آگهی‌های عمومی سایت‌های ملکی گردآوری و پس از حذف آگهی‌های
+    تکراری و پرت محاسبه می‌شود. قیمت درخواستی فروشنده است، نه قیمت معامله‌شده.</span>
+  <span id="ver"></span>
+</div></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="app.js?v=20260925c"></script>
+<script>
+const COLORS = ['#0D7668', '#F08A4B', '#3B82C4', '#7A3E9D'];
+const FROM_KEY = 1405 * 12 + 5;
+const MAX = 4;
+const monthLabel = k => `${J_MONTHS[k % 12]} ${FA_YEAR(Math.floor(k / 12))}`;
+const fold = t => String(t || '').replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/آ/g, 'ا').replace(/[\s‌]/g, '');
+let trendC = null, countC = null;
+
+const hoodRows = () => ((CITY && CITY.rows) || [])
+  .filter(r => (r.k || 'apartment') === S.kind && r.hood && r.hood !== 'نامشخص' && r.n >= 5 && r.median > 0);
+const chosen = () => (S.cmp && S.cmp !== '_none' ? S.cmp.split('|').filter(Boolean) : []);
+function monthlyOf(hood){
+  const hm = ((CITY.hood_monthly || {})[S.kind]) || {};
+  let a = hm[hood];
+  if (!a) { const k = fold(hood); for (const h in hm) if (fold(h) === k) { a = hm[h]; break; } }
+  return (a || []).filter(x => x[0] >= FROM_KEY);
+}
+const cityMonthly = () => (((CITY.monthly || {})[S.kind]) || []).filter(x => x[0] >= FROM_KEY);
+function sampleOf(hood){
+  const f = fold(hood);
+  const ls = (CITY.listings || []).filter(l => (l.k || 'apartment') === S.kind && fold(l.h) === f);
+  const area = ls.map(l => l.a).filter(v => v > 0), price = ls.map(l => l.p).filter(v => v > 0);
+  return { n: ls.length, area: area.length >= 5 ? median(area) : null, price: price.length >= 5 ? median(price) : null };
+}
+const pct = (a, b) => (a != null && b ? (a - b) / b * 100 : null);
+const sign = v => `<bdi dir="ltr">${v >= 0 ? '+' : '−'}${FA1(Math.abs(v))}٪</bdi>`;
+
+function adsLink(h){ const keep = S.hood, cmp = S.cmp; S.hood = h; S.cmp = ''; const u = linkTo('ads.html'); S.hood = keep; S.cmp = cmp; return u; }
+function setCmp(list){ S.cmp = list.length ? list.slice(0, MAX).join('|') : '_none'; commit(); }
+
+function drawPicker(){
+  const rows = hoodRows();
+  if (!S.cmp && rows.length) {
+    S.cmp = [...rows].sort((a, b) => b.n - a.n).slice(0, 3).map(r => r.hood).join('|');
+    writeState(true);
+  }
+  const sel = chosen();
+  const c = document.getElementById('cCity'), k = document.getElementById('cKind'), add = document.getElementById('cAdd');
+  c.innerHTML = [...DB.cities].sort((a, b) => (b.n || 0) - (a.n || 0))
+    .map(x => `<option value="${esc(x.id)}"${x.id === S.city ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
+  k.innerHTML = KINDS.map(x => `<option value="${x.id}"${x.id === S.kind ? ' selected' : ''}>${x.label}</option>`).join('');
+  const free = rows.filter(r => !sel.includes(r.hood)).sort((a, b) => byFa(a.hood, b.hood));
+  add.innerHTML = `<option value="">${sel.length >= MAX ? 'حداکثر ' + FA(MAX) + ' محله' : '+ انتخاب محله'}</option>` +
+    free.map(r => `<option value="${esc(r.hood)}">${esc(r.hood)} — ${FA(r.n)} آگهی</option>`).join('');
+  add.disabled = sel.length >= MAX;
+  document.getElementById('cChips').innerHTML = sel.length
+    ? sel.map((h, i) => `<span class="cchip" style="--c:${COLORS[i]}"><i></i>${esc(h)}
+        <button data-drop="${esc(h)}" aria-label="حذف ${esc(h)}">×</button></span>`).join('') +
+      `<button class="cclear" id="cClear">پاک کردن همه</button>`
+    : '<span class="muted">هنوز محله‌ای انتخاب نشده است.</span>';
+  document.querySelectorAll('[data-drop]').forEach(b =>
+    b.addEventListener('click', () => setCmp(sel.filter(h => h !== b.dataset.drop))));
+  const cl = document.getElementById('cClear');
+  if (cl) cl.addEventListener('click', () => { S.cmp = '_none'; commit(); });
+}
+
+function drawCards(){
+  const box = document.getElementById('cCards');
+  const sel = chosen();
+  if (!sel.length) { box.innerHTML = '<div class="loading">یک محله از فهرست بالا انتخاب کنید.</div>'; return; }
+  const rows = hoodRows();
+  const cityMed = ((CITY.byKind || {})[S.kind] || {}).median;
+  const data = sel.map((h, i) => {
+    const r = rows.find(x => x.hood === h) || rows.find(x => fold(x.hood) === fold(h));
+    const m = monthlyOf(h), last = m[m.length - 1], prev = m[m.length - 2];
+    const s = sampleOf(h);
+    return { h, i, med: r ? r.median : null, n: r ? r.n : null,
+      vsCity: r && cityMed ? pct(r.median, cityMed) : null,
+      chg: last && prev && last[2] && prev[2] && last[1] >= 10 && prev[1] >= 10 ? pct(last[2], prev[2]) : null,
+      chgSpan: last && prev ? `${monthLabel(prev[0])} تا ${monthLabel(last[0])}` : '',
+      cnt: last && prev && prev[1] ? pct(last[1], prev[1]) : null, s };
+  });
+  const best = (key, dir) => {
+    const v = data.filter(d => d[key] != null);
+    if (v.length < 2) return null;
+    const top = v.reduce((a, b) => (dir * (b[key] - a[key]) > 0 ? b : a));
+    return v.filter(d => d[key] === top[key]).length === 1 ? top.h : null;
+  };
+  const cheapest = best('med', -1), dearest = best('med', 1), fastest = best('chg', 1), busiest = best('n', 1);
+  const na = '<span class="na">داده کافی نیست</span>';
+  box.innerHTML = data.map(d => `
+    <article class="ccard" style="--c:${COLORS[d.i]}">
+      <header><i></i><h3>${esc(d.h)}</h3></header>
+      <div class="badges">
+        ${d.h === cheapest ? '<span class="bdg g">ارزان‌ترین</span>' : ''}
+        ${d.h === dearest ? '<span class="bdg r">گران‌ترین</span>' : ''}
+        ${d.h === fastest ? '<span class="bdg b">بیشترین رشد</span>' : ''}
+        ${d.h === busiest ? '<span class="bdg n">بیشترین آگهی</span>' : ''}
+      </div>
+      <dl>
+        <div class="big"><dt>میانه قیمت هر متر</dt><dd>${d.med != null ? FA1(d.med) + ' <small>میلیون تومان</small>' : na}</dd></div>
+        <div><dt>نسبت به میانه ${esc(CITY.name)}</dt><dd>${d.vsCity != null ? sign(d.vsCity) : na}</dd></div>
+        <div><dt>تغییر قیمت ماهانه</dt><dd>${d.chg != null ? `<span class="${d.chg >= 0 ? 'up' : 'down'}">${sign(d.chg)}</span>` : na}
+          ${d.chgSpan && d.chg != null ? `<small class="sub">${d.chgSpan}</small>` : ''}</dd></div>
+        <div><dt>آگهی‌های فعال</dt><dd>${d.n != null ? FA(d.n) : na}</dd></div>
+        <div><dt>تغییر تعداد آگهی</dt><dd>${d.cnt != null ? sign(d.cnt) : na}</dd></div>
+        <div><dt>متراژ میانه</dt><dd>${d.s.area ? FA(Math.round(d.s.area)) + ' متر' : na}</dd></div>
+        <div><dt>قیمت کل میانه</dt><dd>${d.s.price ? FA1(d.s.price / 1000) + ' میلیارد' : na}</dd></div>
+      </dl>
+      <a class="cgo" href="${esc(adsLink(d.h))}">آگهی‌های ${esc(d.h)} ←</a>
+    </article>`).join('');
+}
+
+function lineChart(id, old, series, months, fmt, emptyId){
+  if (old) old.destroy();
+  const empty = document.getElementById(emptyId);
+  const has = series.some(s => s.data.filter(v => v != null).length >= 1);
+  empty.classList.toggle('hide', has);
+  if (!has) { empty.textContent = 'برای این محله‌ها هنوز داده ماهانه نیست.'; return null; }
+  const font = { family: 'Vazirmatn', size: 12 };
+  return new Chart(document.getElementById(id), {
+    type: 'line',
+    data: { labels: months.map(monthLabel), datasets: series.map(s => ({
+      label: s.label, data: s.data, borderColor: s.color, backgroundColor: s.color,
+      borderDash: s.dash ? [6, 5] : undefined, borderWidth: s.dash ? 2 : 3, tension: .35,
+      pointRadius: s.dash ? 0 : 4, pointHoverRadius: 6, spanGaps: true })) },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { position: 'bottom', rtl: true, labels: { font, color: CSSVAR('--ink'), usePointStyle: true } },
+        tooltip: { rtl: true, titleFont: font, bodyFont: font,
+          callbacks: { label: c => `${c.dataset.label}: ${fmt(c.parsed.y)}` } } },
+      scales: { x: { reverse: true, ticks: { font, color: CSSVAR('--muted') }, grid: { display: false } },
+        y: { position: 'right', ticks: { font, color: CSSVAR('--muted'), callback: v => FA(v) }, grid: { color: CSSVAR('--rule') } } } },
+  });
+}
+
+function drawCharts(){
+  const sel = chosen();
+  const per = sel.map(h => monthlyOf(h));
+  const keys = [...new Set([...per.flat().map(x => x[0]), ...cityMonthly().map(x => x[0])])].sort((a, b) => a - b);
+  const at = (arr, k, idx) => { const x = arr.find(y => y[0] === k); return x ? x[idx] : null; };
+  const cm = cityMonthly();
+  trendC = lineChart('cTrend', trendC, [
+    ...sel.map((h, i) => ({ label: h, color: COLORS[i], data: keys.map(k => at(per[i], k, 2)) })),
+    { label: `کل ${CITY.name}`, color: CSSVAR('--muted'), dash: true, data: keys.map(k => at(cm, k, 2)) },
+  ], keys, v => FA1(v) + ' میلیون', 'cTrendEmpty');
+  countC = lineChart('cCount', countC,
+    sel.map((h, i) => ({ label: h, color: COLORS[i], data: keys.map(k => at(per[i], k, 1)) })),
+    keys, v => FA(v) + ' آگهی', 'cCountEmpty');
+  document.getElementById('cTrendTitle').textContent = `میانه قیمت هر متر ${kindLabel()} در هر ماه — ${CITY.name}`;
+}
+
+let wired = false;
+function wire(){
+  if (wired) return; wired = true;
+  document.getElementById('cCity').addEventListener('change', async e => {
+    S.city = e.target.value; S.hood = ''; S.cmp = '';
+    await loadCity(S.city); commit();
+  });
+  document.getElementById('cKind').addEventListener('change', e => { S.kind = e.target.value; S.cmp = ''; commit(); });
+  document.getElementById('cAdd').addEventListener('change', e => {
+    if (e.target.value) setCmp([...chosen(), e.target.value]);
+  });
+}
+
+bootPage('compare.html', () => {
+  wire();
+  drawPicker();
+  drawCards();
+  drawCharts();
+});
+</script>
+</body>
+</html>
