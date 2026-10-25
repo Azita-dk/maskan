@@ -155,6 +155,24 @@ table.cards td:first-child{white-space:normal;min-width:160px}
     <div class="kpis" id="kpis"></div>
 
     <div class="dash">
+      <div class="panel">
+        <header><h3 id="trendTitle">روند قیمت</h3>
+          <div class="tabs" id="trendTabs"></div></header>
+      <div class="cmpbar" id="cmpBar"></div>
+      <div class="cmeta hide" id="trendMeta"></div>
+        <div class="chartbox"><div class="chart">
+          <canvas id="trend"></canvas>
+        </div></div>
+        <p class="foot" id="trendNote"></p>
+      </div>
+      <div class="panel">
+        <header><h3 id="actTitle">تعداد آگهی‌های فروش</h3></header>
+        <div class="cmeta hide" id="actMeta"></div>
+        <div class="chartbox"><div class="chart"><canvas id="act"></canvas>
+          <div class="loading hide" id="actEmpty"></div></div></div>
+        <p class="foot" id="actFoot"></p>
+      </div>
+    </div>
     <div class="panel">
       <header>
         <h3 id="hoodTitle">محله‌ها</h3>
@@ -180,24 +198,6 @@ table.cards td:first-child{white-space:normal;min-width:160px}
           <span>گران‌ترین</span></div></div>
       <p class="foot" id="hoodFoot"></p>
     </div>
-      <div class="panel">
-        <header><h3 id="trendTitle">روند قیمت</h3>
-          <div class="tabs" id="trendTabs"></div></header>
-      <div class="cmpbar" id="cmpBar"></div>
-      <div class="cmeta hide" id="trendMeta"></div>
-        <div class="chartbox"><div class="chart">
-          <canvas id="trend"></canvas>
-        </div></div>
-        <p class="foot" id="trendNote"></p>
-      </div>
-    </div>
-      <div class="panel">
-        <header><h3 id="actTitle">تعداد آگهی‌های فروش</h3></header>
-        <div class="cmeta hide" id="actMeta"></div>
-        <div class="chartbox"><div class="chart"><canvas id="act"></canvas>
-          <div class="loading hide" id="actEmpty"></div></div></div>
-        <p class="foot" id="actFoot"></p>
-      </div>
   </div>
 
   <aside class="hrail">
