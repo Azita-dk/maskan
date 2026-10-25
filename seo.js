@@ -166,7 +166,7 @@ async function cityIndex(env) {
 async function sitemap(env) {
   const s = await stats(env);
   const day = (s.generated || new Date().toISOString()).slice(0, 10);
-  const urls = ["/", "/stats.html", "/compare.html", "/ads.html", "/value.html", "/about.html", "/shahr",
+  const urls = ["/", "/stats", "/compare", "/ads", "/value", "/about", "/shahr",
     ...s.cities.map((c) => `/shahr/${encodeURIComponent(c.name)}`)];
   const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
