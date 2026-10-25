@@ -65,9 +65,9 @@ ${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld)}</script
 </head>
 <body>
 <main class="seo">
-<nav class="top"><a href="/">تحلیل بازار مسکن — مسکن‌هاب</a><a href="/shahr">همه شهرها</a></nav>
+<nav class="top"><a href="/">تحلیل بازار مسکن</a><a href="/shahr">همه شهرها</a></nav>
 ${body}
-<p style="color:var(--muted);font-size:12.5px;margin-top:30px">ارقام از آگهی‌های عمومی فروش در دیوار گردآوری می‌شود و قیمت درخواستی فروشنده است، نه قیمت معامله‌شده.</p>
+<p style="color:var(--muted);font-size:12.5px;margin-top:30px">ارقام از آگهی‌های عمومی فروش در دیوار و شیپور گردآوری می‌شود و قیمت درخواستی فروشنده است، نه قیمت معامله‌شده.</p>
 </main>
 </body>
 </html>`;
@@ -104,7 +104,7 @@ async function cityPage(env, name) {
   }
 
   const updated = s.generated ? new Date(s.generated) : new Date();
-  const title = `قیمت آپارتمان در ${name} — قیمت هر متر و روند بازار مسکن | مسکن‌هاب`;
+  const title = `قیمت آپارتمان در ${name} — قیمت هر متر و روند بازار مسکن | تحلیل بازار مسکن`;
   const desc = `میانه قیمت هر متر آپارتمان در ${name} ${apt.median ? FA1(apt.median) + " میلیون تومان" : ""} ` +
     `بر پایه ${FA(apt.n || 0)} آگهی فروش. قیمت محله‌ها، روند ماهانه و آگهی‌های ${name}.`;
 
@@ -144,7 +144,7 @@ ${hoodRows ? `<h2>قیمت آپارتمان در محله‌های ${esc(name)}<
       url: `${SITE}/shahr/${encodeURIComponent(name)}`,
       dateModified: updated.toISOString().slice(0, 10),
       spatialCoverage: { "@type": "Place", name: `${name}، ایران` },
-      creator: { "@type": "Organization", name: "مسکن‌هاب", url: SITE } },
+      creator: { "@type": "Organization", name: "تحلیل بازار مسکن", url: SITE } },
   });
 }
 
@@ -154,11 +154,11 @@ async function cityIndex(env) {
   const rows = list.map((c) => `<tr><td><a href="/shahr/${encodeURIComponent(c.name)}" style="color:var(--green);font-weight:700;text-decoration:none">${esc(c.name)}</a></td>
     <td>${c.median ? FA1(c.median) + " میلیون" : "—"}</td><td>${FA(c.n || 0)}</td></tr>`).join("");
   return page({
-    title: "قیمت مسکن در شهرهای ایران — قیمت هر متر آپارتمان | مسکن‌هاب",
-    desc: `میانه قیمت هر متر آپارتمان در ${FA(list.length)} شهر ایران، بر پایه آگهی‌های فروش دیوار، با قیمت محله‌ها و روند ماهانه.`,
+    title: "قیمت مسکن در شهرهای ایران — قیمت هر متر آپارتمان | تحلیل بازار مسکن",
+    desc: `میانه قیمت هر متر آپارتمان در ${FA(list.length)} شهر ایران، بر پایه آگهی‌های فروش دیوار و شیپور، با قیمت محله‌ها و روند ماهانه.`,
     canonical: `${SITE}/shahr`,
     body: `<h1>قیمت مسکن در شهرهای ایران</h1>
-<p class="lead">میانه قیمت هر متر مربع آپارتمان در ${FA(list.length)} شهر، از آگهی‌های فروش فعال در دیوار. روی هر شهر بزنید تا قیمت محله‌ها و روند بازار آن را ببینید.</p>
+<p class="lead">میانه قیمت هر متر مربع آپارتمان در ${FA(list.length)} شهر، از آگهی‌های فروش فعال در دیوار و شیپور. روی هر شهر بزنید تا قیمت محله‌ها و روند بازار آن را ببینید.</p>
 <table><thead><tr><th>شهر</th><th>میانه هر متر آپارتمان</th><th>تعداد آگهی</th></tr></thead><tbody>${rows}</tbody></table>`,
   });
 }
@@ -166,7 +166,7 @@ async function cityIndex(env) {
 async function sitemap(env) {
   const s = await stats(env);
   const day = (s.generated || new Date().toISOString()).slice(0, 10);
-  const urls = ["/", "/stats.html", "/ads.html", "/value.html", "/about.html", "/shahr",
+  const urls = ["/", "/stats.html", "/compare.html", "/ads.html", "/value.html", "/about.html", "/shahr",
     ...s.cities.map((c) => `/shahr/${encodeURIComponent(c.name)}`)];
   const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -194,7 +194,7 @@ export default {
       if (path.startsWith("/shahr/")) {
         const p = await cityPage(env, path.slice(7));
         if (p) return html(p);
-        return html(page({ title: "شهر پیدا نشد | مسکن‌هاب", desc: "", canonical: `${SITE}/shahr`,
+        return html(page({ title: "شهر پیدا نشد | تحلیل بازار مسکن", desc: "", canonical: `${SITE}/shahr`,
           body: `<h1>این شهر پیدا نشد</h1><p class="lead"><a href="/shahr">فهرست همه شهرها</a></p>` }), 404);
       }
     } catch (e) {
