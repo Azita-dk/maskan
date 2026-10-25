@@ -555,8 +555,8 @@ function freshCount(rows, days = 7){
 
 /* ------------------------------------------------------------ price heat */
 function heat(v, lo, hi){
-  if (!isFinite(v) || hi <= lo) return '#1B8A8F';
-  const stops = [[27,138,143],[242,193,78],[240,138,75],[214,84,52]];
+  if (!isFinite(v) || hi <= lo) return '#4A8BEF';
+  const stops = [[207,224,251],[120,170,240],[30,111,224],[12,58,138]];
   const x = Math.max(0, Math.min(1, (v-lo)/(hi-lo))) * (stops.length-1);
   const i = Math.min(stops.length-2, Math.floor(x)), f = x - i;
   const c = k => Math.round(stops[i][k] + (stops[i+1][k]-stops[i][k])*f);
@@ -615,7 +615,7 @@ const ICONS = {
              + '<path d="M8.5 12l2.5 2.5 4.5-5"/>'),
 };
 
-const LOGO = `<rect width="64" height="64" rx="14" fill="#0D5C63"/>
+const LOGO = `<rect width="64" height="64" rx="14" fill="#1E63D6"/>
   <path d="M14 30L32 16l18 14" stroke="#fff" stroke-width="5" fill="none"
         stroke-linecap="round" stroke-linejoin="round"/>
   <rect x="18" y="36" width="7" height="12" rx="2" fill="#fff" opacity=".55"/>

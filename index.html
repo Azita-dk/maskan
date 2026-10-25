@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>تحلیل بازار مسکن — قیمت‌ها و روند بازار در ایران</title>
 <meta name="description" content="میانه قیمت درخواستی آگهی‌های فروش آپارتمان در شهرها و محله‌های ایران.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230D5C63'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231E63D6'/%3E%3Cpath d='M14 30L32 16l18 14' stroke='%23fff' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Crect x='18' y='36' width='7' height='12' rx='2' fill='%23fff' opacity='.55'/%3E%3Crect x='28.5' y='31' width='7' height='17' rx='2' fill='%23fff' opacity='.78'/%3E%3Crect x='39' y='26' width='7' height='22' rx='2' fill='%23fff'/%3E%3C/svg%3E">
 <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
@@ -98,25 +98,65 @@ table.cards td:first-child{white-space:normal;min-width:160px}
 </head>
 <body>
 
+<section class="hero">
+  <svg class="hero-art" viewBox="0 0 1440 460" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><defs><linearGradient id="hsky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9DBBE3"/><stop offset=".55" stop-color="#E9D7C4"/><stop offset="1" stop-color="#F3E6D6"/></linearGradient><linearGradient id="hshade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0B1B33" stop-opacity=".25"/><stop offset=".5" stop-color="#0B1B33" stop-opacity=".35"/><stop offset="1" stop-color="#0B1B33" stop-opacity=".15"/></linearGradient></defs><rect width="1440" height="460" fill="url(#hsky)"/><polygon fill="#8FA3C0" points="0,460 0,170 40,152 80,169 120,182 160,170 200,170 240,167 280,175 320,189 360,169 400,146 440,162 480,159 520,172 560,148 600,145 640,156 680,142 720,164 760,184 800,161 840,138 880,140 920,161 960,155 1000,141 1040,138 1080,115 1120,101 1160,100 1200,100 1240,100 1280,100 1320,100 1360,100 1400,100 1440,100 1440,460"/><polygon fill="#F4F7FB" opacity=".9" points="378,166 400,146 422,166 408,160 394,164"/><polygon fill="#F4F7FB" opacity=".9" points="538,168 560,148 582,168 568,162 554,166"/><polygon fill="#F4F7FB" opacity=".9" points="578,165 600,145 622,165 608,159 594,163"/><polygon fill="#F4F7FB" opacity=".9" points="658,162 680,142 702,162 688,156 674,160"/><polygon fill="#F4F7FB" opacity=".9" points="818,158 840,138 862,158 848,152 834,156"/><polygon fill="#F4F7FB" opacity=".9" points="858,160 880,140 902,160 888,154 874,158"/><polygon fill="#F4F7FB" opacity=".9" points="978,161 1000,141 1022,161 1008,155 994,159"/><polygon fill="#F4F7FB" opacity=".9" points="1018,158 1040,138 1062,158 1048,152 1034,156"/><polygon fill="#F4F7FB" opacity=".9" points="1058,135 1080,115 1102,135 1088,129 1074,133"/><polygon fill="#F4F7FB" opacity=".9" points="1098,121 1120,101 1142,121 1128,115 1114,119"/><polygon fill="#F4F7FB" opacity=".9" points="1138,120 1160,100 1182,120 1168,114 1154,118"/><polygon fill="#F4F7FB" opacity=".9" points="1178,120 1200,100 1222,120 1208,114 1194,118"/><polygon fill="#F4F7FB" opacity=".9" points="1218,120 1240,100 1262,120 1248,114 1234,118"/><polygon fill="#F4F7FB" opacity=".9" points="1258,120 1280,100 1302,120 1288,114 1274,118"/><polygon fill="#F4F7FB" opacity=".9" points="1298,120 1320,100 1342,120 1328,114 1314,118"/><polygon fill="#F4F7FB" opacity=".9" points="1338,120 1360,100 1382,120 1368,114 1354,118"/><polygon fill="#F4F7FB" opacity=".9" points="1378,120 1400,100 1422,120 1408,114 1394,118"/><polygon fill="#F4F7FB" opacity=".9" points="1418,120 1440,100 1462,120 1448,114 1434,118"/><polygon fill="#7489AA" points="0,460 0,230 30,223 60,224 90,220 120,223 150,227 180,215 210,201 240,210 270,204 300,196 330,210 360,209 390,219 420,218 450,222 480,212 510,216 540,226 570,227 600,234 630,238 660,226 690,233 720,236 750,230 780,217 810,227 840,227 870,233 900,243 930,246 960,246 990,243 1020,246 1050,244 1080,246 1110,246 1140,235 1170,225 1200,217 1230,230 1260,228 1290,231 1320,226 1350,226 1380,223 1410,219 1440,221 1440,460"/><rect x="-10" y="261" width="32" height="199" fill="#A8B4C6"/><rect x="25" y="267" width="32" height="193" fill="#A8B4C6"/><rect x="61" y="307" width="24" height="153" fill="#A8B4C6"/><rect x="89" y="244" width="33" height="216" fill="#A8B4C6"/><rect x="123" y="257" width="21" height="203" fill="#A8B4C6"/><rect x="145" y="262" width="20" height="198" fill="#A8B4C6"/><rect x="165" y="285" width="37" height="175" fill="#A8B4C6"/><rect x="205" y="230" width="38" height="230" fill="#A8B4C6"/><rect x="244" y="330" width="37" height="130" fill="#A8B4C6"/><rect x="285" y="299" width="20" height="161" fill="#A8B4C6"/><rect x="306" y="294" width="46" height="166" fill="#A8B4C6"/><rect x="352" y="256" width="42" height="204" fill="#A8B4C6"/><rect x="397" y="296" width="36" height="164" fill="#A8B4C6"/><rect x="434" y="283" width="38" height="177" fill="#A8B4C6"/><rect x="472" y="309" width="39" height="151" fill="#A8B4C6"/><rect x="513" y="264" width="31" height="196" fill="#A8B4C6"/><rect x="544" y="283" width="40" height="177" fill="#A8B4C6"/><rect x="585" y="269" width="34" height="191" fill="#A8B4C6"/><rect x="619" y="304" width="36" height="156" fill="#A8B4C6"/><rect x="655" y="280" width="45" height="180" fill="#A8B4C6"/><rect x="700" y="218" width="18" height="242" fill="#A8B4C6"/><rect x="719" y="314" width="24" height="146" fill="#A8B4C6"/><rect x="746" y="268" width="40" height="192" fill="#A8B4C6"/><rect x="786" y="231" width="36" height="229" fill="#A8B4C6"/><rect x="824" y="303" width="28" height="157" fill="#A8B4C6"/><rect x="854" y="277" width="18" height="183" fill="#A8B4C6"/><rect x="872" y="296" width="22" height="164" fill="#A8B4C6"/><rect x="894" y="312" width="18" height="148" fill="#A8B4C6"/><rect x="915" y="235" width="23" height="225" fill="#A8B4C6"/><rect x="939" y="246" width="32" height="214" fill="#A8B4C6"/><rect x="972" y="235" width="31" height="225" fill="#A8B4C6"/><rect x="1003" y="258" width="30" height="202" fill="#A8B4C6"/><rect x="1033" y="239" width="26" height="221" fill="#A8B4C6"/><rect x="1059" y="294" width="24" height="166" fill="#A8B4C6"/><rect x="1087" y="235" width="38" height="225" fill="#A8B4C6"/><rect x="1125" y="292" width="22" height="168" fill="#A8B4C6"/><rect x="1149" y="237" width="18" height="223" fill="#A8B4C6"/><rect x="1169" y="298" width="30" height="162" fill="#A8B4C6"/><rect x="1199" y="251" width="24" height="209" fill="#A8B4C6"/><rect x="1224" y="240" width="18" height="220" fill="#A8B4C6"/><rect x="1244" y="251" width="37" height="209" fill="#A8B4C6"/><rect x="1285" y="236" width="33" height="224" fill="#A8B4C6"/><rect x="1321" y="229" width="23" height="231" fill="#A8B4C6"/><rect x="1346" y="234" width="25" height="226" fill="#A8B4C6"/><rect x="1372" y="231" width="23" height="229" fill="#A8B4C6"/><rect x="1399" y="248" width="24" height="212" fill="#A8B4C6"/><rect x="1426" y="263" width="46" height="197" fill="#A8B4C6"/><rect x="-10" y="342" width="31" height="118" fill="#97A4B8"/><rect x="21" y="310" width="19" height="150" fill="#97A4B8"/><rect x="42" y="273" width="25" height="187" fill="#97A4B8"/><rect x="70" y="318" width="26" height="142" fill="#97A4B8"/><rect x="100" y="324" width="33" height="136" fill="#97A4B8"/><rect x="134" y="341" width="41" height="119" fill="#97A4B8"/><rect x="176" y="294" width="33" height="166" fill="#97A4B8"/><rect x="213" y="344" width="37" height="116" fill="#97A4B8"/><rect x="251" y="250" width="24" height="210" fill="#97A4B8"/><rect x="275" y="307" width="26" height="153" fill="#97A4B8"/><rect x="302" y="345" width="19" height="115" fill="#97A4B8"/><rect x="323" y="296" width="29" height="164" fill="#97A4B8"/><rect x="353" y="303" width="20" height="157" fill="#97A4B8"/><rect x="376" y="284" width="28" height="176" fill="#97A4B8"/><rect x="408" y="346" width="36" height="114" fill="#97A4B8"/><rect x="444" y="314" width="18" height="146" fill="#97A4B8"/><rect x="464" y="336" width="40" height="124" fill="#97A4B8"/><rect x="504" y="289" width="18" height="171" fill="#97A4B8"/><rect x="522" y="360" width="33" height="100" fill="#97A4B8"/><rect x="557" y="330" width="28" height="130" fill="#97A4B8"/><rect x="585" y="287" width="32" height="173" fill="#97A4B8"/><rect x="617" y="274" width="46" height="186" fill="#97A4B8"/><rect x="664" y="313" width="43" height="147" fill="#97A4B8"/><rect x="707" y="313" width="39" height="147" fill="#97A4B8"/><rect x="746" y="322" width="45" height="138" fill="#97A4B8"/><rect x="791" y="300" width="45" height="160" fill="#97A4B8"/><rect x="836" y="273" width="37" height="187" fill="#97A4B8"/><rect x="876" y="363" width="36" height="97" fill="#97A4B8"/><rect x="912" y="354" width="20" height="106" fill="#97A4B8"/><rect x="932" y="315" width="26" height="145" fill="#97A4B8"/><rect x="960" y="273" width="30" height="187" fill="#97A4B8"/><rect x="994" y="303" width="32" height="157" fill="#97A4B8"/><rect x="1030" y="303" width="20" height="157" fill="#97A4B8"/><rect x="1054" y="325" width="18" height="135" fill="#97A4B8"/><rect x="1072" y="350" width="33" height="110" fill="#97A4B8"/><rect x="1105" y="288" width="33" height="172" fill="#97A4B8"/><rect x="1141" y="355" width="26" height="105" fill="#97A4B8"/><rect x="1169" y="278" width="22" height="182" fill="#97A4B8"/><rect x="1192" y="348" width="34" height="112" fill="#97A4B8"/><rect x="1228" y="304" width="39" height="156" fill="#97A4B8"/><rect x="1268" y="315" width="28" height="145" fill="#97A4B8"/><rect x="1298" y="277" width="24" height="183" fill="#97A4B8"/><rect x="1323" y="330" width="46" height="130" fill="#97A4B8"/><rect x="1370" y="311" width="36" height="149" fill="#97A4B8"/><rect x="1407" y="293" width="22" height="167" fill="#97A4B8"/><rect x="1429" y="367" width="40" height="93" fill="#97A4B8"/><rect x="-10" y="377" width="44" height="83" fill="#8392A8"/><rect x="-5" y="385" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="4" y="385" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="4" y="397" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="4" y="409" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="13" y="409" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="-5" y="421" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="22" y="421" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="4" y="433" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="13" y="433" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="-5" y="445" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="13" y="445" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="22" y="445" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="34" y="395" width="38" height="65" fill="#8392A8"/><rect x="66" y="403" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="39" y="415" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="57" y="415" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="57" y="427" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="66" y="427" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="48" y="451" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="73" y="372" width="20" height="88" fill="#8392A8"/><rect x="96" y="352" width="22" height="108" fill="#8392A8"/><rect x="110" y="360" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="101" y="396" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="110" y="396" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="110" y="408" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="110" y="432" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="101" y="444" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="118" y="352" width="27" height="108" fill="#8392A8"/><rect x="147" y="404" width="40" height="56" fill="#8392A8"/><rect x="152" y="412" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="161" y="412" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="179" y="412" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="161" y="424" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="152" y="436" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="190" y="350" width="46" height="110" fill="#8392A8"/><rect x="236" y="381" width="42" height="79" fill="#8392A8"/><rect x="241" y="389" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="259" y="401" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="259" y="413" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="268" y="425" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="268" y="437" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="282" y="335" width="21" height="125" fill="#8392A8"/><rect x="287" y="343" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="296" y="367" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="296" y="379" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="287" y="415" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="296" y="415" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="287" y="439" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="287" y="451" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="296" y="451" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="304" y="317" width="18" height="143" fill="#8392A8"/><rect x="309" y="349" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="309" y="373" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="309" y="397" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="309" y="409" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="325" y="347" width="44" height="113" fill="#8392A8"/><rect x="330" y="355" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="357" y="367" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="357" y="379" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="330" y="391" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="348" y="391" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="339" y="403" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="348" y="403" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="330" y="415" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="339" y="415" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="339" y="427" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="330" y="439" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="339" y="439" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="339" y="451" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="373" y="396" width="39" height="64" fill="#8392A8"/><rect x="378" y="404" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="387" y="404" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="387" y="416" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="396" y="416" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="405" y="416" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="405" y="428" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="378" y="440" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="378" y="452" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="416" y="414" width="29" height="46" fill="#8392A8"/><rect x="446" y="357" width="23" height="103" fill="#8392A8"/><rect x="460" y="377" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="460" y="389" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="451" y="401" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="451" y="437" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="451" y="449" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="471" y="323" width="21" height="137" fill="#8392A8"/><rect x="495" y="381" width="22" height="79" fill="#8392A8"/><rect x="500" y="401" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="509" y="401" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="500" y="413" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="500" y="425" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="509" y="425" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="509" y="449" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="519" y="367" width="39" height="93" fill="#8392A8"/><rect x="533" y="375" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="542" y="375" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="533" y="387" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="542" y="387" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="533" y="399" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="542" y="399" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="551" y="399" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="524" y="423" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="533" y="423" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="542" y="423" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="551" y="423" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="524" y="447" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="558" y="387" width="30" height="73" fill="#8392A8"/><rect x="563" y="395" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="563" y="407" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="563" y="431" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="563" y="443" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="581" y="443" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="588" y="382" width="42" height="78" fill="#8392A8"/><rect x="593" y="390" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="602" y="402" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="593" y="414" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="602" y="426" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="602" y="450" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="631" y="400" width="45" height="60" fill="#8392A8"/><rect x="636" y="408" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="636" y="420" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="636" y="444" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="645" y="444" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="680" y="358" width="45" height="102" fill="#8392A8"/><rect x="694" y="378" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="703" y="378" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="703" y="390" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="712" y="390" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="685" y="402" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="712" y="402" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="694" y="414" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="703" y="414" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="685" y="438" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="694" y="438" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="685" y="450" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="694" y="450" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="726" y="364" width="32" height="96" fill="#8392A8"/><rect x="740" y="384" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="740" y="408" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="731" y="420" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="740" y="420" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="749" y="432" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="740" y="444" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="749" y="444" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="762" y="316" width="20" height="144" fill="#8392A8"/><rect x="776" y="324" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="776" y="336" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="776" y="348" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="776" y="360" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="767" y="396" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="767" y="420" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="767" y="444" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="782" y="321" width="29" height="139" fill="#8392A8"/><rect x="796" y="341" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="787" y="353" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="796" y="353" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="805" y="365" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="787" y="377" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="796" y="377" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="805" y="377" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="787" y="389" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="796" y="401" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="787" y="413" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="796" y="413" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="805" y="413" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="787" y="425" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="796" y="425" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="787" y="437" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="813" y="349" width="42" height="111" fill="#8392A8"/><rect x="827" y="357" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="836" y="357" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="827" y="369" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="845" y="369" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="836" y="381" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="845" y="381" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="827" y="393" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="818" y="405" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="836" y="405" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="845" y="405" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="836" y="417" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="845" y="417" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="836" y="429" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="827" y="441" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="827" y="453" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="836" y="453" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="855" y="337" width="42" height="123" fill="#8392A8"/><rect x="869" y="345" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="878" y="345" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="887" y="345" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="860" y="357" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="869" y="357" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="860" y="369" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="869" y="369" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="878" y="369" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="887" y="369" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="869" y="381" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="869" y="393" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="860" y="405" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="860" y="417" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="869" y="417" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="887" y="429" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="878" y="441" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="887" y="441" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="901" y="388" width="45" height="72" fill="#8392A8"/><rect x="906" y="396" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="915" y="396" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="924" y="408" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="906" y="420" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="924" y="420" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="924" y="432" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="933" y="432" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="915" y="444" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="950" y="340" width="35" height="120" fill="#8392A8"/><rect x="955" y="348" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="964" y="348" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="973" y="360" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="964" y="384" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="955" y="408" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="964" y="408" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="973" y="408" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="964" y="432" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="987" y="395" width="36" height="65" fill="#8392A8"/><rect x="1024" y="321" width="46" height="139" fill="#8392A8"/><rect x="1047" y="329" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1056" y="329" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1047" y="341" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1056" y="341" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1038" y="353" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1038" y="365" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1056" y="365" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1029" y="377" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1038" y="377" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1029" y="389" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1029" y="401" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1038" y="401" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1047" y="401" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1056" y="401" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1038" y="413" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1038" y="437" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1056" y="437" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1074" y="401" width="34" height="59" fill="#8392A8"/><rect x="1079" y="409" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1097" y="409" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1097" y="433" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1110" y="347" width="37" height="113" fill="#8392A8"/><rect x="1133" y="367" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1133" y="379" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1115" y="391" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1124" y="391" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1124" y="403" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1133" y="415" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1124" y="427" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1115" y="451" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1149" y="380" width="37" height="80" fill="#8392A8"/><rect x="1186" y="336" width="27" height="124" fill="#8392A8"/><rect x="1191" y="356" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1191" y="404" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1200" y="440" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1200" y="452" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1217" y="398" width="30" height="62" fill="#8392A8"/><rect x="1222" y="406" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1231" y="406" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1240" y="406" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1231" y="418" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1231" y="442" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1240" y="442" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1251" y="347" width="40" height="113" fill="#8392A8"/><rect x="1256" y="355" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1274" y="367" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1283" y="367" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1265" y="379" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1256" y="391" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1274" y="391" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1274" y="403" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1274" y="415" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1256" y="427" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1256" y="439" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1293" y="339" width="45" height="121" fill="#8392A8"/><rect x="1298" y="347" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1325" y="347" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1298" y="359" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1316" y="359" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1316" y="371" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1298" y="383" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1307" y="383" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1307" y="395" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1325" y="395" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1298" y="407" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1316" y="407" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1325" y="407" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1298" y="419" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1298" y="431" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1325" y="431" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1298" y="443" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1325" y="443" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1342" y="347" width="24" height="113" fill="#8392A8"/><rect x="1356" y="367" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1347" y="391" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1356" y="403" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1356" y="427" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1356" y="439" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1356" y="451" width="3" height="4" fill="#DCE3EE" opacity=".7"/><rect x="1367" y="319" width="34" height="141" fill="#8392A8"/><rect x="1403" y="327" width="43" height="133" fill="#8392A8"/><g fill="#5E6F8A"><rect x="1176" y="120" width="8" height="300"/><rect x="1178" y="70" width="4" height="55"/><ellipse cx="1180" cy="175" rx="26" ry="14"/><rect x="1162" y="160" width="36" height="12" rx="4"/><polygon points="1164,420 1174,300 1186,300 1196,420"/></g><rect width="1440" height="460" fill="url(#hshade)"/></svg>
+  <div class="hero-in">
+    <h1>بازار مسکن را دقیق‌تر بشناسید</h1>
+    <p>تحلیل قیمت، مقایسه محله‌ها و کشف فرصت‌های خرید — از آگهی‌های دیوار و شیپور</p>
+    <div class="hero-search">
+      <label><span>شهر</span><select id="hCity"></select></label>
+      <label><span>محله</span><select id="hHood"></select></label>
+      <label><span>نوع ملک</span><select id="hKind"></select></label>
+      <button id="hGo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>جستجو</button>
+    </div>
+  </div>
+</section>
+
 <main id="main" class="wrap">
 
-  <div id="searchHost"></div>
+  <details class="morefilters" id="moreFilters">
+    <summary>فیلترهای بیشتر — متراژ، قیمت، اتاق، سن بنا، امکانات</summary>
+    <div id="searchHost"></div>
+  </details>
 
   <section>
     <div class="shead">
       <h2 id="areaHead">شهر و محله‌ها</h2>
-      <a href="cities.html" data-page="cities.html">همه محله‌ها ↓</a>
+      <a href="cities.html" data-page="cities.html">همه شهرها ←</a>
     </div>
 
     <div class="kpis" id="kpis"></div>
-    <div class="pulse" id="pulse"></div>
+  </section>
 
+  <section>
+    <div class="shead"><h2 id="statsHead">آمار و نمودارها</h2>
+      <a href="stats.html" data-page="stats.html">صفحه کامل آمار ←</a></div>
+    <div class="dash">
+      <div class="col">
+      <div class="panel">
+        <header><h3 id="trendTitle">روند قیمت</h3>
+          <div class="tabs" id="trendTabs"></div></header>
+      <div class="cmpbar" id="cmpBar"></div>
+        <div class="chartbox"><div class="chart">
+          <canvas id="trend"></canvas>
+        </div></div>
+        <p class="foot" id="trendNote"></p>
+      </div>
+
+      <div class="panel">
+        <header><h3 id="actTitle">تعداد آگهی‌های فروش</h3></header>
+        <div class="chartbox"><div class="chart"><canvas id="act"></canvas>
+          <div class="loading hide" id="actEmpty"></div></div></div>
+        <p class="foot" id="actFoot"></p>
+      </div>
+      </div>
+      <div class="col">
     <div class="panel">
       <header>
         <h3 id="hoodTitle">محله‌ها</h3>
         <div class="hl-view" id="hoodView">
-          <button data-view="list" class="on"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>فهرست</button>
-          <button data-view="map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>نقشه</button>
+          <button data-view="list"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>فهرست</button>
+          <button data-view="map" class="on"><svg viewBox="0 0 24 24"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>نقشه</button>
         </div>
       </header>
       <div class="hl-tools" id="hoodTools">
@@ -134,33 +174,22 @@ table.cards td:first-child{white-space:normal;min-width:160px}
           <span>گران‌ترین</span></div></div>
       <p class="foot" id="hoodFoot"></p>
     </div>
-
-    <div class="panel">
+      </div>
+    </div>
   </section>
 
   <section>
-    <div class="shead"><h2 id="statsHead">آمار و نمودارها</h2>
-      <a href="stats.html" data-page="stats.html">صفحه کامل آمار →</a></div>
+    <div class="shead"><h2>فرصت‌های خرید</h2>
+      <a href="ads.html" data-page="ads.html">مشاهده همه ←</a></div>
+    <p class="secsub" id="oppSub">آگهی‌هایی که قیمت هر مترشان پایین‌تر از میانه محله خودشان است.</p>
+    <div class="cardrow scroll" id="opps"></div>
+  </section>
 
-    <div class="sidebyside">
-      <div class="panel">
-        <header><h3 id="trendTitle">روند قیمت</h3>
-          <div class="tabs" id="trendTabs"></div></header>
-      <div class="cmpbar" id="cmpBar"></div>
-        <div class="chartbox"><div class="chart">
-          <canvas id="trend"></canvas>
-        </div></div>
-        <p class="foot" id="trendNote"></p>
-      </div>
-
-      <div class="panel">
-        <header><h3 id="actTitle">تعداد آگهی‌های فروش</h3></header>
-        <div class="chartbox"><div class="chart"><canvas id="act"></canvas>
-          <div class="loading hide" id="actEmpty"></div></div></div>
-        <p class="foot" id="actFoot"></p>
-      </div>
-    </div>
-
+  <section>
+    <div class="shead"><h2>محله‌های پرطرفدار</h2>
+      <a href="cities.html" data-page="cities.html">مشاهده همه محله‌ها ←</a></div>
+    <p class="secsub" id="popSub">محله‌هایی که بیشترین آگهی را دارند، با میانه قیمت هر متر.</p>
+    <div class="cardrow" id="popHoods"></div>
   </section>
 
   <section>
@@ -438,23 +467,107 @@ function drawKpis(){
   const filtered = activeFilterCount() > 0 || !!S.q;
   const mon = [...monthlyBase(S.hood).entries()].sort((x, y) => x[0] - y[0]).map(e => e[1]);
   const fresh = Math.round(freshCount(rows) * (rows.length ? count / rows.length : 1));
+  const ico = (d) => `<span class="kico"><svg viewBox="0 0 24 24">${d}</svg></span>`;
+  const hs = allHoodStats().filter(r => r.n >= HOOD_FEW && r.med > 0).sort((x, y) => x.med - y.med);
+  const cheapH = hs[0], dearH = hs[hs.length - 1];
+  const hoodCard = (k, r, icon) => r ? kpiCard({ k, v: esc(r.hood), cls: 'name',
+      u: `${FA1(r.med)} میلیون تومان · میانه هر متر`, viz: ico(icon),
+      foot: `${FA(r.n)} آگهی`, link: ['#', 'نمایش محله'] }).replace('<a href="#"', `<a href="#" data-pick="${esc(r.hood)}"`)
+    : kpiCard({ k, v: '—', u: 'محله‌ای با آگهی کافی نیست', viz: ico(icon) });
   document.getElementById('kpis').innerHTML =
-    kpiCard({ k: 'میانه هر متر مربع', scope: esc(scope) + (filtered ? ' · با فیلتر' : ''),
+    kpiCard({ k: 'میانه قیمت هر متر', scope: esc(scope) + (filtered ? ' · با فیلتر' : ''),
       v: med === null ? '—' : FA1(med), u: 'میلیون تومان',
-      viz: miniBars(mon.map(m => m.v), CSSVAR('--green-mid')),
-      foot: 'میانه ماه جاری',
+      viz: ico('<path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>'),
+      foot: chg.text !== '—' ? `<b class="${chg.cls}">${chg.text}</b> ${chg.sub}` : 'میانه ماه جاری',
       link: [linkTo('stats.html'), 'آمار کامل'] }) +
-    kpiCard({ k: 'تعداد آگهی', v: FA(count), u: `${approx ? 'حدود، ' : ''}در ${esc(scope)}`,
-      viz: miniBars(mon.map(m => m.n), CSSVAR('--accent')),
-      foot: fresh ? `<b class="new">+${FA(fresh)}</b> آگهی در ۷ روز گذشته` : 'آگهی‌های فعال دیوار',
+    kpiCard({ k: 'تعداد آگهی‌ها', v: FA(count), u: `${approx ? 'حدود، ' : ''}در ${esc(scope)}`,
+      viz: ico('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>'),
+      foot: fresh ? `<b class="new">+${FA(fresh)}</b> آگهی در ۷ روز گذشته` : 'آگهی‌های فعال',
       link: [linkTo('ads.html'), 'دیدن آگهی‌ها'] }) +
-    kpiCard({ k: chg.label, v: chg.text, cls: chg.cls, u: chg.sub,
-      viz: miniBars(mon.map(m => m.v), CSSVAR('--sun')),
-      foot: 'میانه قیمت هر متر', link: ['#trendTitle', 'روند قیمت'] }) +
-    kpiCard({ k: 'اعتبار این رقم', v: confBadge(count), cls: 'conf-v', u: 'بر پایه تعداد آگهی',
-      viz: miniRing(Math.min(1, count / 100), CSSVAR('--green')),
-      foot: `${FA(count)} آگهی`, link: ['about.html', 'روش کار'] });
-  drawPulse(fresh, scope);
+    hoodCard('ارزان‌ترین محله', cheapH, '<path d="M12 5v14M6 13l6 6 6-6"/>') +
+    hoodCard('گران‌ترین محله', dearH, '<path d="M12 19V5M6 11l6-6 6 6"/>');
+  document.querySelectorAll('#kpis [data-pick]').forEach(a => a.addEventListener('click', e => {
+    e.preventDefault(); pickHood(a.dataset.pick);
+  }));
+}
+
+function allHoodStats(){
+  const keep = S.hood;
+  S.hood = '';
+  const r = hoodStats();
+  S.hood = keep;
+  return r;
+}
+
+function syncHero(){
+  const c = document.getElementById('hCity'), h = document.getElementById('hHood'), k = document.getElementById('hKind');
+  if (!c || !DB || !CITY) return;
+  c.innerHTML = [...DB.cities].sort((a, b) => (b.n || 0) - (a.n || 0))
+    .map(x => `<option value="${esc(x.id)}"${x.id === S.city ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
+  const names = allHoodStats().map(r => r.hood).filter(x => x && x !== 'نامشخص').sort(byFa);
+  h.innerHTML = '<option value="">همه محله‌ها</option>' +
+    names.map(n => `<option${n === S.hood ? ' selected' : ''}>${esc(n)}</option>`).join('');
+  k.innerHTML = KINDS.map(x => `<option value="${x.id}"${x.id === S.kind ? ' selected' : ''}>${x.label}</option>`).join('');
+  if (c.dataset.ready) return;
+  c.dataset.ready = '1';
+  c.addEventListener('change', () => {
+    const f = document.getElementById('fCity');
+    if (f) { f.value = c.value; f.dispatchEvent(new Event('change')); }
+  });
+  h.addEventListener('change', () => { S.hood = h.value; fillHoodSelect(); commit(); });
+  k.addEventListener('change', () => {
+    const b = document.querySelector(`#kindTabs [data-k="${k.value}"]`);
+    if (b && !b.disabled) b.click(); else k.value = S.kind;
+  });
+  document.getElementById('hGo').addEventListener('click', () =>
+    document.getElementById('kpis').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+}
+
+const HOUSE_SVG = '<svg viewBox="0 0 24 24"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>';
+function drawOpps(){
+  const box = document.getElementById('opps');
+  const meds = new Map(allHoodStats().filter(r => r.n >= HOOD_FEW && r.med > 0).map(r => [r.hood, r.med]));
+  const cut = new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10);
+  const list = activeListings()
+    .filter(l => l.m > 0 && l.a > 0 && l.p > 0 && meds.has(l.h) && (!l.d || l.d >= cut))
+    .map(l => ({ l, off: l.m / meds.get(l.h) - 1 }))
+    .filter(x => x.off <= -0.12 && x.off >= -0.45)
+    .sort((x, y) => x.off - y.off)
+    .slice(0, 8);
+  if (!list.length) {
+    box.innerHTML = '<div class="loading" style="grid-column:1/-1">با این انتخاب آگهی‌ای به‌طور محسوس زیر قیمت محله پیدا نشد.</div>';
+    return;
+  }
+  box.innerHTML = list.map(({ l, off }) => `
+    <div class="opp" data-url="${esc(l.u || '')}">
+      <div class="ph">${HOUSE_SVG}<span class="badge">${FA(Math.round(off * 100)).replace('-', '\u2212')}٪</span>
+        <span class="src">${esc(SOURCE_NAME[l.s] || l.s || '')}</span></div>
+      <div class="bd"><b>${esc(l.n || (kindLabel() + ' ' + FA(l.a) + ' متری'))}</b>
+        <span class="loc">${esc(CITY.name)}، ${esc(l.h)} · ${FA(l.a)} متر</span>
+        <span class="pr">${FA1(l.p / 1000)} میلیارد تومان</span>
+        <span class="pm">${FA1(l.m)} میلیون هر متر · میانه محله ${FA1(meds.get(l.h))}</span></div>
+    </div>`).join('');
+  box.querySelectorAll('.opp').forEach(el => el.addEventListener('click', () => {
+    if (el.dataset.url) window.open(el.dataset.url, '_blank', 'noopener,noreferrer');
+  }));
+}
+
+function drawPopHoods(){
+  const box = document.getElementById('popHoods');
+  const rows = allHoodStats().filter(r => r.hood && r.hood !== 'نامشخص' && r.med > 0);
+  if (!rows.length) { box.innerHTML = ''; return; }
+  const sc = hoodScale(rows);
+  box.innerHTML = [...rows].sort((a, b) => b.n - a.n).slice(0, 8).map(r => `
+    <div class="phood" data-hood="${esc(r.hood)}">
+      <span class="tile" style="background:${heat(r.med, sc.lo, sc.hi)}">${esc([...r.hood][0] || '')}</span>
+      <div class="bd"><b>${esc(r.hood)}</b>
+        <span class="loc">متری ${FA1(r.med)} میلیون تومان</span>
+        <span class="loc">${FA(r.n)} آگهی</span></div>
+    </div>`).join('');
+  box.querySelectorAll('.phood').forEach(el => el.addEventListener('click', () => {
+    pickHood(el.dataset.hood);
+    document.getElementById('kpis').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }));
 }
 
 function drawPulse(fresh, scope){
@@ -509,14 +622,14 @@ function hoodStats(){
    than either the green or the red end. */
 function heatIsLight(v, lo, hi){
   if (!isFinite(v) || hi <= lo) return false;
-  const stops = [[27,138,143],[242,193,78],[240,138,75],[214,84,52]];
+  const stops = [[207,224,251],[120,170,240],[30,111,224],[12,58,138]];
   const x = Math.max(0, Math.min(1, (v-lo)/(hi-lo))) * (stops.length-1);
   const i = Math.min(stops.length-2, Math.floor(x)), f = x - i;
   const c = k => stops[i][k] + (stops[i+1][k]-stops[i][k])*f;
   return 0.299*c(0) + 0.587*c(1) + 0.114*c(2) > 150;
 }
 
-let hoodSort = 'price', hoodView = 'list', hoodShowAll = false, hoodFind = '';
+let hoodSort = 'price', hoodView = 'map', hoodShowAll = false, hoodFind = '';
 let hoodMap = null, hoodLayer = null;
 const HOOD_TOP = 15, HOOD_FEW = 20;
 
@@ -732,7 +845,7 @@ function historyDays(h){
 const MIN_TREND_DAYS = 7;
 let TREND_MONTHS = null;
 const HOOD_LINES = 5;
-const LINE_COLORS = ['#0D5C63','#F08A4B','#E0A82E','#1D5FA8','#7A3E9D','#4B5563'];
+const LINE_COLORS = ['#1E63D6','#F08A4B','#E0A82E','#7A3E9D','#0E9F8F','#4B5563'];
 
 /* Monthly points, not daily.
    A daily median of a market this size is mostly noise — the same flats,
@@ -1507,8 +1620,11 @@ bootPage('index.html', () => {
     + ` — ${kindLabel()}`;
   document.getElementById('hoodTitle').textContent =
     `محله‌های ${CITY.name} — ${kindLabel()}`;
+  syncHero();
   drawKpis();
   drawHoods();
+  drawOpps();
+  drawPopHoods();
   document.getElementById('statsHead').textContent =
     `آمار ${kindLabel()} در ${S.hood || CITY.name}`;
   drawTrendTabs();
