@@ -639,7 +639,7 @@ function renderNav(current){
     `<a href="${menuLink(p.file)}"${p.file === current ? ' class="on" aria-current="page"' : ''}>${navIco(p.file)}<span>${p.label}</span></a>`).join('');
   const brand = `<a class="brand" href="index.html">
         <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">${LOGO}</svg>
-        <span><b>MaskanHub</b><small>تحلیل بازار مسکن</small></span></a>`;
+        <span><b>تحلیل بازار مسکن</b><small>قیمت‌ها و روند بازار</small></span></a>`;
   document.body.classList.add('has-side');
   document.body.insertAdjacentHTML('afterbegin', `
     <aside class="side" id="side" aria-label="فهرست اصلی">
@@ -652,7 +652,7 @@ function renderNav(current){
     <header class="topbar"><div class="wrap">
       <button class="iconbtn burger" id="burger" aria-label="فهرست" aria-controls="side" aria-expanded="false">${ICONS.burger}</button>
       ${brand}
-      <div class="tb-title">${page ? page.label : ''}<small>MaskanHub · تحلیل بازار مسکن</small></div>
+      <div class="tb-title">${page ? page.label : ''}<small>تحلیل بازار مسکن</small></div>
       <button class="iconbtn" id="theme" title="روشن / تیره" aria-label="روشن یا تیره">${ICONS.theme}</button>
     </div></header>`);
   const side = document.getElementById('side'), shade = document.getElementById('sideShade'),

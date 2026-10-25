@@ -924,3 +924,29 @@ footer{margin-top:44px;background:transparent;border-top:1px solid var(--rule)}
 .herocard{flex-direction:column}
 .hc-chips{position:relative;top:auto;inset-inline-end:auto;padding:16px 18px 0;justify-content:flex-end}
 .hc-text{padding-top:6px}
+
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.herocard.photo{display:block;aspect-ratio:979/193;min-height:0;background:#2E4148;container-type:inline-size;overflow:visible}
+.herocard.photo .hc-img{position:absolute;inset:0;border-radius:22px;background:url(hero-tehran.jpg) center/100% 100% no-repeat}
+.herocard.photo .hc-ui{position:absolute;inset:0}
+.herocard.photo .ov{position:absolute}
+.ov-city,.ov-period{top:9.3%;height:17.1%;display:flex;align-items:center;justify-content:center;gap:.4em;background:#F7F8F6;color:#183B3B;
+  border-radius:999px;font-weight:700;font-size:clamp(10px,1.45cqw,14.5px);box-shadow:0 4px 10px rgba(0,0,0,.12);padding:0 .9em;white-space:nowrap}
+.ov-city{left:1.6%;min-width:10.2%}
+.ov-period{left:12.9%;min-width:13.7%;font-weight:600;color:#3D5654}
+.ov-city svg,.ov-period svg{width:1.2em;height:1.2em;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.ov-city select{border:0;background:transparent;color:inherit;font:inherit;font-weight:800;padding:0;cursor:pointer}
+.ov-search{left:2.5%;top:63.2%;width:40.6%;height:25.4%;max-width:none}
+.herocard.photo .hc-search input{height:100%;font-size:clamp(11px,1.6cqw,16px);padding-inline-start:1.4em;padding-inline-end:3em;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.herocard.photo .hc-search > svg{top:50%;transform:translateY(-50%);width:clamp(14px,2.1cqw,22px);height:clamp(14px,2.1cqw,22px);inset-inline-end:1em}
+.herocard.photo .hc-sugg{top:calc(100% + 6px)}
+@media (max-width:700px){
+  .herocard.photo{aspect-ratio:auto;background:var(--card);border:1px solid var(--rule);box-shadow:var(--shadow)}
+  .herocard.photo .hc-img{position:relative;height:190px;border-radius:22px 22px 0 0;background-size:auto 100%;background-position:right center}
+  .herocard.photo .hc-ui{position:static;display:flex;flex-wrap:wrap;gap:8px;padding:12px}
+  .herocard.photo .ov{position:static;height:38px;min-width:0;font-size:13.5px}
+  .ov-city,.ov-period{border:1px solid var(--rule);box-shadow:none}
+  .ov-search{flex:1 1 100%;width:auto;height:48px!important}
+  .herocard.photo .hc-search input{font-size:15px;border:1px solid var(--rule);box-shadow:none;background:var(--paper);color:var(--ink)}
+  .herocard.photo .hc-search > svg{width:20px;height:20px}
+}
