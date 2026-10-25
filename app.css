@@ -943,11 +943,11 @@ footer{margin-top:44px;background:transparent;border-top:1px solid var(--rule)}
 main > .herocard.photo{margin-top:20px}
 .hc-mtext{display:none}
 @media (max-width:700px){
-  .herocard.photo{aspect-ratio:auto;height:340px;border-radius:20px;overflow:hidden}
+  .herocard.photo{aspect-ratio:auto;height:auto;min-height:340px;border-radius:20px;overflow:hidden}
   .herocard.photo .hc-img{inset:0;border-radius:20px;background:url(hero-tehran-m.jpg) 30% center/cover no-repeat}
   .herocard.photo .hc-img::after{content:"";position:absolute;inset:0;border-radius:20px;
     background:linear-gradient(180deg,rgba(9,38,41,.10) 0%,rgba(9,38,41,.25) 35%,rgba(9,38,41,.82) 100%)}
-  .herocard.photo .hc-ui{position:absolute;inset:0;display:grid;grid-template-columns:auto auto 1fr;grid-template-rows:auto 1fr auto auto;gap:10px 8px;padding:14px}
+  .herocard.photo .hc-ui{position:relative;min-height:340px;display:grid;grid-template-columns:auto auto 1fr;grid-template-rows:auto 1fr auto auto;gap:10px 8px;padding:14px}
   .hc-ui > .ov-city{grid-column:1;grid-row:1}
   .hc-ui > .ov-period{grid-column:2;grid-row:1}
   .hc-ui > .hc-mtext{grid-column:1/-1;grid-row:3}
@@ -1016,3 +1016,17 @@ main > .herocard.photo{margin-top:20px}
 .jump a:hover{border-color:var(--green-mid);color:var(--green)}
 .morefilters > .searchbar,.morefilters #searchHost > .searchbar{margin-top:8px}
 html{scroll-padding-top:80px}
+
+.morefilters{width:100%}
+.morefilters > summary{display:flex;width:100%;align-items:center;gap:10px;padding:12px 16px;border-radius:14px;
+  border:1px solid var(--rule);background:var(--card);box-shadow:var(--shadow);font-size:15px}
+.morefilters > summary .mf-sub{font-weight:500;color:var(--muted);font-size:13px}
+.morefilters > summary::after{content:"";margin-inline-start:auto;width:9px;height:9px;border-inline-end:2px solid var(--muted);
+  border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .15s;flex:0 0 auto;margin-top:-4px}
+.morefilters[open] > summary::after{transform:rotate(-135deg);margin-top:4px}
+.morefilters > summary:hover{border-color:var(--green-mid)}
+.morefilters > summary > span{display:flex;flex-direction:column;line-height:1.5;min-width:0}
+@media (max-width:700px){
+  .morefilters > summary{padding:11px 14px;font-size:14.5px}
+  .morefilters > summary .mf-sub{font-size:12px}
+}
