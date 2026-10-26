@@ -710,7 +710,7 @@ function renderNav(current){
         <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">${LOGO}</svg>
         <span><b>تحلیل بازار مسکن</b><small>قیمت‌ها و روند بازار</small></span></a>`;
   document.body.classList.add('has-side');
-  try { if (localStorage.getItem('mk_side') === 'mini') document.body.classList.add('side-mini'); } catch (e) {}
+  { let st = null; try { st = sessionStorage.getItem('mk_side'); } catch (e) {} if (st !== 'full') document.body.classList.add('side-mini'); }
   document.body.insertAdjacentHTML('afterbegin', `
     <aside class="side" id="side" aria-label="فهرست اصلی">
       ${brand}
@@ -750,7 +750,7 @@ function renderNav(current){
   tog.addEventListener('click', () => {
     if (window.innerWidth <= 1100) { setOpen(false); return; }
     const mini = document.body.classList.toggle('side-mini');
-    try { localStorage.setItem('mk_side', mini ? 'mini' : 'full'); } catch (e) {}
+    try { sessionStorage.setItem('mk_side', mini ? 'mini' : 'full'); } catch (e) {}
     syncTog();
     setTimeout(() => window.dispatchEvent(new Event('resize')), 240);
   });
