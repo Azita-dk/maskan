@@ -1282,8 +1282,8 @@ async function probeApi(url, env) {
   const n = Math.min(Number(url.searchParams.get("n")) || 5, 10);
   const src = url.searchParams.get("src") || "divar";
   const ids = url.searchParams.get("id") ? [url.searchParams.get("id")]
-    : (await env.DB.prepare(`SELECT source_id FROM listings WHERE rowid > (SELECT MAX(rowid) FROM listings) - 3000
-        AND source = ? AND removed_at IS NULL LIMIT ?`).bind(src, n).all()).results.map((r) => r.source_id);
+    : (await env.DB.prepare(`SELECT source_id FROM listings WHERE source = ? AND removed_at IS NULL
+        ORDER BY rowid DESC LIMIT ?`).bind(src, n).all()).results.map((r) => r.source_id);
   const t = Date.now();
   const out = await Promise.all(ids.map(async (id) => ({ id, ...(await probe(src, id)) })));
   return json({ ms: Date.now() - t, out });
