@@ -1251,13 +1251,13 @@ const IMG_RE = /https:\/\/[a-z0-9.-]*divarcdn\.com\/static\/[^"'\s\\]+?\.(?:jpe?
 const OG_IMG = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i;
 
 async function probe(src, id) {
-  const opt = { headers: { "User-Agent": BROWSER_UA } };
+  const opt = { headers: { "User-Agent": BROWSER_UA, Accept: src === "divar" ? "application/json" : "text/html", "Accept-Language": "fa,en;q=0.8" } };
   try { opt.signal = AbortSignal.timeout(3500); } catch (e) { /* older runtime */ }
   try {
     if (src === "divar") {
       const res = await fetch(DIVAR_DETAIL + id, opt);
       if (res.status === 404 || res.status === 410) return { up: false };
-      if (!res.ok) return { up: null };
+      if (!res.ok) return { up: null, code: res.status };
       const text = await res.text();
       if (REMOVED_TEXT.test(text)) return { up: false };
       const m = text.match(IMG_RE);
@@ -1267,12 +1267,23 @@ async function probe(src, id) {
       const res = await fetch(`https://www.sheypoor.com/v/x-${id}.html`, { ...opt, redirect: "manual" });
       if (res.status === 404 || res.status === 410) return { up: false };
       if (res.status >= 300 && res.status < 400) return { up: (res.headers.get("location") || "").includes(id) ? true : false };
-      if (res.status !== 200) return { up: null };
+      if (res.status !== 200) return { up: null, code: res.status };
       const m = (await res.text()).match(OG_IMG);
       return { up: true, img: m ? (m[1] || m[2]) : null };
     }
-  } catch (e) { /* unknown */ }
+  } catch (e) { return { up: null, code: String(e && e.name || e) }; }
   return { up: null };
+}
+
+async function probeApi(url, env) {
+  const n = Math.min(Number(url.searchParams.get("n")) || 5, 10);
+  const src = url.searchParams.get("src") || "divar";
+  const ids = url.searchParams.get("id") ? [url.searchParams.get("id")]
+    : (await env.DB.prepare(`SELECT source_id FROM listings WHERE source = ? AND removed_at IS NULL
+        ORDER BY COALESCE(last_seen, scraped_at) DESC LIMIT ?`).bind(src, n).all()).results.map((r) => r.source_id);
+  const t = Date.now();
+  const out = await Promise.all(ids.map(async (id) => ({ id, ...(await probe(src, id)) })));
+  return json({ ms: Date.now() - t, out });
 }
 async function stillUp(src, id) { return (await probe(src, id)).up; }
 
@@ -1501,6 +1512,9 @@ export default {
     }
 
     // the site fetches its data through here
+    if (url.pathname === "/probe") {
+      try { return await probeApi(url, env); } catch (err) { return json({ error: String(err.message || err) }, 500); }
+    }
     if (url.pathname === "/opps") {
       if (request.method === "OPTIONS") return new Response(null, { headers: { "access-control-allow-origin": "*", "access-control-allow-methods": "GET, POST", "access-control-allow-headers": "content-type" } });
       try { return await oppsApi(url, env, request); }
