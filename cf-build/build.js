@@ -36,17 +36,13 @@ const BACKFILL_PER_RUN = 2;
 
 const ACTIVE_DAYS = 21;
 const BOUNDS = {
-  apartment: { area: [15, 1000], total: 6e11, m2: [2e6, 1.5e9] },
-  villa:     { area: [30, 5000], total: 1.5e12, m2: [1e6, 1.5e9] },
-  land:      { area: [30, 200000], total: 2e12, m2: [1e5, 1.5e9] },
+  apartment: { m2: [2e6, 1.5e9] },
+  villa:     { m2: [1e6, 1.5e9] },
+  land:      { m2: [1e5, 1.5e9] },
 };
-const WHOLE_BUILDING = ["مستغلات", "یکجا", "کل ساختمان", "کلنگی"];
-const isWholeBuilding = (title) => WHOLE_BUILDING.some((w) => String(title || "").includes(w));
 const boundsSql = (kind) => {
   const b = BOUNDS[kind] || BOUNDS.apartment;
-  return `area_m2 BETWEEN ${b.area[0]} AND ${b.area[1]} AND price_toman <= ${b.total}` +
-    ` AND price_m2 BETWEEN ${b.m2[0]} AND ${b.m2[1]}` +
-    (kind === "land" ? "" : WHOLE_BUILDING.map((w) => ` AND COALESCE(title, '') NOT LIKE '%${w}%'`).join(""));
+  return `(price_m2 IS NULL OR price_m2 BETWEEN ${b.m2[0]} AND ${b.m2[1]})`;
 };
 
 /**
@@ -449,45 +445,24 @@ export async function build(env, log = [], from = 0, self = null) {
       }
     }
   }
-  const OUT_FACTOR = { apartment: 5, villa: 6, land: 10 };
   const sane = (r, kind) => {
-    const b = BOUNDS[kind] || BOUNDS.apartment, a = r.area_m2, p = Number(r.price_toman) || 0;
-    if (!a || a < b.area[0] || a > b.area[1]) return false;
-    if (kind !== "land" && isWholeBuilding(r.title)) return false;
-    if (p > b.total) return false;
-    if (!(r.price_m2 >= b.m2[0] && r.price_m2 <= b.m2[1])) return false;
-    return true;
+    const b = BOUNDS[kind] || BOUNDS.apartment;
+    return !(r.price_m2 > 0) || (r.price_m2 >= b.m2[0] && r.price_m2 <= b.m2[1]);
   };
   const outliers = new Map();
   let outlierN = 0;
   for (const [gk, list] of cities) {
     const [city, kind] = gk.split("|");
-    const hi = OUT_FACTOR[kind] || 6, lo = 1 / hi;
-    const priced = list.filter((r) => !r.dup && r.price_m2 > 0);
-    if (priced.length < 20) continue;
-    const cityMed = median(priced.map((r) => r.price_m2));
-    const byHood = new Map();
-    for (const r of priced) {
-      const k = canonicalPlace(r.hood || "");
-      if (!k) continue;
-      if (!byHood.has(k)) byHood.set(k, []);
-      byHood.get(k).push(r.price_m2);
-    }
-    const hoodMed = new Map();
-    for (const [k, v] of byHood) if (v.length >= 10) hoodMed.set(k, median(v));
     const keep = [];
     for (const r of list) {
-      const ref = hoodMed.get(canonicalPlace(r.hood || "")) || cityMed;
-      const ratio = r.price_m2 > 0 ? r.price_m2 / ref : 1;
-      if (ratio > hi || ratio < lo || !sane(r, kind)) {
-        if (!outliers.has(city)) outliers.set(city, []);
-        outliers.get(city).push(r);
-        outlierN++;
-      } else keep.push(r);
+      if (sane(r, kind)) { keep.push(r); continue; }
+      if (!outliers.has(city)) outliers.set(city, []);
+      outliers.get(city).push(r);
+      outlierN++;
     }
     cities.set(gk, keep);
   }
-  log.push(`${outlierN} ads left out: price per metre far from their neighbourhood's, or size or price impossible for the kind`);
+  log.push(`${outlierN} ads left out: impossible price per metre for the kind`);
   log.push(`${onDivar} ads from other sites left out because the same ad is on Divar`);
   log.push(`${dupes} duplicate reposts (shown, not counted twice in statistics), ` +
            `${misplaced} whose map position is in another town ` +
