@@ -1254,7 +1254,7 @@ function faNum(t) {
   return Number(String(t).replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[^\d]/g, "")) || null;
 }
 function divarPrice(text) {
-  const m = text.match(/"قیمت کل"[^{}]{0,200}?"value"\s*:\s*"([^"]+)"/) ||
+  const m = text.match(/"قیمت کل"[\s\S]{0,160}?"value"\s*:\s*"([^"]+)"/) ||
             text.match(/"value"\s*:\s*"([^"]+)"[^{}]{0,200}?"قیمت کل"/);
   if (m) { const n = faNum(m[1]); return n && n > 1e7 ? n : null; }
   const w = text.match(/"price"\s*:\s*"?(\d{8,})/);
