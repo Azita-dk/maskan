@@ -1200,7 +1200,7 @@ function adsWhere(q, num) {
   const where = [
     "city = ?", "COALESCE(kind, 'apartment') = ?",
     "source IN ('divar', 'sheypoor')", "removed_at IS NULL",
-    "price_toman > 0", "COALESCE(outlier, 0) = 0", "COALESCE(last_seen, substr(scraped_at, 1, 10)) >= date('now', ?)",
+    "price_toman > 0", "COALESCE(price_m2, 0) < 5e9", "COALESCE(outlier, 0) = 0", "COALESCE(last_seen, substr(scraped_at, 1, 10)) >= date('now', ?)",
     `NOT (source = 'sheypoor' AND dedupe_key IS NOT NULL AND EXISTS (
        SELECT 1 FROM listings d WHERE d.dedupe_key = listings.dedupe_key
          AND d.source = 'divar' AND d.removed_at IS NULL))`,
@@ -1253,13 +1253,29 @@ const OG_IMG = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']
 function faNum(t) {
   return Number(String(t).replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[^\d]/g, "")) || null;
 }
+function parsePriceText(text) {
+  let t = String(text || "");
+  for (let i = 0; i < 10; i++) t = t.split("۰۱۲۳۴۵۶۷۸۹"[i]).join(String(i)).split("٠١٢٣٤٥٦٧٨٩"[i]).join(String(i));
+  if (/توافقی|تماس|رایگان/.test(t)) return null;
+  const rial = /ریال/.test(t);
+  t = t.replace(/٫/g, ".").replace(/(?<=\d)\/(?=\d)/g, ".").replace(/[,٬\s]/g, "");
+  let scale = 1;
+  for (const [w, m] of [["میلیارد", 1e9], ["ملیارد", 1e9], ["میلیون", 1e6], ["ملیون", 1e6], ["هزار", 1e3]]) {
+    if (t.includes(w)) { scale = m; t = t.split(w).join(" "); break; }
+  }
+  const m = t.match(/\d+(?:\.\d+)?/);
+  if (!m) return null;
+  let v = parseFloat(m[0]) * scale;
+  if (rial) v /= 10;
+  return Math.round(v) || null;
+}
 function divarPrice(text) {
   const m = text.match(/"قیمت کل"[\s\S]{0,160}?"value"\s*:\s*"([^"]+)"/) ||
             text.match(/"value"\s*:\s*"([^"]+)"[^{}]{0,200}?"قیمت کل"/);
-  if (m) { const n = faNum(m[1]); return n && n > 1e7 ? n : null; }
-  const w = text.match(/"price"\s*:\s*"?(\d{8,})/);
-  return w ? Number(w[1]) : null;
+  return m ? parsePriceText(m[1]) : null;
 }
+const priceOk = (fresh, old, area) => fresh && old && fresh / old > 0.4 && fresh / old < 2.5 &&
+  (!area || (fresh / area > 1e6 && fresh / area < 5e9));
 
 async function probe(src, id, dbg = false) {
   const opt = { headers: { "User-Agent": BROWSER_UA, Accept: src === "divar" ? "application/json" : "text/html", "Accept-Language": "fa,en;q=0.8" } };
@@ -1377,7 +1393,7 @@ async function oppsApi(url, env, request) {
       const p = await probe(r.source, r.source_id);
       if (p.up === true) {
         ALIVE.set(key, Date.now()); if (p.img) IMG.set(key, p.img);
-        if (p.price && r.price_toman && Math.abs(p.price - r.price_toman) / r.price_toman > 0.005) {
+        if (priceOk(p.price, r.price_toman, r.area_m2) && Math.abs(p.price - r.price_toman) / r.price_toman > 0.005) {
           r.price_toman = p.price; r.price_m2 = r.area_m2 > 0 ? Math.round(p.price / r.area_m2) : r.price_m2; r._repriced = true;
         }
         seen.push([r, p.img]);
@@ -1430,7 +1446,7 @@ async function verifyFront(env, results, max) {
   const up = todo.filter((_, i) => states[i] === true);
   todo.forEach((r, i) => {
     const pr = probes[i].price;
-    if (states[i] === true && pr && r.price_toman && Math.abs(pr - r.price_toman) / r.price_toman > 0.005) {
+    if (states[i] === true && priceOk(pr, r.price_toman, r.area_m2) && Math.abs(pr - r.price_toman) / r.price_toman > 0.005) {
       r.price_toman = pr; if (r.area_m2 > 0) r.price_m2 = Math.round(pr / r.area_m2); r._repriced = true;
     }
   });
@@ -1488,6 +1504,34 @@ async function adsApi(url, env) {
   });
 }
 
+async function repairPrices(env) {
+  const db = env.DB;
+  const { results } = await db.prepare(`SELECT source, source_id, price_toman, area_m2 FROM listings
+    WHERE source IN ('divar', 'sheypoor') AND removed_at IS NULL AND price_m2 >= 5e9
+      AND price_changed_at >= '2026-10-26' LIMIT 25`).all();
+  const log = [];
+  for (const r of results) {
+    const p = await probe(r.source, r.source_id);
+    let fixed = null;
+    if (p.up === false) {
+      await db.prepare("UPDATE listings SET removed_at = COALESCE(removed_at, date('now')) WHERE source = ? AND source_id = ?").bind(r.source, r.source_id).run();
+      log.push(`${r.source_id} removed`);
+    }
+    if (p.price && r.area_m2 > 0 && p.price / r.area_m2 > 1e6 && p.price / r.area_m2 < 5e9) fixed = p.price;
+    else if (r.area_m2 > 0 && r.price_toman / 1000 / r.area_m2 > 1e6 && r.price_toman / 1000 / r.area_m2 < 5e9) fixed = Math.round(r.price_toman / 1000);
+    if (fixed) {
+      await db.prepare("UPDATE listings SET price_toman = ?, price_m2 = ? WHERE source = ? AND source_id = ?")
+        .bind(fixed, Math.round(fixed / r.area_m2), r.source, r.source_id).run();
+      try {
+        await db.prepare("DELETE FROM price_history WHERE source = ? AND source_id = ? AND price_toman >= ?")
+          .bind(r.source, r.source_id, r.price_toman).run();
+      } catch (e) { /* no history table */ }
+      log.push(`${r.source_id} ${r.price_toman} -> ${fixed}`);
+    }
+  }
+  return log;
+}
+
 export default {
   async scheduled(event, env, ctx) {
     /* Runs every five minutes and rebuilds continuously.
@@ -1499,6 +1543,7 @@ export default {
      * showing 19,809 Tehran apartments while the database held 30,882. A
      * finished pass now starts another. */
     ctx.waitUntil((async () => {
+      try { const fx = await repairPrices(env); if (fx.length) console.log("price repair: " + fx.join(", ")); } catch (e) { console.log("price repair failed: " + e.message); }
       const today = new Date().toISOString().slice(0, 10);
       let from = 0;
       try {
@@ -1563,6 +1608,9 @@ export default {
     }
 
     // the site fetches its data through here
+    if (url.pathname === "/repair") {
+      try { return json({ fixed: await repairPrices(env) }); } catch (err) { return json({ error: String(err.message || err) }, 500); }
+    }
     if (url.pathname === "/probe") {
       try { return await probeApi(url, env); } catch (err) { return json({ error: String(err.message || err) }, 500); }
     }
