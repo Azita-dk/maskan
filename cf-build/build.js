@@ -1250,6 +1250,17 @@ const REMOVED_TEXT = /آگهی\s*(?:حذف\s*شده|منقضی\s*شده|غیرف
 const IMG_RE = /https:\/\/[a-z0-9.-]*divarcdn\.com\/static\/[^"'\s\\]+?\.(?:jpe?g|webp|png)/i;
 const OG_IMG = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i;
 
+function faNum(t) {
+  return Number(String(t).replace(/[۰-۹]/g, (d) => "۰۱۲۳۴۵۶۷۸۹".indexOf(d)).replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d)).replace(/[^\d]/g, "")) || null;
+}
+function divarPrice(text) {
+  const m = text.match(/"قیمت کل"[^{}]{0,200}?"value"\s*:\s*"([^"]+)"/) ||
+            text.match(/"value"\s*:\s*"([^"]+)"[^{}]{0,200}?"قیمت کل"/);
+  if (m) { const n = faNum(m[1]); return n && n > 1e7 ? n : null; }
+  const w = text.match(/"price"\s*:\s*"?(\d{8,})/);
+  return w ? Number(w[1]) : null;
+}
+
 async function probe(src, id, dbg = false) {
   const opt = { headers: { "User-Agent": BROWSER_UA, Accept: src === "divar" ? "application/json" : "text/html", "Accept-Language": "fa,en;q=0.8" } };
   try { opt.signal = AbortSignal.timeout(3500); } catch (e) { /* older runtime */ }
@@ -1262,7 +1273,7 @@ async function probe(src, id, dbg = false) {
       if (REMOVED_TEXT.test(text)) return { up: false };
       const all = text.match(new RegExp(IMG_RE.source, "gi")) || [];
       const img = all.find((u) => /\/photo\//.test(u) && !/thumbnail/i.test(u)) || all.find((u) => !/thumbnail/i.test(u)) || all[0] || null;
-      const out = { up: true, img };
+      const out = { up: true, img, price: divarPrice(text) };
       if (dbg && !img) { const i = text.search(/image|photo|divarcdn/i); out.sample = text.slice(Math.max(0, i - 80), i + 320); }
       return out;
     }
@@ -1362,15 +1373,20 @@ async function oppsApi(url, env, request) {
       const key = `${r.source}:${r.source_id}`;
       const c = ALIVE.get(key);
       if (c && Date.now() - c < 1200e3) return { up: true, img: IMG.get(key) || r.image_url };
-      const goodImg = r.image_url && (/divarcdn\.com\/static\/photo\//.test(r.image_url) || r.image_url.includes(`/${r.source_id}/`));
-      if (String(r.checked_at || "").slice(0, 10) === today && goodImg) return { up: true, img: r.image_url };
       checked++;
       const p = await probe(r.source, r.source_id);
-      if (p.up === true) { ALIVE.set(key, Date.now()); if (p.img) IMG.set(key, p.img); seen.push([r, p.img]); }
+      if (p.up === true) {
+        ALIVE.set(key, Date.now()); if (p.img) IMG.set(key, p.img);
+        if (p.price && r.price_toman && Math.abs(p.price - r.price_toman) / r.price_toman > 0.005) {
+          r.price_toman = p.price; r.price_m2 = r.area_m2 > 0 ? Math.round(p.price / r.area_m2) : r.price_m2; r._repriced = true;
+        }
+        seen.push([r, p.img]);
+      }
       return p;
     }));
     batch.forEach((r, j) => {
       if (states[j].up === false) { gone.push(r); return; }
+      if (r._repriced && !(r.price_m2 <= r.hood_med * 1e6 * 0.88 && r.price_m2 >= r.hood_med * 1e6 * 0.55)) return;
       const k1 = `${foldPlace(r.hood)}|${Math.round(r.area_m2)}|${Math.round(r.price_toman / 1e7)}`;
       const k2 = states[j].img ? states[j].img.replace(/^.*\//, "") : null;
       const k3 = r.dedupe_key || null;
@@ -1380,8 +1396,11 @@ async function oppsApi(url, env, request) {
     });
   }
   if (seen.length) {
-    const st = seen.map(([r, img]) => db.prepare("UPDATE listings SET checked_at = ?, image_url = COALESCE(?, image_url) WHERE source = ? AND source_id = ?")
-      .bind(today, img || null, r.source, r.source_id));
+    const st = seen.map(([r, img]) => r._repriced
+      ? db.prepare("UPDATE listings SET checked_at = ?, image_url = COALESCE(?, image_url), price_toman = ?, price_m2 = ?, price_changed_at = ? WHERE source = ? AND source_id = ?")
+          .bind(today, img || null, r.price_toman, r.price_m2, today, r.source, r.source_id)
+      : db.prepare("UPDATE listings SET checked_at = ?, image_url = COALESCE(?, image_url) WHERE source = ? AND source_id = ?")
+          .bind(today, img || null, r.source, r.source_id));
     try { for (let i = 0; i < st.length; i += 90) await db.batch(st.slice(i, i + 90)); } catch (e) { /* next time */ }
   }
   if (gone.length && !(gone.length >= 12 && out.length === 0)) {
@@ -1405,15 +1424,24 @@ async function verifyFront(env, results, max) {
     return !(c && Date.now() - c < 1200e3);
   }).slice(0, max);
   if (!todo.length) return 0;
-  const states = await Promise.all(todo.map((r) => stillUp(r.source, r.source_id)));
+  const probes = await Promise.all(todo.map((r) => probe(r.source, r.source_id)));
+  const states = probes.map((p) => p.up);
   const gone = todo.filter((_, i) => states[i] === false);
   const up = todo.filter((_, i) => states[i] === true);
+  todo.forEach((r, i) => {
+    const pr = probes[i].price;
+    if (states[i] === true && pr && r.price_toman && Math.abs(pr - r.price_toman) / r.price_toman > 0.005) {
+      r.price_toman = pr; if (r.area_m2 > 0) r.price_m2 = Math.round(pr / r.area_m2); r._repriced = true;
+    }
+  });
   if (gone.length >= 8 && up.length === 0) return 0;
   for (const r of up) ALIVE.set(`${r.source}:${r.source_id}`, Date.now());
   for (const r of gone) r._gone = true;
   const stmts = [
     ...gone.map((r) => env.DB.prepare("UPDATE listings SET removed_at = COALESCE(removed_at, ?), checked_at = ? WHERE source = ? AND source_id = ?").bind(today, today, r.source, r.source_id)),
-    ...up.map((r) => env.DB.prepare("UPDATE listings SET checked_at = ? WHERE source = ? AND source_id = ?").bind(today, r.source, r.source_id)),
+    ...up.map((r) => r._repriced
+      ? env.DB.prepare("UPDATE listings SET checked_at = ?, price_toman = ?, price_m2 = ?, price_changed_at = ? WHERE source = ? AND source_id = ?").bind(today, r.price_toman, r.price_m2, today, r.source, r.source_id)
+      : env.DB.prepare("UPDATE listings SET checked_at = ? WHERE source = ? AND source_id = ?").bind(today, r.source, r.source_id)),
   ];
   try { for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90)); } catch (e) { /* next view retries */ }
   return gone.length;
