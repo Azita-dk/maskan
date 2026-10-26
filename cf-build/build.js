@@ -1250,7 +1250,7 @@ const REMOVED_TEXT = /آگهی\s*(?:حذف\s*شده|منقضی\s*شده|غیرف
 const IMG_RE = /https:\/\/[a-z0-9.-]*divarcdn\.com\/static\/[^"'\s\\]+?\.(?:jpe?g|webp|png)/i;
 const OG_IMG = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i;
 
-async function probe(src, id) {
+async function probe(src, id, dbg = false) {
   const opt = { headers: { "User-Agent": BROWSER_UA, Accept: src === "divar" ? "application/json" : "text/html", "Accept-Language": "fa,en;q=0.8" } };
   try { opt.signal = AbortSignal.timeout(3500); } catch (e) { /* older runtime */ }
   try {
@@ -1258,10 +1258,13 @@ async function probe(src, id) {
       const res = await fetch(DIVAR_DETAIL + id, opt);
       if (res.status === 404 || res.status === 410) return { up: false };
       if (!res.ok) return { up: null, code: res.status };
-      const text = await res.text();
+      const text = (await res.text()).replace(/\\u002F/gi, "/").replace(/\\\//g, "/");
       if (REMOVED_TEXT.test(text)) return { up: false };
-      const m = text.match(IMG_RE);
-      return { up: true, img: m ? m[0] : null };
+      const all = text.match(new RegExp(IMG_RE.source, "gi")) || [];
+      const img = all.find((u) => /\/photo\//.test(u) && !/thumbnail/i.test(u)) || all.find((u) => !/thumbnail/i.test(u)) || all[0] || null;
+      const out = { up: true, img };
+      if (dbg && !img) { const i = text.search(/image|photo|divarcdn/i); out.sample = text.slice(Math.max(0, i - 80), i + 320); }
+      return out;
     }
     if (src === "sheypoor") {
       const res = await fetch(`https://www.sheypoor.com/v/x-${id}.html`, { ...opt, redirect: "manual" });
@@ -1269,10 +1272,11 @@ async function probe(src, id) {
       if (res.status >= 300 && res.status < 400) return { up: (res.headers.get("location") || "").includes(id) ? true : false };
       if (res.status !== 200) return { up: null, code: res.status };
       const html = await res.text();
-      const c = html.match(/https:\/\/cdn\.sheypoor\.com\/imgs\/[^"'\s\\]+?\.(?:webp|jpe?g|png)/i);
-      const m = c ? null : html.match(OG_IMG);
-      const og = m ? (m[1] || m[2]) : null;
-      return { up: true, img: c ? c[0] : (og && !/\/resources\//.test(og) ? og : null) };
+      const all = html.match(/https:\/\/cdn\.sheypoor\.com\/imgs\/[^"'\s\\]+?\.(?:webp|jpe?g|png)/gi) || [];
+      const size = (u) => { const m = u.match(/\/(\d+)x(\d+)/); return m ? +m[1] * +m[2] : 0; };
+      const own = all.filter((u) => u.includes(`/${id}/`));
+      const pick = (own.length ? own : all).sort((a, b) => size(b) - size(a))[0] || null;
+      return { up: true, img: pick };
     }
   } catch (e) { return { up: null, code: String(e && e.name || e) }; }
   return { up: null };
@@ -1285,7 +1289,7 @@ async function probeApi(url, env) {
     : (await env.DB.prepare(`SELECT source_id FROM listings WHERE source = ? AND removed_at IS NULL
         ORDER BY rowid DESC LIMIT ?`).bind(src, n).all()).results.map((r) => r.source_id);
   const t = Date.now();
-  const out = await Promise.all(ids.map(async (id) => ({ id, ...(await probe(src, id)) })));
+  const out = await Promise.all(ids.map(async (id) => ({ id, ...(await probe(src, id, true)) })));
   return json({ ms: Date.now() - t, out });
 }
 async function stillUp(src, id) { return (await probe(src, id)).up; }
@@ -1358,7 +1362,8 @@ async function oppsApi(url, env, request) {
       const key = `${r.source}:${r.source_id}`;
       const c = ALIVE.get(key);
       if (c && Date.now() - c < 1200e3) return { up: true, img: IMG.get(key) || r.image_url };
-      if (String(r.checked_at || "").slice(0, 10) === today && r.image_url) return { up: true, img: r.image_url };
+      const goodImg = r.image_url && (/divarcdn\.com\/static\/photo\//.test(r.image_url) || r.image_url.includes(`/${r.source_id}/`));
+      if (String(r.checked_at || "").slice(0, 10) === today && goodImg) return { up: true, img: r.image_url };
       checked++;
       const p = await probe(r.source, r.source_id);
       if (p.up === true) { ALIVE.set(key, Date.now()); if (p.img) IMG.set(key, p.img); seen.push([r, p.img]); }
@@ -1366,7 +1371,7 @@ async function oppsApi(url, env, request) {
     }));
     batch.forEach((r, j) => {
       if (states[j].up === false) { gone.push(r); return; }
-      if (out.length < want) out.push({ ...adRow(r), hm: Math.round(r.hood_med * 10) / 10, v: states[j].up === true, img: states[j].img || r.image_url || null });
+      if (out.length < want) out.push({ ...adRow(r), hm: Math.round(r.hood_med * 10) / 10, v: states[j].up === true, img: states[j].img || null });
     });
   }
   if (seen.length) {

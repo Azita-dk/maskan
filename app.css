@@ -1193,7 +1193,7 @@ html{scroll-padding-top:80px}
   .tnav a.on{background:var(--green-pale);color:var(--green);font-weight:800}
 }
 @media (max-width:1100px){ .sidetog{display:none} }
-.opp .ph{overflow:hidden}
+.opp .ph{overflow:hidden;height:auto;aspect-ratio:4/3}
 .opp .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
 .opp .ph .badge,.opp .ph .src,.opp .ph .ok{z-index:1}
 .opp.sk{cursor:default;pointer-events:none}
