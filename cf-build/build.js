@@ -1247,26 +1247,37 @@ const DIVAR_DETAIL = "https://api.divar.ir/v8/posts-v2/web/";
 const BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36";
 const REMOVED_TEXT = /آگهی\s*(?:حذف\s*شده|منقضی\s*شده|غیرفعال|دیگر\s*در\s*دسترس\s*نیست)|این\s*آگهی\s*(?:حذف|منقضی)/;
 
-async function stillUp(src, id) {
+const IMG_RE = /https:\/\/[a-z0-9.-]*divarcdn\.com\/static\/[^"'\s\\]+?\.(?:jpe?g|webp|png)/i;
+const OG_IMG = /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']|<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i;
+
+async function probe(src, id) {
+  const opt = { headers: { "User-Agent": BROWSER_UA } };
+  try { opt.signal = AbortSignal.timeout(3500); } catch (e) { /* older runtime */ }
   try {
     if (src === "divar") {
-      const res = await fetch(DIVAR_DETAIL + id, { headers: { "User-Agent": BROWSER_UA } });
-      if (res.status === 404 || res.status === 410) return false;
-      if (!res.ok) return null;
-      return !REMOVED_TEXT.test(await res.text());
+      const res = await fetch(DIVAR_DETAIL + id, opt);
+      if (res.status === 404 || res.status === 410) return { up: false };
+      if (!res.ok) return { up: null };
+      const text = await res.text();
+      if (REMOVED_TEXT.test(text)) return { up: false };
+      const m = text.match(IMG_RE);
+      return { up: true, img: m ? m[0] : null };
     }
     if (src === "sheypoor") {
-      const res = await fetch(`https://www.sheypoor.com/v/x-${id}.html`, { headers: { "User-Agent": BROWSER_UA }, redirect: "manual" });
-      if (res.status === 200) return true;
-      if (res.status === 404 || res.status === 410) return false;
-      if (res.status >= 300 && res.status < 400) return (res.headers.get("location") || "").includes(id);
-      return null;
+      const res = await fetch(`https://www.sheypoor.com/v/x-${id}.html`, { ...opt, redirect: "manual" });
+      if (res.status === 404 || res.status === 410) return { up: false };
+      if (res.status >= 300 && res.status < 400) return { up: (res.headers.get("location") || "").includes(id) ? true : false };
+      if (res.status !== 200) return { up: null };
+      const m = (await res.text()).match(OG_IMG);
+      return { up: true, img: m ? (m[1] || m[2]) : null };
     }
   } catch (e) { /* unknown */ }
-  return null;
+  return { up: null };
 }
+async function stillUp(src, id) { return (await probe(src, id)).up; }
 
-const OPPS_CACHE = new Map(), ALIVE = new Map();
+const OPPS_CACHE = new Map(), ALIVE = new Map(), IMG = new Map();
+let imgCol = false;
 
 const FOLD_SQL = (c) => `replace(replace(replace(replace(replace(replace(replace(replace(replace(${c},' ',''),'‌',''),'-',''),'_',''),'.',''),'آ','ا'),'ي','ی'),'ى','ی'),'ك','ک')`;
 
@@ -1295,6 +1306,10 @@ async function oppsApi(url, env, request) {
   }
   if (!Object.keys(hm).length) return new Response(JSON.stringify({ rows: [], total: 0, ready: false }), { headers });
 
+  if (!imgCol) {
+    try { await db.prepare("ALTER TABLE listings ADD COLUMN image_url TEXT").run(); } catch (e) { /* already there */ }
+    imgCol = true;
+  }
   const { where, args } = adsWhere(q, num);
   const days = num("fresh") || 45;
   const { results } = await db.prepare(`
@@ -1302,7 +1317,7 @@ async function oppsApi(url, env, request) {
     SELECT source, source_id, hood, substr(title, 1, 150) AS title, url, price_toman, area_m2, price_m2,
            rooms, age_years, lat, lng, substr(address, 1, 80) AS address, features,
            COALESCE(price_changed_at, posted_at) AS d, first_posted_at, COALESCE(kind,'apartment') AS kind,
-           hm.med AS hood_med, price_m2 / (hm.med * 1e6) AS ratio
+           hm.med AS hood_med, price_m2 / (hm.med * 1e6) AS ratio, checked_at, image_url
     FROM listings JOIN hm ON ${FOLD_SQL('listings.hood')} = hm.hk
     WHERE ${where.join(" AND ")}
       AND area_m2 > 0 AND price_m2 BETWEEN hm.med * 1e6 * 0.55 AND hm.med * 1e6 * 0.88
@@ -1310,23 +1325,30 @@ async function oppsApi(url, env, request) {
     ORDER BY ratio ASC LIMIT 60`).bind(JSON.stringify(hm), ...args, `-${days} days`).all();
 
   const today = new Date().toISOString().slice(0, 10);
-  const out = [], gone = [];
+  const out = [], gone = [], seen = [];
   let checked = 0;
-  for (let i = 0; i < results.length && out.length < want && checked < 40; i += 8) {
-    const batch = results.slice(i, i + 8);
+  for (let i = 0; i < results.length && out.length < want && checked < 28; ) {
+    const batch = results.slice(i, i + Math.max(want - out.length + 4, 6));
+    i += batch.length;
     const states = await Promise.all(batch.map(async (r) => {
       const key = `${r.source}:${r.source_id}`;
       const c = ALIVE.get(key);
-      if (c && Date.now() - c < 1200e3) return true;
-      const up = await stillUp(r.source, r.source_id);
+      if (c && Date.now() - c < 1200e3) return { up: true, img: IMG.get(key) || r.image_url };
+      if (String(r.checked_at || "").slice(0, 10) === today && r.image_url) return { up: true, img: r.image_url };
       checked++;
-      if (up === true) ALIVE.set(key, Date.now());
-      return up;
+      const p = await probe(r.source, r.source_id);
+      if (p.up === true) { ALIVE.set(key, Date.now()); if (p.img) IMG.set(key, p.img); seen.push([r, p.img]); }
+      return p;
     }));
     batch.forEach((r, j) => {
-      if (states[j] === false) { gone.push(r); return; }
-      if (out.length < want) out.push({ ...adRow(r), hm: Math.round(r.hood_med * 10) / 10, v: states[j] === true });
+      if (states[j].up === false) { gone.push(r); return; }
+      if (out.length < want) out.push({ ...adRow(r), hm: Math.round(r.hood_med * 10) / 10, v: states[j].up === true, img: states[j].img || r.image_url || null });
     });
+  }
+  if (seen.length) {
+    const st = seen.map(([r, img]) => db.prepare("UPDATE listings SET checked_at = ?, image_url = COALESCE(?, image_url) WHERE source = ? AND source_id = ?")
+      .bind(today, img || null, r.source, r.source_id));
+    try { for (let i = 0; i < st.length; i += 90) await db.batch(st.slice(i, i + 90)); } catch (e) { /* next time */ }
   }
   if (gone.length && !(gone.length >= 12 && out.length === 0)) {
     const stmts = gone.map((r) => db.prepare(

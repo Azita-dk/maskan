@@ -1193,3 +1193,12 @@ html{scroll-padding-top:80px}
   .tnav a.on{background:var(--green-pale);color:var(--green);font-weight:800}
 }
 @media (max-width:1100px){ .sidetog{display:none} }
+.opp .ph{overflow:hidden}
+.opp .ph img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0}
+.opp .ph .badge,.opp .ph .src,.opp .ph .ok{z-index:1}
+.opp.sk{cursor:default;pointer-events:none}
+.opp.sk .ph,.opp.sk .bd i{background:linear-gradient(90deg,var(--paper) 25%,var(--rule) 50%,var(--paper) 75%);background-size:200% 100%;animation:sk 1.2s linear infinite}
+.opp.sk .bd i{display:block;height:12px;border-radius:6px;margin:6px 0}
+.opp.sk .bd i:nth-child(1){width:80%}.opp.sk .bd i:nth-child(2){width:55%}.opp.sk .bd i:nth-child(3){width:65%}
+@keyframes sk{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.opp.sk .ph,.opp.sk .bd i{animation:none}}

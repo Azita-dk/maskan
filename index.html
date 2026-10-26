@@ -663,7 +663,7 @@ function oppCard(l, med){
   const off = l.m / med - 1;
   return `
     <div class="opp" data-url="${esc(l.u || '')}">
-      <div class="ph">${HOUSE_SVG}<span class="badge">${FA(Math.round(off * 100)).replace('-', '−')}٪</span>
+      <div class="ph">${HOUSE_SVG}${l.img ? `<img src="${esc(l.img)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}<span class="badge">${FA(Math.round(off * 100)).replace('-', '−')}٪</span>
         <span class="src">${esc(SOURCE_NAME[l.s] || l.s || '')}</span>${l.v ? '<span class="ok" title="همین حالا بررسی شد که آگهی هنوز روی سایت هست">✓ فعال</span>' : ''}</div>
       <div class="bd"><b>${esc(l.n || (kindLabel() + ' ' + FA(l.a) + ' متری'))}</b>
         <span class="loc">${esc(CITY.name)}، ${esc(l.h)} · ${FA(l.a)} متر</span>
@@ -683,7 +683,7 @@ function drawOpps(){
   const key = oppParams();
   if (key !== oppKey) {
     oppKey = key; oppLive = null;
-    box.innerHTML = '<div class="loading" style="grid-column:1/-1">در حال بررسی آگهی‌ها روی دیوار و شیپور…</div>';
+    box.innerHTML = Array.from({ length: 4 }, () => '<div class="opp sk" aria-hidden="true"><div class="ph"></div><div class="bd"><i></i><i></i><i></i></div></div>').join('');
     const hm = {};
     for (const r of (CITY.rows || [])) if ((r.k || 'apartment') === S.kind && r.hood && r.hood !== 'نامشخص' && r.n >= HOOD_FEW && r.median > 0) hm[r.hood] = r.median;
     fetch(`${DATA_BASE}/opps?${key}`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: JSON.stringify({ hm }) }).then(r => r.ok ? r.json() : null).then(j => {
