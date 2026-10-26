@@ -593,19 +593,26 @@ export async function recheckChunk(env) {
     "CREATE INDEX IF NOT EXISTS idx_listings_recheck ON listings(source, removed_at, checked_at)").run();
   await db.prepare(
     "CREATE INDEX IF NOT EXISTS idx_listings_pm2 ON listings(source, removed_at, price_m2)").run();
+  await db.prepare(
+    "CREATE INDEX IF NOT EXISTS idx_listings_stale ON listings(source, removed_at, last_seen)").run();
 
   const due = "(checked_at IS NULL OR checked_at < date('now', '-1 day'))";
   const live = "source = 'divar' AND removed_at IS NULL";
-  const pick = async (order, n) => (await db.prepare(`
-    SELECT source_id FROM listings WHERE ${live} AND ${due}
-      AND COALESCE(last_seen, scraped_at) >= date('now', '-21 days')
+  const pick = async (order, n, extra = "") => (await db.prepare(`
+    SELECT source_id FROM listings WHERE ${live} AND ${due} ${extra}
+      AND COALESCE(last_seen, scraped_at) >= date('now', '-120 days')
     ORDER BY ${order} LIMIT ?`).bind(n).all()).results.map((r) => r.source_id);
 
   const ids = [...new Set([
     ...await pick("price_m2 DESC", 10),
     ...await pick("price_toman DESC", 5),
     ...await pick("price_m2 IS NULL, price_m2 ASC", 5),
-    ...await pick("checked_at ASC", N),
+    ...(await db.prepare(`
+      SELECT source_id FROM listings INDEXED BY idx_listings_stale
+      WHERE source = 'divar' AND removed_at IS NULL
+        AND last_seen >= date('now', '-120 days') AND last_seen < date('now', '-3 days') AND ${due}
+      ORDER BY last_seen ASC LIMIT ?`).bind(N).all()).results.map((r) => r.source_id),
+    ...await pick("checked_at ASC", 10),
   ])].slice(0, N + 20);
 
   const gone = [], seen = [];
@@ -625,15 +632,17 @@ export async function recheckChunk(env) {
     await sleep(RECHECK_PAUSE_MS);
   }
 
-  if (seen.length >= 20 && gone.length > seen.length * 0.6) {
-    return { log: [`recheck: ${gone.length} of ${seen.length} looked removed — too many to be real, ` +
+  if (seen.length >= 20 && gone.length >= seen.length) {
+    return { log: [`recheck: all ${seen.length} looked removed — not believable, ` +
                    'nothing written. Divar may have changed its page; check /raw?token=…'],
              checked: seen.length, removed: 0 };
   }
   const stmts = [
     ...gone.map((id) => db.prepare(
       "UPDATE listings SET removed_at = COALESCE(removed_at, ?) WHERE source='divar' AND source_id=?").bind(today, id)),
-    ...seen.map((id) => db.prepare(
+    ...seen.filter((id) => !gone.includes(id)).map((id) => db.prepare(
+      "UPDATE listings SET checked_at = ?, last_seen = ? WHERE source='divar' AND source_id=?").bind(today, today, id)),
+    ...gone.map((id) => db.prepare(
       "UPDATE listings SET checked_at = ? WHERE source='divar' AND source_id=?").bind(today, id)),
   ];
   for (let i = 0; i < stmts.length; i += 90) await db.batch(stmts.slice(i, i + 90));

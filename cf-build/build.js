@@ -1413,10 +1413,10 @@ async function oppsApi(url, env, request) {
   }
   if (seen.length) {
     const st = seen.map(([r, img]) => r._repriced
-      ? db.prepare("UPDATE listings SET checked_at = ?, image_url = COALESCE(?, image_url), price_toman = ?, price_m2 = ?, price_changed_at = ? WHERE source = ? AND source_id = ?")
-          .bind(today, img || null, r.price_toman, r.price_m2, today, r.source, r.source_id)
-      : db.prepare("UPDATE listings SET checked_at = ?, image_url = COALESCE(?, image_url) WHERE source = ? AND source_id = ?")
-          .bind(today, img || null, r.source, r.source_id));
+      ? db.prepare("UPDATE listings SET checked_at = ?, last_seen = ?, image_url = COALESCE(?, image_url), price_toman = ?, price_m2 = ?, price_changed_at = ? WHERE source = ? AND source_id = ?")
+          .bind(today, today, img || null, r.price_toman, r.price_m2, today, r.source, r.source_id)
+      : db.prepare("UPDATE listings SET checked_at = ?, last_seen = ?, image_url = COALESCE(?, image_url) WHERE source = ? AND source_id = ?")
+          .bind(today, today, img || null, r.source, r.source_id));
     try { for (let i = 0; i < st.length; i += 90) await db.batch(st.slice(i, i + 90)); } catch (e) { /* next time */ }
   }
   if (gone.length && !(gone.length >= 12 && out.length === 0)) {
@@ -1456,8 +1456,8 @@ async function verifyFront(env, results, max) {
   const stmts = [
     ...gone.map((r) => env.DB.prepare("UPDATE listings SET removed_at = COALESCE(removed_at, ?), checked_at = ? WHERE source = ? AND source_id = ?").bind(today, today, r.source, r.source_id)),
     ...up.map((r) => r._repriced
-      ? env.DB.prepare("UPDATE listings SET checked_at = ?, price_toman = ?, price_m2 = ?, price_changed_at = ? WHERE source = ? AND source_id = ?").bind(today, r.price_toman, r.price_m2, today, r.source, r.source_id)
-      : env.DB.prepare("UPDATE listings SET checked_at = ? WHERE source = ? AND source_id = ?").bind(today, r.source, r.source_id)),
+      ? env.DB.prepare("UPDATE listings SET checked_at = ?, last_seen = ?, price_toman = ?, price_m2 = ?, price_changed_at = ? WHERE source = ? AND source_id = ?").bind(today, today, r.price_toman, r.price_m2, today, r.source, r.source_id)
+      : env.DB.prepare("UPDATE listings SET checked_at = ?, last_seen = ? WHERE source = ? AND source_id = ?").bind(today, today, r.source, r.source_id)),
   ];
   try { for (let i = 0; i < stmts.length; i += 90) await env.DB.batch(stmts.slice(i, i + 90)); } catch (e) { /* next view retries */ }
   return gone.length;
