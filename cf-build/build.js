@@ -40,10 +40,13 @@ const BOUNDS = {
   villa:     { area: [30, 5000], total: 1.5e12, m2: [1e6, 1.5e9] },
   land:      { area: [30, 200000], total: 2e12, m2: [1e5, 1.5e9] },
 };
+const WHOLE_BUILDING = ["مستغلات", "یکجا", "کل ساختمان", "کلنگی"];
+const isWholeBuilding = (title) => WHOLE_BUILDING.some((w) => String(title || "").includes(w));
 const boundsSql = (kind) => {
   const b = BOUNDS[kind] || BOUNDS.apartment;
-  return `(area_m2 IS NULL OR area_m2 BETWEEN ${b.area[0]} AND ${b.area[1]}) AND price_toman <= ${b.total}` +
-    ` AND (price_m2 IS NULL OR price_m2 BETWEEN ${b.m2[0]} AND ${b.m2[1]})`;
+  return `area_m2 BETWEEN ${b.area[0]} AND ${b.area[1]} AND price_toman <= ${b.total}` +
+    ` AND price_m2 BETWEEN ${b.m2[0]} AND ${b.m2[1]}` +
+    (kind === "land" ? "" : WHOLE_BUILDING.map((w) => ` AND COALESCE(title, '') NOT LIKE '%${w}%'`).join(""));
 };
 
 /**
@@ -449,9 +452,10 @@ export async function build(env, log = [], from = 0, self = null) {
   const OUT_FACTOR = { apartment: 5, villa: 6, land: 10 };
   const sane = (r, kind) => {
     const b = BOUNDS[kind] || BOUNDS.apartment, a = r.area_m2, p = Number(r.price_toman) || 0;
-    if (a && (a < b.area[0] || a > b.area[1])) return false;
+    if (!a || a < b.area[0] || a > b.area[1]) return false;
+    if (kind !== "land" && isWholeBuilding(r.title)) return false;
     if (p > b.total) return false;
-    if (r.price_m2 > 0 && (r.price_m2 < b.m2[0] || r.price_m2 > b.m2[1])) return false;
+    if (!(r.price_m2 >= b.m2[0] && r.price_m2 <= b.m2[1])) return false;
     return true;
   };
   const outliers = new Map();
