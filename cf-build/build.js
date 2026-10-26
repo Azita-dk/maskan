@@ -1345,7 +1345,7 @@ async function oppsApi(url, env, request) {
     SELECT source, source_id, hood, substr(title, 1, 150) AS title, url, price_toman, area_m2, price_m2,
            rooms, age_years, lat, lng, substr(address, 1, 80) AS address, features,
            COALESCE(price_changed_at, posted_at) AS d, first_posted_at, COALESCE(kind,'apartment') AS kind,
-           hm.med AS hood_med, price_m2 / (hm.med * 1e6) AS ratio, checked_at, image_url
+           hm.med AS hood_med, price_m2 / (hm.med * 1e6) AS ratio, checked_at, image_url, dedupe_key
     FROM hm CROSS JOIN listings INDEXED BY idx_city_hood_m2
     WHERE listings.city = ? AND listings.hood = hm.hk AND ${where.join(" AND ")}
       AND area_m2 > 0 AND price_m2 BETWEEN hm.med * 1e6 * 0.55 AND hm.med * 1e6 * 0.88
@@ -1353,7 +1353,7 @@ async function oppsApi(url, env, request) {
     ORDER BY ratio ASC LIMIT 60`).bind(JSON.stringify(hm), city, ...args, `-${days} days`).all();
 
   const today = new Date().toISOString().slice(0, 10);
-  const out = [], gone = [], seen = [];
+  const out = [], gone = [], seen = [], taken = new Set();
   let checked = 0;
   for (let i = 0; i < results.length && out.length < want && checked < 28; ) {
     const batch = results.slice(i, i + Math.max(want - out.length + 4, 6));
@@ -1371,6 +1371,11 @@ async function oppsApi(url, env, request) {
     }));
     batch.forEach((r, j) => {
       if (states[j].up === false) { gone.push(r); return; }
+      const k1 = `${foldPlace(r.hood)}|${Math.round(r.area_m2)}|${Math.round(r.price_toman / 1e7)}`;
+      const k2 = states[j].img ? states[j].img.replace(/^.*\//, "") : null;
+      const k3 = r.dedupe_key || null;
+      if (taken.has(k1) || (k2 && taken.has(k2)) || (k3 && taken.has(k3))) return;
+      taken.add(k1); if (k2) taken.add(k2); if (k3) taken.add(k3);
       if (out.length < want) out.push({ ...adRow(r), hm: Math.round(r.hood_med * 10) / 10, v: states[j].up === true, img: states[j].img || null });
     });
   }
