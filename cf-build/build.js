@@ -1268,8 +1268,11 @@ async function probe(src, id) {
       if (res.status === 404 || res.status === 410) return { up: false };
       if (res.status >= 300 && res.status < 400) return { up: (res.headers.get("location") || "").includes(id) ? true : false };
       if (res.status !== 200) return { up: null, code: res.status };
-      const m = (await res.text()).match(OG_IMG);
-      return { up: true, img: m ? (m[1] || m[2]) : null };
+      const html = await res.text();
+      const c = html.match(/https:\/\/cdn\.sheypoor\.com\/imgs\/[^"'\s\\]+?\.(?:webp|jpe?g|png)/i);
+      const m = c ? null : html.match(OG_IMG);
+      const og = m ? (m[1] || m[2]) : null;
+      return { up: true, img: c ? c[0] : (og && !/\/resources\//.test(og) ? og : null) };
     }
   } catch (e) { return { up: null, code: String(e && e.name || e) }; }
   return { up: null };
@@ -1279,8 +1282,8 @@ async function probeApi(url, env) {
   const n = Math.min(Number(url.searchParams.get("n")) || 5, 10);
   const src = url.searchParams.get("src") || "divar";
   const ids = url.searchParams.get("id") ? [url.searchParams.get("id")]
-    : (await env.DB.prepare(`SELECT source_id FROM listings WHERE source = ? AND removed_at IS NULL
-        ORDER BY COALESCE(last_seen, scraped_at) DESC LIMIT ?`).bind(src, n).all()).results.map((r) => r.source_id);
+    : (await env.DB.prepare(`SELECT source_id FROM listings WHERE rowid > (SELECT MAX(rowid) FROM listings) - 3000
+        AND source = ? AND removed_at IS NULL LIMIT ?`).bind(src, n).all()).results.map((r) => r.source_id);
   const t = Date.now();
   const out = await Promise.all(ids.map(async (id) => ({ id, ...(await probe(src, id)) })));
   return json({ ms: Date.now() - t, out });
@@ -1308,17 +1311,27 @@ async function oppsApi(url, env, request) {
   if (request && request.method === "POST") {
     try { given = (JSON.parse(await request.text()) || {}).hm; } catch (e) { given = null; }
   }
-  const src = given && typeof given === "object" ? given
-    : ((await env.SITE.get(`hm:${city}`, { type: "json" })) || {})[kind];
+  const stored = ((await env.SITE.get(`hm:${city}`, { type: "json" })) || {})[kind] || {};
+  const byFold = {};
+  for (const [k, v] of Object.entries(given && typeof given === "object" ? given : stored)) {
+    const n = Number(v); if (k && n > 0 && !(foldPlace(k) in byFold)) byFold[foldPlace(k)] = n;
+  }
   const hm = {};
-  for (const [k, v] of Object.entries(src || {})) {
-    const f = foldPlace(k), n = Number(v);
-    if (f && n > 0 && !(f in hm)) hm[f] = n;
+  const names = [...Object.keys(given || {}), ...Object.keys(stored)];
+  for (const k of names) {
+    const med = byFold[foldPlace(k)];
+    if (!med) continue;
+    for (const v of [k, k.replace(/ی/g, "ي"), k.replace(/ک/g, "ك"), k.replace(/ی/g, "ي").replace(/ک/g, "ك"), k.replace(/ي/g, "ی").replace(/ك/g, "ک")])
+      if (!(v in hm)) hm[v] = med;
   }
   if (!Object.keys(hm).length) return new Response(JSON.stringify({ rows: [], total: 0, ready: false }), { headers });
 
   if (!imgCol) {
     try { await db.prepare("ALTER TABLE listings ADD COLUMN image_url TEXT").run(); } catch (e) { /* already there */ }
+    if (!(await env.SITE.get("idx:opps:v1"))) {
+      await db.prepare("CREATE INDEX IF NOT EXISTS idx_city_hood_m2 ON listings(city, hood, price_m2)").run();
+      await env.SITE.put("idx:opps:v1", "1");
+    }
     imgCol = true;
   }
   const { where, args } = adsWhere(q, num);
@@ -1329,11 +1342,11 @@ async function oppsApi(url, env, request) {
            rooms, age_years, lat, lng, substr(address, 1, 80) AS address, features,
            COALESCE(price_changed_at, posted_at) AS d, first_posted_at, COALESCE(kind,'apartment') AS kind,
            hm.med AS hood_med, price_m2 / (hm.med * 1e6) AS ratio, checked_at, image_url
-    FROM listings JOIN hm ON ${FOLD_SQL('listings.hood')} = hm.hk
-    WHERE ${where.join(" AND ")}
+    FROM hm CROSS JOIN listings INDEXED BY idx_city_hood_m2
+    WHERE listings.city = ? AND listings.hood = hm.hk AND ${where.join(" AND ")}
       AND area_m2 > 0 AND price_m2 BETWEEN hm.med * 1e6 * 0.55 AND hm.med * 1e6 * 0.88
       AND COALESCE(price_changed_at, posted_at, substr(scraped_at, 1, 10)) >= date('now', ?)
-    ORDER BY ratio ASC LIMIT 60`).bind(JSON.stringify(hm), ...args, `-${days} days`).all();
+    ORDER BY ratio ASC LIMIT 60`).bind(JSON.stringify(hm), city, ...args, `-${days} days`).all();
 
   const today = new Date().toISOString().slice(0, 10);
   const out = [], gone = [], seen = [];
