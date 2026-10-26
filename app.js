@@ -705,23 +705,26 @@ const navIco = f => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 function renderNav(current){
   const page = PAGES.find(p => p.file === current);
   const links = PAGES.map(p =>
-    `<a href="${menuLink(p.file)}"${p.file === current ? ' class="on" aria-current="page"' : ''}>${navIco(p.file)}<span>${p.label}</span></a>`).join('');
+    `<a href="${menuLink(p.file)}" title="${p.label}"${p.file === current ? ' class="on" aria-current="page"' : ''}>${navIco(p.file)}<span>${p.label}</span></a>`).join('');
   const brand = `<a class="brand" href="index.html">
         <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">${LOGO}</svg>
         <span><b>تحلیل بازار مسکن</b><small>قیمت‌ها و روند بازار</small></span></a>`;
   document.body.classList.add('has-side');
+  try { if (localStorage.getItem('mk_side') === 'mini') document.body.classList.add('side-mini'); } catch (e) {}
   document.body.insertAdjacentHTML('afterbegin', `
     <aside class="side" id="side" aria-label="فهرست اصلی">
       ${brand}
       <nav class="snav" id="menu">${links}</nav>
       <div class="spromo"><p>همه ارقام از آگهی‌های عمومی دیوار و شیپور محاسبه می‌شود و هر چند دقیقه به‌روز می‌شود.</p>
         <a href="about.html">روش کار و منبع داده</a></div>
+      <button class="sidetog" id="sideTog" type="button"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/><path d="M20 6v12" opacity=".5"/></svg><span>جمع کردن فهرست</span></button>
     </aside>
     <div class="sideshade" id="sideShade"></div>
     <header class="topbar"><div class="wrap">
       <button class="iconbtn burger" id="burger" aria-label="فهرست" aria-controls="side" aria-expanded="false">${ICONS.burger}</button>
       ${brand}
       <div class="tb-title">${page ? page.label : ''}<small>تحلیل بازار مسکن</small></div>
+      <nav class="tnav" aria-label="بخش‌ها">${PAGES.map(p => `<a href="${menuLink(p.file)}"${p.file === current ? ' class="on" aria-current="page"' : ''}>${p.label}</a>`).join('')}</nav>
       <button class="iconbtn" id="theme" title="روشن / تیره" aria-label="روشن یا تیره">${ICONS.theme}</button>
     </div></header>`);
   const side = document.getElementById('side'), shade = document.getElementById('sideShade'),
@@ -736,6 +739,21 @@ function renderNav(current){
       `<nav class="crumbs" aria-label="مسیر"><a href="index.html">خانه</a> <span aria-hidden="true">‹</span> ${page.label}</nav>`);
   }
   burger.addEventListener('click', () => setOpen(!side.classList.contains('open')));
+  const tog = document.getElementById('sideTog');
+  const syncTog = () => {
+    const mini = document.body.classList.contains('side-mini');
+    const t = mini ? 'باز کردن فهرست' : 'جمع کردن فهرست';
+    tog.setAttribute('aria-label', t); tog.title = t; tog.setAttribute('aria-expanded', mini ? 'false' : 'true');
+    tog.querySelector('span').textContent = t;
+  };
+  syncTog();
+  tog.addEventListener('click', () => {
+    if (window.innerWidth <= 1100) { setOpen(false); return; }
+    const mini = document.body.classList.toggle('side-mini');
+    try { localStorage.setItem('mk_side', mini ? 'mini' : 'full'); } catch (e) {}
+    syncTog();
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 240);
+  });
   shade.addEventListener('click', () => setOpen(false));
   document.addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
 
