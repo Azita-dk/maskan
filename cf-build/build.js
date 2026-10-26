@@ -35,6 +35,16 @@ const BACKFILL_DAYS = 0;
 const BACKFILL_PER_RUN = 2;
 
 const ACTIVE_DAYS = 21;
+const BOUNDS = {
+  apartment: { area: [15, 1000], total: 6e11, m2: [2e6, 1.5e9] },
+  villa:     { area: [30, 5000], total: 1.5e12, m2: [1e6, 1.5e9] },
+  land:      { area: [30, 200000], total: 2e12, m2: [1e5, 1.5e9] },
+};
+const boundsSql = (kind) => {
+  const b = BOUNDS[kind] || BOUNDS.apartment;
+  return `(area_m2 IS NULL OR area_m2 BETWEEN ${b.area[0]} AND ${b.area[1]}) AND price_toman <= ${b.total}` +
+    ` AND (price_m2 IS NULL OR price_m2 BETWEEN ${b.m2[0]} AND ${b.m2[1]})`;
+};
 
 /**
  * A matching key for place names — never for display.
@@ -437,6 +447,13 @@ export async function build(env, log = [], from = 0, self = null) {
     }
   }
   const OUT_FACTOR = { apartment: 5, villa: 6, land: 10 };
+  const sane = (r, kind) => {
+    const b = BOUNDS[kind] || BOUNDS.apartment, a = r.area_m2, p = Number(r.price_toman) || 0;
+    if (a && (a < b.area[0] || a > b.area[1])) return false;
+    if (p > b.total) return false;
+    if (r.price_m2 > 0 && (r.price_m2 < b.m2[0] || r.price_m2 > b.m2[1])) return false;
+    return true;
+  };
   const outliers = new Map();
   let outlierN = 0;
   for (const [gk, list] of cities) {
@@ -458,7 +475,7 @@ export async function build(env, log = [], from = 0, self = null) {
     for (const r of list) {
       const ref = hoodMed.get(canonicalPlace(r.hood || "")) || cityMed;
       const ratio = r.price_m2 > 0 ? r.price_m2 / ref : 1;
-      if (ratio > hi || ratio < lo) {
+      if (ratio > hi || ratio < lo || !sane(r, kind)) {
         if (!outliers.has(city)) outliers.set(city, []);
         outliers.get(city).push(r);
         outlierN++;
@@ -466,7 +483,7 @@ export async function build(env, log = [], from = 0, self = null) {
     }
     cities.set(gk, keep);
   }
-  log.push(`${outlierN} ads left out because their price per metre is far from their neighbourhood's`);
+  log.push(`${outlierN} ads left out: price per metre far from their neighbourhood's, or size or price impossible for the kind`);
   log.push(`${onDivar} ads from other sites left out because the same ad is on Divar`);
   log.push(`${dupes} duplicate reposts (shown, not counted twice in statistics), ` +
            `${misplaced} whose map position is in another town ` +
@@ -1200,7 +1217,7 @@ function adsWhere(q, num) {
   const where = [
     "city = ?", "COALESCE(kind, 'apartment') = ?",
     "source IN ('divar', 'sheypoor')", "removed_at IS NULL",
-    "price_toman > 0", "COALESCE(price_m2, 0) < 5e9", "COALESCE(outlier, 0) = 0", "COALESCE(last_seen, substr(scraped_at, 1, 10)) >= date('now', ?)",
+    "price_toman > 0", boundsSql(q.get("kind") || "apartment"), "COALESCE(outlier, 0) = 0", "COALESCE(last_seen, substr(scraped_at, 1, 10)) >= date('now', ?)",
     `NOT (source = 'sheypoor' AND dedupe_key IS NOT NULL AND EXISTS (
        SELECT 1 FROM listings d WHERE d.dedupe_key = listings.dedupe_key
          AND d.source = 'divar' AND d.removed_at IS NULL))`,
