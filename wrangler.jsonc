@@ -2,7 +2,7 @@
   "name": "maskan",
   "main": "seo.js",
   "compatibility_date": "2026-09-17",
-  "observability": { "enabled": true },
+  "observability": { "enabled": true, "head_sampling_rate": 0.05 },
   "assets": {
     "directory": ".",
     "binding": "ASSETS"

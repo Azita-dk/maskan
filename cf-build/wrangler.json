@@ -16,7 +16,8 @@
     }
   ],
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "head_sampling_rate": 0.05
   },
   "vars": {
     "SLICE": "8"

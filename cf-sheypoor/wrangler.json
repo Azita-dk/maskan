@@ -16,7 +16,8 @@
     }
   ],
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "head_sampling_rate": 0.5
   },
   "vars": {
     "PAGES_PER_RUN": "25",
