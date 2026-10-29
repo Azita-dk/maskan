@@ -616,11 +616,11 @@ export async function build(env, log = [], from = 0, self = null) {
       row.k = kind;
       if (perKindHistory) {
         snapshots.push(db.prepare(
-          "INSERT OR REPLACE INTO hood_snapshots VALUES (?,?,?,?,?,?)")
+          "INSERT OR IGNORE INTO hood_snapshots VALUES (?,?,?,?,?,?)")
           .bind(city, hood, kind, today, med, kept.length));
       } else if (kind === "apartment") {
         snapshots.push(db.prepare(
-          "INSERT OR REPLACE INTO hood_snapshots VALUES (?,?,?,?,?)")
+          "INSERT OR IGNORE INTO hood_snapshots VALUES (?,?,?,?,?)")
           .bind(city, hood, today, med, kept.length));
       }
     }
@@ -730,11 +730,11 @@ export async function build(env, log = [], from = 0, self = null) {
     }
     if (perKindHistory) {
       snapshots.push(db.prepare(
-        "INSERT OR REPLACE INTO city_snapshots VALUES (?,?,?,?,?,?,?)")
+        "INSERT OR IGNORE INTO city_snapshots VALUES (?,?,?,?,?,?,?)")
         .bind(city, kind, today, jy, jm, cityMed, rows.length));
     } else if (kind === "apartment") {
       snapshots.push(db.prepare(
-        "INSERT OR REPLACE INTO city_snapshots VALUES (?,?,?,?,?,?)")
+        "INSERT OR IGNORE INTO city_snapshots VALUES (?,?,?,?,?,?)")
         .bind(city, today, jy, jm, cityMed, rows.length));
     }
 
@@ -908,12 +908,9 @@ export async function build(env, log = [], from = 0, self = null) {
      on every build. The neighbourhood goes too — it came from the wrong
      city. Capped per run so a first pass over a large backlog cannot become
      one enormous write. */
-  for (const city of sliceCities) {
-    const flagged = outliers.get(city) || [];
-    const ob = [db.prepare("UPDATE listings SET outlier = NULL WHERE city = ? AND outlier = 1").bind(city),
-      ...flagged.slice(0, 3000).map((r) => db.prepare(
-        "UPDATE listings SET outlier = 1 WHERE source = ? AND source_id = ?").bind(r.source, r.source_id))];
-    for (let i = 0; i < ob.length; i += 90) await db.batch(ob.slice(i, i + 90));
+  if (!(await env.SITE.get("outlier:cleared"))) {
+    await db.prepare("UPDATE listings SET outlier = NULL WHERE outlier = 1").run();
+    await env.SITE.put("outlier:cleared", "1");
   }
   if (hoodFills.length) {
     const fb = hoodFills.slice(0, 3000).map((m) => db.prepare(
@@ -1196,7 +1193,7 @@ function adsWhere(q, num) {
   const where = [
     "city = ?", "COALESCE(kind, 'apartment') = ?",
     "source IN ('divar', 'sheypoor')", "removed_at IS NULL",
-    "price_toman > 0", boundsSql(q.get("kind") || "apartment"), "COALESCE(outlier, 0) = 0", "COALESCE(last_seen, substr(scraped_at, 1, 10)) >= date('now', ?)",
+    "price_toman > 0", boundsSql(q.get("kind") || "apartment"), "COALESCE(last_seen, substr(scraped_at, 1, 10)) >= date('now', ?)",
     `NOT (source = 'sheypoor' AND dedupe_key IS NOT NULL AND EXISTS (
        SELECT 1 FROM listings d WHERE d.dedupe_key = listings.dedupe_key
          AND d.source = 'divar' AND d.removed_at IS NULL))`,
@@ -1553,7 +1550,6 @@ export default {
      * showing 19,809 Tehran apartments while the database held 30,882. A
      * finished pass now starts another. */
     ctx.waitUntil((async () => {
-      try { const fx = await repairPrices(env); if (fx.length) console.log("price repair: " + fx.join(", ")); } catch (e) { console.log("price repair failed: " + e.message); }
       const today = new Date().toISOString().slice(0, 10);
       let from = 0;
       try {

@@ -590,34 +590,25 @@ export async function recheckChunk(env) {
     await db.prepare("ALTER TABLE listings ADD COLUMN checked_at TEXT").run();
   }
   await db.prepare(
-    "CREATE INDEX IF NOT EXISTS idx_listings_recheck ON listings(source, removed_at, checked_at)").run();
-  await db.prepare(
-    "CREATE INDEX IF NOT EXISTS idx_listings_pm2 ON listings(source, removed_at, price_m2)").run();
-  await db.prepare(
     "CREATE INDEX IF NOT EXISTS idx_listings_stale ON listings(source, removed_at, last_seen)").run();
+  try {
+    if (!(await env.SITE?.get("idx:recheck:v2"))) {
+      await db.prepare("DROP INDEX IF EXISTS idx_listings_recheck").run();
+      await db.prepare("DROP INDEX IF EXISTS idx_listings_pm2").run();
+      await env.SITE?.put("idx:recheck:v2", "1");
+    }
+  } catch (e) { /* try again next run */ }
 
   const due = "(checked_at IS NULL OR checked_at < date('now', '-1 day'))";
-  const live = "source = 'divar' AND removed_at IS NULL";
-  const edges = new Date().getUTCMinutes() % 10 === 0;
-  const byPrice = async (dir, n) => (await db.prepare(`
-    SELECT source_id FROM listings INDEXED BY idx_listings_pm2
-    WHERE source = 'divar' AND removed_at IS NULL AND price_m2 > 0 AND ${due}
-    ORDER BY price_m2 ${dir} LIMIT ?`).bind(n).all()).results.map((r) => r.source_id);
   const ids = [...new Set([
-    ...(edges ? await byPrice("DESC", 10) : []),
-    ...(edges ? await byPrice("ASC", 5) : []),
     ...(await db.prepare(`
       SELECT source_id FROM listings INDEXED BY idx_listings_stale
       WHERE source = 'divar' AND removed_at IS NULL
         AND last_seen >= date('now', '-120 days') AND last_seen < date('now', '-3 days') AND ${due}
       ORDER BY last_seen ASC LIMIT ?`).bind(N).all()).results.map((r) => r.source_id),
-    ...(await db.prepare(`
-      SELECT source_id FROM listings INDEXED BY idx_listings_recheck
-      WHERE source = 'divar' AND removed_at IS NULL AND checked_at IS NULL
-      LIMIT 10`).all()).results.map((r) => r.source_id),
   ])].slice(0, N + 20);
 
-  const gone = [], seen = [];
+  const gone = [], seen = [], bad = [];
   const codes = {};
   let ok = 0, failed = 0, limited = false;
   for (const id of ids) {
@@ -626,11 +617,11 @@ export async function recheckChunk(env) {
       codes[res.status] = (codes[res.status] || 0) + 1;
       if (res.status === 429) { limited = true; break; }
       if (res.status === 404 || res.status === 410) { gone.push(id); seen.push(id); continue; }
-      if (!res.ok) { failed++; continue; }
+      if (!res.ok) { failed++; bad.push(id); continue; }
       const text = await res.text();
       seen.push(id);
       if (REMOVED_RE.test(text)) gone.push(id); else ok++;
-    } catch (e) { failed++; }
+    } catch (e) { failed++; bad.push(id); }
     await sleep(RECHECK_PAUSE_MS);
   }
 
@@ -643,13 +634,13 @@ export async function recheckChunk(env) {
     ...gone.map((id) => db.prepare(
       "UPDATE listings SET removed_at = COALESCE(removed_at, ?) WHERE source='divar' AND source_id=?").bind(today, id)),
     ...seen.filter((id) => !gone.includes(id)).map((id) => db.prepare(
-      "UPDATE listings SET checked_at = ?, last_seen = ? WHERE source='divar' AND source_id=?").bind(today, today, id)),
-    ...gone.map((id) => db.prepare(
+      "UPDATE listings SET last_seen = ? WHERE source='divar' AND source_id=?").bind(today, id)),
+    ...(limited ? [] : bad).map((id) => db.prepare(
       "UPDATE listings SET checked_at = ? WHERE source='divar' AND source_id=?").bind(today, id)),
   ];
   for (let i = 0; i < stmts.length; i += 90) await db.batch(stmts.slice(i, i + 90));
 
-  return { log: [`recheck: ${seen.length} checked (most and least expensive first, then oldest checked) · ` +
+  return { log: [`recheck: ${seen.length} checked (longest unseen first) · ` +
                  `${gone.length} removed from Divar · ${ok} still up · ${failed} failed` +
                  ` · answers ${Object.entries(codes).map(([c, n]) => c + "×" + n).join(" ")}` +
                  (limited ? " · Divar asked to slow down, stopped early" : "")],
