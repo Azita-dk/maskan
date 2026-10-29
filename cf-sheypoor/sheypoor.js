@@ -310,7 +310,7 @@ async function recheck(env, today) {
   if (!n) return "recheck off";
   const { results } = await db.prepare(`
     SELECT source_id FROM listings
-    WHERE source='sheypoor' AND removed_at IS NULL AND COALESCE(last_seen,'') < ?
+    WHERE source='sheypoor' AND removed_at IS NULL AND last_seen < ?
     ORDER BY last_seen LIMIT ?`).bind(today, n).all();
   const codes = {}, gone = [], live = [], added = [];
   for (const r of results) {

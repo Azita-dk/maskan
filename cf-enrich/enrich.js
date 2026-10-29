@@ -598,21 +598,23 @@ export async function recheckChunk(env) {
 
   const due = "(checked_at IS NULL OR checked_at < date('now', '-1 day'))";
   const live = "source = 'divar' AND removed_at IS NULL";
-  const pick = async (order, n, extra = "") => (await db.prepare(`
-    SELECT source_id FROM listings WHERE ${live} AND ${due} ${extra}
-      AND COALESCE(last_seen, scraped_at) >= date('now', '-120 days')
-    ORDER BY ${order} LIMIT ?`).bind(n).all()).results.map((r) => r.source_id);
-
+  const edges = new Date().getUTCMinutes() % 10 === 0;
+  const byPrice = async (dir, n) => (await db.prepare(`
+    SELECT source_id FROM listings INDEXED BY idx_listings_pm2
+    WHERE source = 'divar' AND removed_at IS NULL AND price_m2 > 0 AND ${due}
+    ORDER BY price_m2 ${dir} LIMIT ?`).bind(n).all()).results.map((r) => r.source_id);
   const ids = [...new Set([
-    ...await pick("price_m2 DESC", 10),
-    ...await pick("price_toman DESC", 5),
-    ...await pick("price_m2 IS NULL, price_m2 ASC", 5),
+    ...(edges ? await byPrice("DESC", 10) : []),
+    ...(edges ? await byPrice("ASC", 5) : []),
     ...(await db.prepare(`
       SELECT source_id FROM listings INDEXED BY idx_listings_stale
       WHERE source = 'divar' AND removed_at IS NULL
         AND last_seen >= date('now', '-120 days') AND last_seen < date('now', '-3 days') AND ${due}
       ORDER BY last_seen ASC LIMIT ?`).bind(N).all()).results.map((r) => r.source_id),
-    ...await pick("checked_at ASC", 10),
+    ...(await db.prepare(`
+      SELECT source_id FROM listings INDEXED BY idx_listings_recheck
+      WHERE source = 'divar' AND removed_at IS NULL AND checked_at IS NULL
+      LIMIT 10`).all()).results.map((r) => r.source_id),
   ])].slice(0, N + 20);
 
   const gone = [], seen = [];

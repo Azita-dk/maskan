@@ -1164,7 +1164,7 @@ function isLimitError(e) {
 
 const ADS_SORT = {
   new: "COALESCE(price_changed_at, posted_at, substr(scraped_at, 1, 10)) DESC",
-  cheap: "price_m2 IS NULL, price_m2 ASC",
+  cheap: "price_m2 ASC",
   dear: "price_m2 DESC",
   cheapTotal: "price_toman ASC",
   dearTotal: "price_toman DESC",
@@ -1204,7 +1204,12 @@ function adsWhere(q, num) {
   const args = [q.get("city") || "", q.get("kind") || "apartment", `-${ACTIVE_DAYS} days`];
   const add = (sql, ...v) => { where.push(sql); args.push(...v); };
 
-  if (q.get("hood")) add("replace(replace(replace(replace(replace(hood,' ',''),'‌',''),'-',''),'آ','ا'),'ي','ی') = ?", foldPlace(q.get("hood")));
+  if (q.get("hood")) {
+    const h = q.get("hood").trim();
+    const v = [...new Set([h, h.replace(/ی/g, "ي"), h.replace(/ک/g, "ك"), h.replace(/ی/g, "ي").replace(/ک/g, "ك"),
+      h.replace(/ي/g, "ی").replace(/ك/g, "ک"), h.replace(/آ/g, "ا"), h.replace(/\u200c/g, " "), h.replace(/ /g, "\u200c")])];
+    add(`hood IN (${v.map(() => "?").join(",")})`, ...v);
+  }
   if (q.get("src")) add("source = ?", q.get("src"));
   if (num("min") != null) add("area_m2 >= ?", num("min"));
   if (num("max") != null) add("area_m2 <= ?", num("max"));
@@ -1459,6 +1464,10 @@ async function verifyFront(env, results, max) {
   return gone.length;
 }
 
+const ADS_CACHE = new Map(), COUNT_CAP = 3000;
+const ADS_HEADERS = { "content-type": "application/json; charset=utf-8",
+  "cache-control": "public, max-age=120", "access-control-allow-origin": "*" };
+
 async function adsApi(url, env) {
   const db = env.DB;
   const q = url.searchParams;
@@ -1469,16 +1478,20 @@ async function adsApi(url, env) {
     return Number.isFinite(n) ? n : null;
   };
 
-  if (!(await env.SITE.get("idx:ads:v1"))) {
+  if (!(await env.SITE.get("idx:ads:v2"))) {
     for (const sql of [
       "CREATE INDEX IF NOT EXISTS idx_ads_city_m2 ON listings(city, price_m2)",
       "CREATE INDEX IF NOT EXISTS idx_ads_city_price ON listings(city, price_toman)",
       "CREATE INDEX IF NOT EXISTS idx_ads_dedupe ON listings(dedupe_key)",
+      "CREATE INDEX IF NOT EXISTS idx_ads_city_new ON listings(city, COALESCE(price_changed_at, posted_at, substr(scraped_at, 1, 10)))",
     ]) await db.prepare(sql).run();
-    await env.SITE.put("idx:ads:v1", "1");
+    await env.SITE.put("idx:ads:v2", "1");
   }
+  const hit = ADS_CACHE.get(url.search);
+  if (hit && Date.now() - hit.t < 120e3) return new Response(hit.body, { headers: ADS_HEADERS });
 
   const { where, args } = adsWhere(q, num);
+  if (q.get("sort") === "cheap") where.push("price_m2 > 0");
   const order = ADS_SORT[q.get("sort")] || ADS_SORT.new;
   const limit = Math.min(Math.max(num("limit") || 60, 1), 2000);
   const w = where.join(" AND ");
@@ -1488,16 +1501,17 @@ async function adsApi(url, env) {
              rooms, age_years, lat, lng, substr(address, 1, 80) AS address, features,
              COALESCE(price_changed_at, posted_at) AS d, first_posted_at, COALESCE(kind,'apartment') AS kind, checked_at
       FROM listings WHERE ${w} ORDER BY ${order} LIMIT ?`).bind(...args, limit).all(),
-    db.prepare(`SELECT COUNT(*) AS n FROM listings WHERE ${w}`).bind(...args).first(),
+    db.prepare(`SELECT COUNT(*) AS n FROM (SELECT 1 FROM listings WHERE ${w} LIMIT ${COUNT_CAP})`).bind(...args).first(),
   ]);
 
   const front = Math.min(Math.max(num("verify") ?? 16, 0), 24);
   const goneN = front ? await verifyFront(env, results, front) : 0;
   const rows = results.filter((r) => !r._gone).map(adRow);
-  return new Response(JSON.stringify({ total: Math.max(0, (cnt ? cnt.n : rows.length) - goneN), rows }), {
-    headers: { "content-type": "application/json; charset=utf-8",
-               "cache-control": "public, max-age=60", "access-control-allow-origin": "*" },
-  });
+  const n = cnt ? cnt.n : rows.length;
+  const body = JSON.stringify({ total: Math.max(0, n - goneN), capped: n >= COUNT_CAP, rows });
+  ADS_CACHE.set(url.search, { t: Date.now(), body });
+  if (ADS_CACHE.size > 300) ADS_CACHE.delete(ADS_CACHE.keys().next().value);
+  return new Response(body, { headers: ADS_HEADERS });
 }
 
 async function repairPrices(env) {

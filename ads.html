@@ -210,7 +210,8 @@ function drawAds(){
   const live = solo ? null : serverAds(adsSort, shown, areaBounds, drawAds);
   const local = rows();
   const all = live && (live.total || !local.length) ? live.rows : local;
-  const totalN = live && all === live.rows ? live.total : all.length;
+  const est = () => (typeof realCount === 'function' ? realCount(activeListings()) : activeListings().length);
+  const totalN = live && all === live.rows ? (live.capped ? Math.max(live.total, est()) : live.total) : all.length;
   const body = document.getElementById('adsBody');
   document.getElementById('soloBar').classList.toggle('hide', !solo);
   document.getElementById('adsTitle').textContent =
