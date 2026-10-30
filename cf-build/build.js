@@ -545,7 +545,7 @@ export async function build(env, log = [], from = 0, self = null) {
       let start = Number(await env.SITE.get(`start:${city}`)) || 0;
       if (!start) {
         const f = await db.prepare("SELECT MIN(day) AS d FROM city_snapshots WHERE city = ?").bind(city).first();
-        start = f && f.d && f.d < "2026-10-15" ? 1405 * 12 + 5 : jy * 12 + jm;
+        start = f && f.d && f.d < "2026-10-15" ? 1405 * 12 + 5 : jy * 12 + jm - 1;
         await env.SITE.put(`start:${city}`, String(start));
       }
       cityFile.collect_from = start;
