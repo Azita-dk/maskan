@@ -590,6 +590,8 @@ function heat(v, lo, hi){
   return `rgb(${c(0)},${c(1)},${c(2)})`;
 }
 
+function collectStart(){ return (CITY && CITY.collect_from) || 1405 * 12 + 5; }
+
 function seqTeal(v, lo, hi){
   const a = [167, 220, 200], b = [13, 92, 82];
   const f = !isFinite(v) || hi <= lo ? 1 : Math.max(0, Math.min(1, (v - lo) / (hi - lo)));

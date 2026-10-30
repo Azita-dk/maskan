@@ -61,7 +61,6 @@
 <script src="app.js?v=20261026a"></script>
 <script>
 const COLORS = ['#0D7668', '#F08A4B', '#3B82C4', '#7A3E9D'];
-const FROM_KEY = 1405 * 12 + 5;
 const MAX = 4;
 const monthLabel = k => `${J_MONTHS[k % 12]} ${FA_YEAR(Math.floor(k / 12))}`;
 const fold = t => String(t || '').replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/آ/g, 'ا').replace(/[\s‌]/g, '');
@@ -78,24 +77,24 @@ function fromListings(hood){
   const want = hood ? fold(hood) : null, nowK = jKey(new Date().toISOString()), g = new Map();
   for (const l of ls) {
     if (!l.d || !(l.m > 0) || (want && fold(l.h) !== want)) continue;
-    for (let k = Math.max(jKey(l.d0 || l.d), FROM_KEY); k <= nowK; k++) {
+    for (let k = Math.max(jKey(l.d0 || l.d), collectStart()); k <= nowK; k++) {
       if (!g.has(k)) g.set(k, []);
       g.get(k).push(l.m);
     }
   }
   return [...g].sort((a, b) => a[0] - b[0]).map(([k, v]) => [k, Math.round(v.length * scale), v.length >= 5 ? round1(median(v)) : null]);
 }
-const hasVals = a => (a || []).some(x => x[0] >= FROM_KEY && x[2] > 0);
+const hasVals = a => (a || []).some(x => x[0] >= collectStart() && x[2] > 0);
 function monthlyOf(hood){
   const hm = ((CITY.hood_monthly || {})[S.kind]) || {};
   let a = hm[hood];
   if (!a) { const k = fold(hood); for (const h in hm) if (fold(h) === k) { a = hm[h]; break; } }
   if (!hasVals(a)) a = fromListings(hood);
-  return (a || []).filter(x => x[0] >= FROM_KEY);
+  return (a || []).filter(x => x[0] >= collectStart());
 }
 const cityMonthly = () => {
   const a = ((CITY.monthly || {})[S.kind]) || [];
-  return (hasVals(a) ? a : fromListings('')).filter(x => x[0] >= FROM_KEY);
+  return (hasVals(a) ? a : fromListings('')).filter(x => x[0] >= collectStart());
 };
 function sampleOf(hood){
   const f = fold(hood);

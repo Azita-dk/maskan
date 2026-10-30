@@ -377,16 +377,15 @@ const dashLast = months => {
   return {};
 };
 const hollowPre = (months, color) => c =>
-  months[c.dataIndex] < COLLECT_START_KEY ? CSSVAR('--card') : color;
+  months[c.dataIndex] < collectStart() ? CSSVAR('--card') : color;
 
-const COLLECT_START_KEY = 1405 * 12 + 5;
 const SHOW_FROM_KEY = () => 1405 * 12 + 5;
 
 const preShade = {
   id: 'preShade',
   beforeDatasetsDraw(chart){
     const months = chart.$months || [];
-    const n = months.filter(k => k < COLLECT_START_KEY).length;
+    const n = months.filter(k => k < collectStart()).length;
     if (!n) return;
     const { ctx, chartArea: a, scales: { x } } = chart;
     const edge = n < months.length
@@ -563,7 +562,7 @@ function drawCmpPicker(){
 function monthlyChange(){
   const m = monthlySeries(mainHood());
   const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
-  const keys = [...m.keys()].filter(k => m.get(k).v != null && k < nowKey && k >= COLLECT_START_KEY)
+  const keys = [...m.keys()].filter(k => m.get(k).v != null && k < nowKey && k >= collectStart())
     .sort((a, b) => a - b);
   if (keys.length < 2) return null;
   const a = keys[0], b = keys[keys.length - 1];
@@ -676,9 +675,9 @@ function drawTrend(){
   trendChart.$months = months; trendChart.update && trendChart.update('none');
   const tn = [];
   if (monthsWithData < 2) tn.push('فعلاً فقط یک ماه داده هست؛ خط روند از ماه دوم کشیده می‌شود.');
-  if (months.some(k => k < COLLECT_START_KEY))
-    tn.push('جمع‌آوری از شهریور ۱۴۰۵ آغاز شده است. ماه‌های پیش از آن با پس‌زمینه خاکستری نشان داده می‌شوند: در آن‌ها فقط آگهی‌هایی هست که تا شهریور هنوز روی دیوار یا شیپور بوده‌اند — بیشتر خانه‌های بزرگ‌تر و گران‌تر — پس تعدادشان کمتر و قیمتشان بالاتر از واقع است.');
-  tn.push('«تغییر قیمت» فقط از شهریور ۱۴۰۵ به بعد حساب می‌شود.');
+  if (months.some(k => k < collectStart()))
+    tn.push(`جمع‌آوری کامل در ${CITY.name} از ${jMonthLabel(collectStart())} آغاز شده است. ماه‌های پیش از آن با پس‌زمینه خاکستری نشان داده می‌شوند: در آن‌ها فقط آگهی‌هایی هست که آن زمان هنوز روی دیوار یا شیپور بوده‌اند — بیشتر خانه‌های بزرگ‌تر و گران‌تر — پس تعدادشان کمتر و قیمتشان بالاتر از واقع است.`);
+  tn.push(`«تغییر قیمت» فقط از ${jMonthLabel(collectStart())} به بعد حساب می‌شود.`);
   tn.push(
     'هر آگهی در همه ماه‌هایی شمرده می‌شود که روی دیوار یا شیپور بوده: از ماه انتشار تا ماهی که حذف شده، یا تا امروز اگر هنوز فعال است. در هر ماه فقط یک بار شمرده می‌شود.',
     'اگر قیمت آگهی عوض شود، از همان ماه با قیمت تازه حساب می‌شود. آگهی‌ای که بیش از سه هفته در دیوار دیده نشود، حذف‌شده به حساب می‌آید.',
@@ -777,7 +776,7 @@ function drawCountTrend(){
   });
 
   actChart.$months = months; actChart.update && actChart.update('none');
-  const cn = ['ماه‌های پیش از شهریور ۱۴۰۵ (پس‌زمینه خاکستری) ناقص‌اند: فقط آگهی‌هایی که تا شهریور هنوز روی دیوار یا شیپور بوده‌اند در آن‌ها شمرده شده‌اند.',
+  const cn = [`ماه‌های پیش از ${jMonthLabel(collectStart())} (پس‌زمینه خاکستری) ناقص‌اند: فقط آگهی‌هایی که آن زمان هنوز روی دیوار یا شیپور بوده‌اند در آن‌ها شمرده شده‌اند.`,
     'تعداد آگهی‌هایی که در آن ماه روی دیوار یا شیپور بوده‌اند — همان آگهی‌هایی که قیمتشان در نمودار کناری آمده. آگهی‌ای که چند ماه روی سایت مانده در هر یک از آن ماه‌ها یک بار شمرده می‌شود.',
     'ماه جاری هنوز تمام نشده است.',
     'آگهی‌هایی که هنوز تاریخ دیوار ندارند شمرده نمی‌شوند، پس ماه جاری تا چند روز کمتر از واقع دیده می‌شود.'];

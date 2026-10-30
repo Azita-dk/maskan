@@ -77,6 +77,12 @@ const CITY_NAMES = ["تهران","مشهد","اصفهان","کرج","شیراز"
   "تهراندشت","کردان","سهیلیه","چهارباغ","ماهدشت","کمال‌شهر","مشکین‌دشت",
   "شهرک وحدت","گرمدره","آسارا","طالقان"];
 
+const EXTRA_CITIES = ["نجف‌آباد","قائم‌شهر","خمینی‌شهر","شاهین‌شهر","ملایر","سمنان","شاهرود",
+  "گنبد کاووس","ساوه","آبادان","بندر ماهشهر","بهبهان","اندیمشک","جهرم","کازرون","فسا",
+  "مهاباد","بوکان","میاندوآب","مرند","میانه","مریوان","بانه","تربت حیدریه","قوچان",
+  "کاشمر","زابل","چابهار","بم","جیرفت","نوشهر","چالوس","تنکابن","بهشهر","بندر انزلی",
+  "لنگرود","دماوند","رباط کریم","کیش","شهرضا"];
+
 /* What a plot advert says about itself.
  *
  * Divar rejects every name tried for the land category but accepts the
@@ -665,9 +671,7 @@ async function pickCity(db) {
     ORDER BY
       (page > 0) DESC,                  -- finish what was started
       (${firstChoice}) DESC,            -- whose hour it is
-      (last_run IS NULL) DESC,          -- then anything never scraped
-      -- then whatever is most overdue, measured against its own interval
-      (julianday('now') - julianday(COALESCE(last_run, '2000-01-01')))
+      (julianday('now') - julianday(COALESCE(last_run, date('now', '-8 days'))))
         / ${REVISIT_DAYS} DESC,
       rowid ASC
     LIMIT 1`).first();
@@ -1078,7 +1082,7 @@ export async function scrapeChunk(env, log = []) {
       stmts.push(db.prepare(
         `UPDATE listings SET last_seen = ?
          WHERE source='divar' AND source_id IN (${stillThere.map(() => "?").join(",")})
-           AND (last_seen IS NULL OR last_seen < ?)`).bind(today, ...stillThere, today));
+           AND (last_seen IS NULL OR last_seen < date(?, '-2 days'))`).bind(today, ...stillThere, today));
     }
 
     pag = (payload.pagination || {}).data || null;
@@ -1141,14 +1145,18 @@ export async function seedCities(env) {
 
   // The biggest markets first, so an interrupted day still covers what
   // matters. Everything else is added behind them.
-  const priority = CITY_NAMES;
+  const priority = [...CITY_NAMES, ...EXTRA_CITIES];
+  const norm = (t) => String(t).replace(/[يى]/g, "ی").replace(/ك/g, "ک").replace(/[\s\u200c]/g, "");
+  const byNorm = new Map([...found].map(([n, id]) => [norm(n), n]));
+  const missing = [];
 
   const stmts = [];
   // one row per city, kind and price band — each band is a separate search
   // with its own 215-page allowance, which is the whole point of them
-  for (const name of priority) {
-    const id = found.get(name);
-    if (!id) continue;
+  for (const wanted of priority) {
+    const name = found.has(wanted) ? wanted : byNorm.get(norm(wanted));
+    const id = name && found.get(name);
+    if (!id) { if (EXTRA_CITIES.includes(wanted)) missing.push(wanted); continue; }
     for (const k of KINDS) {
       const fine = BIG_CITIES.has(name);
       const list = bandsFor(name);
@@ -1160,7 +1168,7 @@ export async function seedCities(env) {
     }
   }
   if (stmts.length) await env.DB.batch(stmts);
-  return { known: found.size, seeded: stmts.length };
+  return { known: found.size, seeded: stmts.length, missing };
 }
 
 /* ── entry points ───────────────────────────────────────────────────── */

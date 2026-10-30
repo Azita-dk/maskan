@@ -540,7 +540,7 @@ function drawInsights(){
   const hm = (CITY.hood_monthly || {})[S.kind] || {};
   const cands = [];
   for (const [hood, arr] of Object.entries(hm)) {
-    const a = (arr || []).filter(x => x[0] >= SHOW_FROM_KEY() && x[2] > 0 && x[1] >= 30);
+    const a = (arr || []).filter(x => x[0] >= collectStart() && x[2] > 0 && x[1] >= 30);
     if (a.length < 2) continue;
     const [p, q] = a.slice(-2);
     cands.push({ hood, pct: (q[2] - p[2]) / p[2] * 100, from: p[0], to: q[0] });
@@ -611,7 +611,7 @@ function syncHero(){
     .map(x => `<option value="${esc(x.id)}"${x.id === S.city ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
   if (k) k.innerHTML = KINDS.map(x => `<option value="${x.id}"${x.id === S.kind ? ' selected' : ''}>${x.label}</option>`).join('');
   document.getElementById('hPeriod').innerHTML =
-    `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>داده از ${jMonthLabel(SHOW_FROM_KEY())}`;
+    `<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>داده از ${jMonthLabel(collectStart())}`;
   if (c.dataset.ready) return;
   c.dataset.ready = '1';
   const setCity = (id) => {
@@ -732,7 +732,7 @@ function drawPopHoods(){
   const pin = '<svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>';
   const trendOf = h => {
     if (!whole) return '';
-    const pts = (findHoodMonthly(h) || []).filter(x => x[0] >= SHOW_FROM_KEY() && x[1] >= 5 && x[2] > 0);
+    const pts = (findHoodMonthly(h) || []).filter(x => x[0] >= collectStart() && x[1] >= 5 && x[2] > 0);
     if (pts.length < 2) return '';
     return `<div class="ph-trend" title="میانه قیمت هر متر در هر ماه، ${jMonthLabel(pts[0][0])} تا ${jMonthLabel(pts[pts.length - 1][0])}">
       ${spark(pts.map(x => x[2]), '#0D7668')}<span>${jMonthLabel(pts[0][0])} تا ${jMonthLabel(pts[pts.length - 1][0])}</span></div>`;
@@ -948,7 +948,7 @@ function hoodDetail(r, cityMed, whole){
   }
   let trend = '';
   if (whole) {
-    const m = (findHoodMonthly(r.hood) || []).filter(x => x[0] >= SHOW_FROM_KEY());
+    const m = (findHoodMonthly(r.hood) || []).filter(x => x[0] >= collectStart());
     const full = m.filter(x => x[0] < nowKey && x[1] >= 10 && x[2] > 0);
     if (full.length >= 2) {
       const [p, q] = full.slice(-2);
@@ -1171,7 +1171,6 @@ function filteredHistory(hood, minN = 30){
   return out;
 }
 
-const COLLECT_START_KEY = 1405 * 12 + 5;
 const SHOW_FROM_KEY = () => 1405 * 12 + 5;
 
 const pointLabels = {
@@ -1197,7 +1196,7 @@ const preShade = {
   id: 'preShade',
   beforeDatasetsDraw(chart){
     const months = chart.$months || [];
-    const n = months.filter(k => k < COLLECT_START_KEY).length;
+    const n = months.filter(k => k < collectStart()).length;
     if (!n) return;
     const { ctx, chartArea: a, scales: { x } } = chart;
     const edge = n < months.length
@@ -1374,7 +1373,7 @@ function drawCmpPicker(){
 function monthlyChange(){
   const m = monthlySeries(mainHood());
   const nowKey = jMonthKey(new Date().toISOString().slice(0, 10));
-  const keys = [...m.keys()].filter(k => m.get(k).v != null && k < nowKey && k >= COLLECT_START_KEY)
+  const keys = [...m.keys()].filter(k => m.get(k).v != null && k < nowKey && k >= collectStart())
     .sort((a, b) => a - b);
   if (keys.length < 2) return null;
   const a = keys[0], b = keys[keys.length - 1];
@@ -1414,7 +1413,7 @@ const dashLast = months => {
   return {};
 };
 const hollowPre = (months, color) => c =>
-  months[c.dataIndex] < COLLECT_START_KEY ? CSSVAR('--card') : color;
+  months[c.dataIndex] < collectStart() ? CSSVAR('--card') : color;
 
 function drawTrend(){
   trendChart && trendChart.destroy(); trendChart = null;
@@ -1495,9 +1494,9 @@ function drawTrend(){
   trendChart.$months = months; trendChart.update && trendChart.update('none');
   const tn = [];
   if (monthsWithData < 2) tn.push('فعلاً فقط یک ماه داده هست؛ خط روند از ماه دوم کشیده می‌شود.');
-  if (months.some(k => k < COLLECT_START_KEY))
-    tn.push('جمع‌آوری از شهریور ۱۴۰۵ آغاز شده است. ماه‌های پیش از آن با پس‌زمینه خاکستری نشان داده می‌شوند: در آن‌ها فقط آگهی‌هایی هست که تا شهریور هنوز روی دیوار یا شیپور بوده‌اند — بیشتر خانه‌های بزرگ‌تر و گران‌تر — پس تعدادشان کمتر و قیمتشان بالاتر از واقع است.');
-  tn.push('«تغییر قیمت» فقط از شهریور ۱۴۰۵ به بعد حساب می‌شود.');
+  if (months.some(k => k < collectStart()))
+    tn.push(`جمع‌آوری کامل در ${CITY.name} از ${jMonthLabel(collectStart())} آغاز شده است. ماه‌های پیش از آن با پس‌زمینه خاکستری نشان داده می‌شوند: در آن‌ها فقط آگهی‌هایی هست که آن زمان هنوز روی دیوار یا شیپور بوده‌اند — بیشتر خانه‌های بزرگ‌تر و گران‌تر — پس تعدادشان کمتر و قیمتشان بالاتر از واقع است.`);
+  tn.push(`«تغییر قیمت» فقط از ${jMonthLabel(collectStart())} به بعد حساب می‌شود.`);
   tn.push(
     'هر آگهی در همه ماه‌هایی شمرده می‌شود که روی دیوار یا شیپور بوده: از ماه انتشار تا ماهی که حذف شده، یا تا امروز اگر هنوز فعال است. در هر ماه فقط یک بار شمرده می‌شود.',
     'اگر قیمت آگهی عوض شود، از همان ماه با قیمت تازه حساب می‌شود. آگهی‌ای که بیش از سه هفته در دیوار دیده نشود، حذف‌شده به حساب می‌آید.',
@@ -1600,7 +1599,7 @@ function drawCountTrend(){
   });
 
   actChart.$months = months; actChart.update && actChart.update('none');
-  const cn = ['ماه‌های پیش از شهریور ۱۴۰۵ (پس‌زمینه خاکستری) ناقص‌اند: فقط آگهی‌هایی که تا شهریور هنوز روی دیوار یا شیپور بوده‌اند در آن‌ها شمرده شده‌اند.',
+  const cn = [`ماه‌های پیش از ${jMonthLabel(collectStart())} (پس‌زمینه خاکستری) ناقص‌اند: فقط آگهی‌هایی که آن زمان هنوز روی دیوار یا شیپور بوده‌اند در آن‌ها شمرده شده‌اند.`,
     'تعداد آگهی‌هایی که در آن ماه روی دیوار یا شیپور بوده‌اند — همان آگهی‌هایی که قیمتشان در نمودار کناری آمده. آگهی‌ای که چند ماه روی سایت مانده در هر یک از آن ماه‌ها یک بار شمرده می‌شود.',
     'ماه جاری هنوز تمام نشده است.',
     'آگهی‌هایی که هنوز تاریخ دیوار ندارند شمرده نمی‌شوند، پس ماه جاری تا چند روز کمتر از واقع دیده می‌شود.'];

@@ -604,7 +604,7 @@ export async function recheckChunk(env) {
     ...(await db.prepare(`
       SELECT source_id FROM listings INDEXED BY idx_listings_stale
       WHERE source = 'divar' AND removed_at IS NULL
-        AND last_seen >= date('now', '-120 days') AND last_seen < date('now', '-3 days') AND ${due}
+        AND last_seen >= date('now', '-120 days') AND last_seen < date('now', '-5 days') AND ${due}
       ORDER BY last_seen ASC LIMIT ?`).bind(N).all()).results.map((r) => r.source_id),
   ])].slice(0, N + 20);
 
