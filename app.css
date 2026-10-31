@@ -1202,3 +1202,18 @@ html{scroll-padding-top:80px}
 .opp.sk .bd i:nth-child(1){width:80%}.opp.sk .bd i:nth-child(2){width:55%}.opp.sk .bd i:nth-child(3){width:65%}
 @keyframes sk{from{background-position:200% 0}to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){.opp.sk .ph,.opp.sk .bd i{animation:none}}
+.ov-row{top:9.3%;left:1.6%;height:17.1%;display:flex;gap:.6em;font-size:clamp(10px,1.45cqw,14.5px)}
+.ovc{display:inline-flex;align-items:center;gap:.4em;height:100%;background:#F7F8F6;color:#183B3B;border-radius:999px;font-weight:700;
+  box-shadow:0 4px 10px rgba(0,0,0,.12);padding:0 .9em;white-space:nowrap}
+.ovc svg{width:1.2em;height:1.2em;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.ovc select{border:0;background:transparent;color:inherit;font:inherit;font-weight:800;padding:0;cursor:pointer;max-width:12em}
+.ovc.per{font-weight:600;color:#3D5654}
+@media (max-width:700px){
+  .hc-ui > .ov-row{grid-column:1/-1;grid-row:1;order:1;position:static!important;height:auto;flex-wrap:wrap;gap:8px;font-size:13px}
+  .hc-ui > .ov-row .ovc{height:34px}
+}
+@media (min-width:701px){
+  .ov-row{gap:0;background:#F7F8F6;border-radius:999px;box-shadow:0 4px 10px rgba(0,0,0,.12);padding:0 .3em}
+  .ov-row .ovc{background:transparent;box-shadow:none;border-radius:0}
+  .ov-row .ovc + .ovc{border-inline-start:1px solid #D9E2DF}
+}

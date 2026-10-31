@@ -132,8 +132,11 @@ table.cards td:first-child{white-space:normal;min-width:160px}
       <div class="hc-ui">
         <div class="hc-mtext" aria-hidden="true"><b>با داده‌های واقعی،<br>بازار مسکن را بهتر بشناسید</b>
           <span>قیمت‌ها را بررسی کنید، محله‌های مناسب را پیدا کنید و روند بازار را ببینید.</span></div>
-        <label class="ov ov-city"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><select id="hCity" aria-label="شهر"></select></label>
-        <span class="ov ov-period" id="hPeriod"></span>
+        <div class="ov ov-row">
+          <label class="ovc"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><select id="hProv" aria-label="استان"></select></label>
+          <label class="ovc"><select id="hCity" aria-label="شهر"></select></label>
+          <span class="ovc per" id="hPeriod"></span>
+        </div>
         <div class="ov ov-search hc-search">
           <input id="hq" type="search" autocomplete="off" placeholder="جست‌وجوی شهر یا محله…" aria-label="جست‌وجوی شهر یا محله">
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
@@ -607,7 +610,13 @@ function allHoodStats(){
 function syncHero(){
   const c = document.getElementById('hCity'), k = document.getElementById('hKind');
   if (!c || !DB || !CITY) return;
-  c.innerHTML = [...DB.cities].sort((a, b) => (b.n || 0) - (a.n || 0))
+  const pv = document.getElementById('hProv');
+  if (pv) {
+    const provs = [...new Set(DB.cities.map(x => provinceOf(x.name)))].sort(byFa);
+    pv.innerHTML = '<option value="">همه استان‌ها</option>' +
+      provs.map(x => `<option value="${esc(x)}"${x === S.prov ? ' selected' : ''}>${esc(x)}</option>`).join('');
+  }
+  c.innerHTML = citiesInProvince().sort((a, b) => (b.n || 0) - (a.n || 0))
     .map(x => `<option value="${esc(x.id)}"${x.id === S.city ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
   if (k) k.innerHTML = KINDS.map(x => `<option value="${x.id}"${x.id === S.kind ? ' selected' : ''}>${x.label}</option>`).join('');
   document.getElementById('hPeriod').innerHTML =
@@ -619,6 +628,11 @@ function syncHero(){
     if (f) { f.value = id; f.dispatchEvent(new Event('change')); }
   };
   c.addEventListener('change', () => setCity(c.value));
+  const pvSel = document.getElementById('hProv');
+  if (pvSel) pvSel.addEventListener('change', () => {
+    const f = document.getElementById('fProv');
+    if (f) { f.value = pvSel.value; f.dispatchEvent(new Event('change')); }
+  });
   if (k) k.addEventListener('change', () => {
     const b = document.querySelector(`#kindTabs [data-k="${k.value}"]`);
     if (b && !b.disabled) b.click(); else k.value = S.kind;

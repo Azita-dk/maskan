@@ -21,6 +21,7 @@
 
   <div class="panel cmp-pick">
     <div class="cmp-ctl">
+      <label><span>استان</span><select id="cProv"></select></label>
       <label><span>شهر</span><select id="cCity"></select></label>
       <label><span>نوع ملک</span><select id="cKind"></select></label>
       <label class="grow"><span>افزودن محله</span><select id="cAdd"></select></label>
@@ -116,7 +117,10 @@ function drawPicker(){
   }
   const sel = chosen();
   const c = document.getElementById('cCity'), k = document.getElementById('cKind'), add = document.getElementById('cAdd');
-  c.innerHTML = [...DB.cities].sort((a, b) => (b.n || 0) - (a.n || 0))
+  const pv = document.getElementById('cProv');
+  pv.innerHTML = '<option value="">همه استان‌ها</option>' + [...new Set(DB.cities.map(x => provinceOf(x.name)))].sort(byFa)
+    .map(x => `<option value="${esc(x)}"${x === S.prov ? ' selected' : ''}>${esc(x)}</option>`).join('');
+  c.innerHTML = citiesInProvince().sort((a, b) => (b.n || 0) - (a.n || 0))
     .map(x => `<option value="${esc(x.id)}"${x.id === S.city ? ' selected' : ''}>${esc(x.name)}</option>`).join('');
   k.innerHTML = KINDS.map(x => `<option value="${x.id}"${x.id === S.kind ? ' selected' : ''}>${x.label}</option>`).join('');
   const free = rows.filter(r => !sel.includes(r.hood)).sort((a, b) => byFa(a.hood, b.hood));
@@ -244,6 +248,15 @@ function wire(){
   document.getElementById('cCity').addEventListener('change', async e => {
     S.city = e.target.value; S.hood = ''; S.cmp = '';
     await loadCity(S.city); commit();
+  });
+  document.getElementById('cProv').addEventListener('change', async e => {
+    S.prov = e.target.value;
+    const inProv = citiesInProvince();
+    if (inProv.length && !inProv.some(x => x.id === S.city)) {
+      S.city = [...inProv].sort((a, b) => (b.n || 0) - (a.n || 0))[0].id; S.hood = ''; S.cmp = '';
+      await loadCity(S.city);
+    }
+    commit();
   });
   document.getElementById('cKind').addEventListener('change', e => { S.kind = e.target.value; S.cmp = ''; commit(); });
   document.getElementById('cAdd').addEventListener('change', e => {

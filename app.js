@@ -78,6 +78,10 @@ const PROVINCE = {
  // from the National Cartographic Center gazetteer; these five were missing
  // and each showed up in the province list as a province of its own
  "قرچک": "تهران",
+ "تهراندشت": "البرز",
+ "کردان": "البرز",
+ "سهیلیه": "البرز",
+ "شهرک وحدت": "البرز",
  "رودهن": "تهران",
  "شهرجدیدهشتگرد": "البرز",
  "چهارباغ": "البرز",
@@ -337,7 +341,13 @@ const PROVINCE = {
 
 // A city not in the table is shown under its own name rather than dropped,
 // so a new city appearing in the data never vanishes from the list.
-function provinceOf(city){ return PROVINCE[city] || city; }
+const provNorm = t => String(t || '').replace(/[يى]/g, 'ی').replace(/ك/g, 'ک').replace(/[\s\u200c]/g, '');
+let PROV_N = null;
+function provinceOf(city){
+  if (PROVINCE[city]) return PROVINCE[city];
+  if (!PROV_N) PROV_N = new Map(Object.entries(PROVINCE).map(([k, v]) => [provNorm(k), v]));
+  return PROV_N.get(provNorm(city)) || city;
+}
 
 // localeCompare with 'fa' orders the Persian alphabet properly; a plain
 // sort would use code points and put ی before ک.
