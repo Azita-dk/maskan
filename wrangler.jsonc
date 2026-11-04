@@ -7,6 +7,9 @@
     "directory": ".",
     "binding": "ASSETS"
   },
+  "services": [
+    { "binding": "BUILD", "service": "maskan-build" }
+  ],
   "kv_namespaces": [
     { "binding": "SITE", "id": "435ef92702274deea775331b1dceffb0" }
   ]

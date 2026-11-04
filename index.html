@@ -120,7 +120,7 @@ table.cards td{white-space:nowrap}
 table.cards td:first-child{white-space:normal;min-width:160px}
 
 </style>
-<link rel="stylesheet" href="app.css?v=20261026a">
+<link rel="stylesheet" href="app.css?v=20261104a">
 </head>
 <body>
 
@@ -307,7 +307,7 @@ table.cards td:first-child{white-space:normal;min-width:160px}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="app.js?v=20261026a"></script>
+<script src="app.js?v=20261104a"></script>
 <script>
 let allOpen = false;
 let trendChart = null, distChart = null;
@@ -700,7 +700,7 @@ function drawOpps(){
     box.innerHTML = Array.from({ length: 4 }, () => '<div class="opp sk" aria-hidden="true"><div class="ph"></div><div class="bd"><i></i><i></i><i></i></div></div>').join('');
     const hm = {};
     for (const r of (CITY.rows || [])) if ((r.k || 'apartment') === S.kind && r.hood && r.hood !== 'نامشخص' && r.n >= HOOD_FEW && r.median > 0) hm[r.hood] = r.median;
-    fetch(`${DATA_BASE}/opps?${key}`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: JSON.stringify({ hm }) }).then(r => r.ok ? r.json() : null).then(j => {
+    apiFetch(`/api/opps?${key}`, { method: 'POST', headers: { 'content-type': 'text/plain' }, body: JSON.stringify({ hm }) }).then(r => r.ok ? r.json() : null).then(j => {
       if (key !== oppKey) return;
       oppLive = j && j.ready ? j : { failed: true };
       drawOpps(); drawNext();

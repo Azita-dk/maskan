@@ -179,14 +179,34 @@ ${urls.map((u) => `  <url><loc>${SITE}${u}</loc><lastmod>${day}</lastmod><change
 const ROBOTS = `User-agent: *
 Allow: /
 Disallow: /data/
+Disallow: /api/
 Disallow: /cf-
 Sitemap: ${SITE}/sitemap.xml
 `;
+
+const BUILD_URL = "https://maskan-build.azita-maskan.workers.dev";
 
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = decodeURIComponent(url.pathname).replace(/\/+$/, "");
+    if (url.pathname.startsWith("/data/")) {
+      const body = await env.SITE.get(url.pathname.slice(1));
+      if (!body) return new Response("not found", { status: 404 });
+      return new Response(body, { headers: { "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=60, must-revalidate" } });
+    }
+    if (url.pathname === "/api/ads" || url.pathname === "/api/opps") {
+      const target = new URL(url.pathname.slice(4) + url.search, BUILD_URL);
+      const init = { method: request.method, headers: { "content-type": request.headers.get("content-type") || "text/plain" },
+        body: request.method === "POST" ? await request.text() : undefined };
+      try {
+        return env.BUILD ? await env.BUILD.fetch(new Request(target, init)) : await fetch(target, init);
+      } catch (e) {
+        return new Response(JSON.stringify({ error: "data service unavailable" }), { status: 502,
+          headers: { "content-type": "application/json; charset=utf-8" } });
+      }
+    }
     try {
       if (path === "/robots.txt") return new Response(ROBOTS, { headers: { "content-type": "text/plain; charset=utf-8" } });
       if (path === "/sitemap.xml") return sitemap(env);

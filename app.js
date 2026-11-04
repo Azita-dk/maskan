@@ -7,6 +7,10 @@
  */
 
 const DATA_BASE = 'https://maskan-build.azita-maskan.workers.dev';
+async function apiFetch(path, opts){
+  try { const r = await fetch(path, opts); if (r.ok) return r; } catch (e) {}
+  return fetch(DATA_BASE + path.replace(/^\/api\//, '/'), opts);
+}
 /* Bump this whenever the page files change. It is the only way to tell,
    from a phone in another country, whether a push actually arrived — and a
    stale stamp sends you hunting for a deployment problem that is not there,
@@ -1326,7 +1330,7 @@ function serverAds(sort, limit, bounds, redraw){
   const key = adsParams(sort, limit, bounds);
   if (key !== adsKey) {
     adsKey = key; adsServer = null;
-    fetch(`${DATA_BASE}/ads?${key}`).then(r => r.ok ? r.json() : null).then(j => {
+    apiFetch(`/api/ads?${key}`).then(r => r.ok ? r.json() : null).then(j => {
       if (key !== adsKey || !j || !Array.isArray(j.rows)) return;
       adsServer = j; redraw();
     }).catch(() => {});
@@ -1347,11 +1351,11 @@ function commit(){
 
 /* ---------------------------------------------------------- data access */
 async function loadStats(){
-  DB = await (await fetch(DATA_BASE + '/data/stats.json?v=' + cacheTick())).json();
+  DB = await (await apiFetch('/data/stats.json?v=' + cacheTick())).json();
   return DB;
 }
 async function loadCity(id){
-  CITY = await (await fetch(`${DATA_BASE}/data/${id}.json?v=${cacheTick()}`)).json();
+  CITY = await (await apiFetch(`/data/${id}.json?v=${cacheTick()}`)).json();
   CITY.id = id;
   return CITY;
 }
