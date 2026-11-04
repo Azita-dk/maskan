@@ -40,7 +40,7 @@ function page({ title, desc, canonical, body, jsonld }) {
 <meta property="og:description" content="${esc(desc)}">
 <meta property="og:url" content="${esc(canonical)}">
 <meta property="og:locale" content="fa_IR">
-<link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+<link href="/vendor/fonts/vazirmatn.css" rel="stylesheet">
 <link rel="stylesheet" href="/app.css">
 <style>
 .seo{max-width:900px;margin:0 auto;padding:0 20px 40px}

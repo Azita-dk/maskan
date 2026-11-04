@@ -1217,3 +1217,5 @@ html{scroll-padding-top:80px}
   .ov-row .ovc{background:transparent;box-shadow:none;border-radius:0}
   .ov-row .ovc + .ovc{border-inline-start:1px solid #D9E2DF}
 }
+.chartpair > .panel > header{flex-wrap:wrap;gap:8px;min-width:0}
+.chartpair > .panel{min-width:0}
