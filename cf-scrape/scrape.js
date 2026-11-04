@@ -658,7 +658,9 @@ async function pickCity(db) {
    * day each, every kind swept in about three days. The rotation is by the
    * clock rather than remembered, so nothing needs storing and a missed run
    * costs one turn instead of putting the order out permanently. */
-  const slot = Math.floor(Date.now() / 120000) % 3;   // one per 2-minute tick
+  const tick = Math.floor(Date.now() / 120000);
+  const slot = tick % 3;
+  const newFirst = tick % 3 === 1;
   const firstChoice = slot === 0 ? "kind = 'apartment'"
     : slot === 1 ? "kind = 'villa'"
     : "kind = 'land'";
@@ -669,8 +671,9 @@ async function pickCity(db) {
     WHERE source = 'divar'
       AND COALESCE(done_today, '') <> date('now')
     ORDER BY
-      (page > 0) DESC,                  -- finish what was started
-      (${firstChoice}) DESC,            -- whose hour it is
+      (page > 0) DESC,
+      ${newFirst ? "(last_run IS NULL) DESC," : ""}
+      (${firstChoice}) DESC,
       (julianday('now') - julianday(COALESCE(last_run, date('now', '-8 days'))))
         / ${REVISIT_DAYS} DESC,
       rowid ASC
@@ -1211,6 +1214,16 @@ function isLimitError(e) {
 export default {
   // the cron fires this
   async scheduled(event, env, ctx) {
+    ctx.waitUntil((async () => {
+      try {
+        if (!(await env.SITE.get("seed:done"))) {
+          const r = await seedCities(env);
+          await env.SITE.put("seed:last", JSON.stringify({ at: new Date().toISOString(), ...r }));
+          await env.SITE.put("seed:done", "1", { expirationTtl: 86400 });
+          console.log("seed: " + JSON.stringify(r));
+        }
+      } catch (e) { console.log("seed failed: " + e.message); }
+    })());
     ctx.waitUntil(scrapeChunk(env)
       .then((r) => console.log(r.log.join("\n")))
       .catch((e) => {
@@ -1353,6 +1366,13 @@ async function route(url, env) {
     if (url.pathname === "/seed") {
       const r = await seedCities(env);
       return json(r);
+    }
+    if (url.pathname === "/new-cities") {
+      const last = await env.SITE.get("seed:last", { type: "json" });
+      const { results } = await env.DB.prepare(`SELECT city, COUNT(*) AS bands, SUM(last_run IS NOT NULL) AS scraped
+        FROM scrape_state WHERE source = 'divar' AND city IN (${EXTRA_CITIES.map(() => "?").join(",")}) GROUP BY city`)
+        .bind(...EXTRA_CITIES).all();
+      return json({ seed: last, cities: results });
     }
     if (url.pathname === "/run") {
       const r = await scrapeChunk(env);
