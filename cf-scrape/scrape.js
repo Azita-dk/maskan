@@ -1017,7 +1017,7 @@ export async function scrapeChunk(env, log = []) {
       let posted = prev ? prev.posted : null;
       if (age && (!posted || (age.precise && age.date > posted))) posted = age.date;
       if (prev && prev.price === Number(price) && prev.kind === kind &&
-          prev.city === rowCity && (prev.hood || "") === keptHood &&
+          prev.city === rowCity && ((prev.hood || "") === keptHood || !!prev.hood) &&
           (prev.posted || null) === posted && !prev.removed &&
           (kind === "apartment" || area == null || prev.area === area)) {
         unchanged++; stillThere.push(token); continue;
@@ -1071,9 +1071,9 @@ export async function scrapeChunk(env, log = []) {
                         THEN COALESCE(excluded.area_m2, listings.area_m2) ELSE listings.area_m2 END AS INTEGER),${
             hasRemoved ? "\n          removed_at=NULL," : ""}
           city=excluded.city,
-          hood=CASE WHEN excluded.hood <> '' THEN excluded.hood
-                    WHEN excluded.city <> listings.city THEN ''
-                    ELSE listings.hood END,
+          hood=CASE WHEN excluded.city <> listings.city THEN excluded.hood
+                    WHEN COALESCE(listings.hood, '') <> '' THEN listings.hood
+                    ELSE excluded.hood END,
           dedupe_key=COALESCE(excluded.dedupe_key, listings.dedupe_key),
           scraped_at=excluded.scraped_at,
           kind=excluded.kind${seenSet}`)
@@ -1085,7 +1085,7 @@ export async function scrapeChunk(env, log = []) {
       stmts.push(db.prepare(
         `UPDATE listings SET last_seen = ?
          WHERE source='divar' AND source_id IN (${stillThere.map(() => "?").join(",")})
-           AND (last_seen IS NULL OR last_seen < date(?, '-2 days'))`).bind(today, ...stillThere, today));
+           AND (last_seen IS NULL OR last_seen < date(?, '-4 days'))`).bind(today, ...stillThere, today));
     }
 
     pag = (payload.pagination || {}).data || null;

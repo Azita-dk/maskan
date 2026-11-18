@@ -212,14 +212,20 @@ async function save(db, rows, today) {
   for (let i = 0; i < ids.length; i += 90) {
     const part = ids.slice(i, i + 90);
     const { results } = await db.prepare(
-      `SELECT source_id, price_toman FROM listings WHERE source='sheypoor' AND source_id IN (${part.map(() => "?").join(",")})`)
+      `SELECT source_id, price_toman, last_seen, removed_at FROM listings WHERE source='sheypoor' AND source_id IN (${part.map(() => "?").join(",")})`)
       .bind(...part).all();
-    for (const r of results) known.set(r.source_id, Number(r.price_toman));
+    for (const r of results) known.set(r.source_id, r);
   }
-  const stmts = [];
+  const stmts = [], refresh = [];
+  const stale = new Date(Date.parse(today) - 4 * 864e5).toISOString().slice(0, 10);
   for (const r of rows) {
+    const k = known.get(r.id);
+    const old = k ? Number(k.price_toman) : null;
+    if (k && old === r.price && !k.removed_at) {
+      if (!k.last_seen || k.last_seen < stale) refresh.push(r.id);
+      continue;
+    }
     const key = r.area ? await dedupeKey(r.city, r.hood, r.area, r.price) : null;
-    const old = known.get(r.id);
     const changed = old != null && old !== r.price;
     if (old == null || changed) {
       stmts.push(db.prepare(
@@ -250,6 +256,11 @@ async function save(db, rows, today) {
       .bind(r.id, r.city, r.hood, r.title, r.url, r.price, r.area, r.price_m2, r.raw, key,
             new Date().toISOString(), r.kind, r.posted, r.posted, today, today,
             r.rooms, r.age, r.lat, r.lng, r.address));
+  }
+  for (let i = 0; i < refresh.length; i += 90) {
+    const part = refresh.slice(i, i + 90);
+    stmts.push(db.prepare(`UPDATE listings SET last_seen = ? WHERE source='sheypoor' AND source_id IN (${part.map(() => "?").join(",")})`)
+      .bind(today, ...part));
   }
   for (let i = 0; i < stmts.length; i += 90) await db.batch(stmts.slice(i, i + 90));
   return rows.length;
@@ -310,7 +321,7 @@ async function recheck(env, today) {
   if (!n) return "recheck off";
   const { results } = await db.prepare(`
     SELECT source_id FROM listings
-    WHERE source='sheypoor' AND removed_at IS NULL AND last_seen < ?
+    WHERE source='sheypoor' AND removed_at IS NULL AND last_seen < date(?, '-7 days')
     ORDER BY last_seen LIMIT ?`).bind(today, n).all();
   const codes = {}, gone = [], live = [], added = [];
   for (const r of results) {

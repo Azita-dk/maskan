@@ -1484,14 +1484,14 @@ async function adsApi(url, env) {
     return Number.isFinite(n) ? n : null;
   };
 
-  if (!(await env.SITE.get("idx:ads:v2"))) {
+  if (!(await env.SITE.get("idx:ads:v3"))) {
     for (const sql of [
       "CREATE INDEX IF NOT EXISTS idx_ads_city_m2 ON listings(city, price_m2)",
-      "CREATE INDEX IF NOT EXISTS idx_ads_city_price ON listings(city, price_toman)",
       "CREATE INDEX IF NOT EXISTS idx_ads_dedupe ON listings(dedupe_key)",
       "CREATE INDEX IF NOT EXISTS idx_ads_city_new ON listings(city, COALESCE(price_changed_at, posted_at, substr(scraped_at, 1, 10)))",
     ]) await db.prepare(sql).run();
-    await env.SITE.put("idx:ads:v2", "1");
+    await db.prepare("DROP INDEX IF EXISTS idx_ads_city_price").run();
+    await env.SITE.put("idx:ads:v3", "1");
   }
   const hit = ADS_CACHE.get(url.search);
   if (hit && Date.now() - hit.t < 120e3) return new Response(hit.body, { headers: ADS_HEADERS });
