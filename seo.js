@@ -196,6 +196,15 @@ export default {
       return new Response(body, { headers: { "content-type": "application/json; charset=utf-8",
         "cache-control": "public, max-age=60, must-revalidate" } });
     }
+    if (url.pathname === "/api/health") {
+      const bi = await env.SITE.get("build:index", { type: "json" }) || {};
+      const st = await env.SITE.get("data/stats.json", { type: "json" }) || {};
+      const t = (st.cities || []).find((c) => c.name === "تهران") || {};
+      return new Response(JSON.stringify({
+        stats_generated: st.generated, cities: (st.cities || []).length, tehran_ads: t.n,
+        build: { day: bi.day, next: bi.next, started: bi.started, startedAt: bi.startedAt, lastError: bi.lastError },
+      }, null, 1), { headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" } });
+    }
     if (url.pathname === "/api/ads" || url.pathname === "/api/opps") {
       const target = new URL(url.pathname.slice(4) + url.search, BUILD_URL);
       const init = { method: request.method, headers: { "content-type": request.headers.get("content-type") || "text/plain" },

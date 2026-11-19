@@ -316,7 +316,8 @@ export async function build(env, log = [], from = 0, self = null) {
            ${hasRemoved ? "removed_at" : "NULL"} AS removed
     FROM listings
     WHERE price_toman IS NOT NULL AND price_toman > 0
-      AND city IN (${sliceCities.map(() => "?").join(",")})`)
+      AND city IN (${sliceCities.map(() => "?").join(",")})
+      ${hasLastSeen ? "AND COALESCE(last_seen, substr(scraped_at, 1, 10)) >= '2026-07-01'" : ""}`)
     .bind(...sliceCities).all();
 
   const KEEP_SOURCES = new Set(["divar", "sheypoor"]);
@@ -1485,13 +1486,13 @@ async function adsApi(url, env) {
   };
 
   if (!(await env.SITE.get("idx:ads:v3"))) {
+    await env.SITE.put("idx:ads:v3", "1");
     for (const sql of [
       "CREATE INDEX IF NOT EXISTS idx_ads_city_m2 ON listings(city, price_m2)",
       "CREATE INDEX IF NOT EXISTS idx_ads_dedupe ON listings(dedupe_key)",
       "CREATE INDEX IF NOT EXISTS idx_ads_city_new ON listings(city, COALESCE(price_changed_at, posted_at, substr(scraped_at, 1, 10)))",
-    ]) await db.prepare(sql).run();
-    await db.prepare("DROP INDEX IF EXISTS idx_ads_city_price").run();
-    await env.SITE.put("idx:ads:v3", "1");
+      "DROP INDEX IF EXISTS idx_ads_city_price",
+    ]) { try { await db.prepare(sql).run(); } catch (e) { console.log("index: " + e.message); } }
   }
   const hit = ADS_CACHE.get(url.search);
   if (hit && Date.now() - hit.t < 120e3) return new Response(hit.body, { headers: ADS_HEADERS });
@@ -1567,6 +1568,13 @@ export default {
           from = p.next === null ? 0 : (p.next || 0);
         }
       } catch (e) { /* start from the beginning */ }
+      try {
+        const prev = await env.SITE.get("build:index", { type: "json" });
+        await env.SITE.put("build:index", JSON.stringify({
+          ...(prev || {}), day: today, next: from + (Number(env.SLICE) || SLICE_DEFAULT),
+          started: from, startedAt: new Date().toISOString(),
+        }), { expirationTtl: 86400 });
+      } catch (e) { /* progress is saved by the build itself */ }
       try {
         const r = await build(env, [], from);
         if (r.more === false && r.cities === 0) {
